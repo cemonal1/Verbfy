@@ -1,7 +1,7 @@
 import React from 'react';
 import Head from 'next/head';
-import DashboardLayout from '../../src/layouts/DashboardLayout';
-import TeacherCalendar from '../../src/components/teacher/TeacherCalendar';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import TeacherCalendar from '@/components/teacher/TeacherCalendar';
 
 const TeacherAvailabilityPage: React.FC = () => {
   return (

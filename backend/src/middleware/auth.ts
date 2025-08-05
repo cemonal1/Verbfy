@@ -23,8 +23,14 @@ export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
   }
 };
 
-export const requireRole = (role: 'student' | 'teacher' | 'admin') => (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (!req.user || req.user.role !== role) {
+export const requireRole = (roles: 'student' | 'teacher' | 'admin' | ('student' | 'teacher' | 'admin')[]) => (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(403).json({ message: 'Forbidden: authentication required' });
+  }
+  
+  const allowedRoles = Array.isArray(roles) ? roles : [roles];
+  
+  if (!allowedRoles.includes(req.user.role)) {
     return res.status(403).json({ message: 'Forbidden: insufficient role' });
   }
   next();

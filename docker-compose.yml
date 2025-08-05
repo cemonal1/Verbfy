@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: verbfy-livekit
+    ports:
+      - "7880:7880"  # WebSocket port
+      - "7881:7881"  # HTTP port
+      - "7882:7882/udp"  # UDP port for media
+    environment:
+      - LIVEKIT_KEYS=uc4eRZW1iYWcX2UXeoQ/v1JJ/ackt/qelbFiatS/WwM=:1M2k3w3MV/PMZIvB2tANCZ0ZXcw93hhkV4N7eyW+QNQ=
+    command: --dev --node-ip=0.0.0.0
+    restart: unless-stopped
+    networks:
+      - verbfy-network
+
+  backend:
+    build: ./backend
+    container_name: verbfy-backend
+    ports:
+      - "5001:5001"
+    environment:
+      - MONGO_URI=mongodb+srv://Verbfy:VerbfyDataBack@verbfy.kxzpcit.mongodb.net/verbfy?retryWrites=true&w=majority&appName=Verbfy
+      - PORT=5001
+      - NODE_ENV=development
+      - JWT_SECRET=ddb2070e412a4e227a233c3ed275d1cc6603ce9f9a0bfda81ecbbbbab81fd491
+      - JWT_REFRESH_SECRET=ddb2070e412a4e227a233c3ed275d1cc6603ce9f9a0bfda81ecbbbbab81fd491_refresh
+      - FRONTEND_URL=http://localhost:3000
+      - LIVEKIT_CLOUD_API_KEY=uc4eRZW1iYWcX2UXeoQ/v1JJ/ackt/qelbFiatS/WwM=
+      - LIVEKIT_CLOUD_API_SECRET=1M2k3w3MV/PMZIvB2tANCZ0ZXcw93hhkV4N7eyW+QNQ=
+      - LIVEKIT_CLOUD_URL=wss://localhost:7880
+      - LIVEKIT_SELF_API_KEY=uc4eRZW1iYWcX2UXeoQ/v1JJ/ackt/qelbFiatS/WwM=
+      - LIVEKIT_SELF_API_SECRET=1M2k3w3MV/PMZIvB2tANCZ0ZXcw93hhkV4N7eyW+QNQ=
+      - LIVEKIT_SELF_URL=wss://localhost:7880
+    depends_on:
+      - livekit
+    networks:
+      - verbfy-network
+
+  frontend:
+    build: ./verbfy-app
+    container_name: verbfy-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5001
+      - NEXT_PUBLIC_LIVEKIT_URL=wss://localhost:7880
+      - NEXT_PUBLIC_LIVEKIT_CLOUD_URL=wss://localhost:7880
+    depends_on:
+      - backend
+    networks:
+      - verbfy-network
+
+networks:
+  verbfy-network:
+    driver: bridge 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import DashboardLayout from '../../src/layouts/DashboardLayout';
-import { useConversationRoomViewModel } from '../../src/features/conversation/viewmodel/useConversationRoomViewModel';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { useConversationRoomViewModel } from '@/features/conversation/viewmodel/useConversationRoomViewModel';
 
 function RoomsPage() {
   const {

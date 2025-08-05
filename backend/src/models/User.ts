@@ -21,15 +21,38 @@ export interface IUser extends Document {
   totalLessons?: number;
   // Student-specific fields
   englishLevel?: 'Beginner' | 'Intermediate' | 'Advanced';
+  cefrLevel?: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
   learningGoals?: string[];
   preferredLessonTypes?: string[];
   totalLessonsTaken?: number;
+  // Enhanced learning tracking
+  overallProgress?: {
+    grammar: number; // 0-100
+    reading: number; // 0-100
+    writing: number; // 0-100
+    speaking: number; // 0-100
+    listening: number; // 0-100
+    vocabulary: number; // 0-100
+  };
+  currentStreak?: number;
+  longestStreak?: number;
+  totalStudyTime?: number; // in minutes
+  achievements?: string[];
+  // Subscription fields
+  subscriptionStatus?: 'active' | 'inactive' | 'expired';
+  subscriptionType?: string;
+  subscriptionExpiry?: Date;
+  // Lesson tokens
+  lessonTokens?: number;
   // Common fields
   isActive: boolean;
   lastActive?: Date;
   createdAt: Date;
   updatedAt: Date;
   refreshTokenVersion: number; // for refresh token rotation
+  // Multi-tenant organization support
+  organizationId?: mongoose.Types.ObjectId;
+  lastActiveAt?: Date;
 }
 
 const UserSchema = new Schema<IUser>({
@@ -53,15 +76,50 @@ const UserSchema = new Schema<IUser>({
   totalLessons: { type: Number, default: 0 },
   // Student-specific fields
   englishLevel: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced'] },
+  cefrLevel: { type: String, enum: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] },
   learningGoals: [{ type: String }],
   preferredLessonTypes: [{ type: String }],
   totalLessonsTaken: { type: Number, default: 0 },
+  // Enhanced learning tracking
+  overallProgress: {
+    grammar: { type: Number, min: 0, max: 100, default: 0 },
+    reading: { type: Number, min: 0, max: 100, default: 0 },
+    writing: { type: Number, min: 0, max: 100, default: 0 },
+    speaking: { type: Number, min: 0, max: 100, default: 0 },
+    listening: { type: Number, min: 0, max: 100, default: 0 },
+    vocabulary: { type: Number, min: 0, max: 100, default: 0 }
+  },
+  currentStreak: { type: Number, default: 0 },
+  longestStreak: { type: Number, default: 0 },
+  totalStudyTime: { type: Number, default: 0 },
+  achievements: [{ type: String }],
+  // Subscription fields
+  subscriptionStatus: {
+    type: String,
+    enum: ['active', 'inactive', 'expired'],
+    default: 'inactive'
+  },
+  subscriptionType: String,
+  subscriptionExpiry: Date,
+  // Lesson tokens
+  lessonTokens: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   // Common fields
   isActive: { type: Boolean, default: true },
   lastActive: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   refreshTokenVersion: { type: Number, default: 0 },
+  // Multi-tenant organization support
+  organizationId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Organization',
+    index: true
+  },
+  lastActiveAt: { type: Date }
 });
 
 // Update the updatedAt field on save

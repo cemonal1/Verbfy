@@ -15,9 +15,9 @@ export function useLogoutViewModel() {
     setError(null);
     try {
       await api.post('/api/auth/logout');
-      setApiAccessToken(null);
+      setApiAccessToken('');
       setUser(null);
-      setAccessToken(null);
+      setAccessToken('');
       router.push('/login');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -25,9 +25,9 @@ export function useLogoutViewModel() {
       setError(msg);
       toastError(msg);
       // Even if logout fails on server, clear local state
-      setApiAccessToken(null);
+      setApiAccessToken('');
       setUser(null);
-      setAccessToken(null);
+      setAccessToken('');
       router.push('/login');
     } finally {
       setLoading(false);

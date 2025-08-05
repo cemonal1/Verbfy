@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import DashboardLayout from '@/layouts/DashboardLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import TeacherAvailabilityView from '@/components/student/TeacherAvailabilityView';
 import { useAuthContext } from '@/context/AuthContext';
 import api from '@/lib/api';

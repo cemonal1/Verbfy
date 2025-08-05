@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import DashboardLayout from '@/layouts/DashboardLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuthContext } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { toastError, toastSuccess } from '@/lib/toast';
