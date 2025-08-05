@@ -1,6 +1,15 @@
 import { Request, Response } from 'express';
 import { LiveKitService } from '../services/livekitService';
 
+interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+}
+
 export class LiveKitController {
   private livekitService: LiveKitService;
 
@@ -8,37 +17,43 @@ export class LiveKitController {
     this.livekitService = new LiveKitService();
   }
 
-  /**
-   * Generate a LiveKit token for room access
-   */
-  async generateToken(req: Request, res: Response) {
+  generateToken = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { roomName } = req.params;
       const { metadata } = req.body;
 
       if (!roomName) {
-        return res.status(400).json({
+        res.status(400).json({
           error: 'Room name is required'
         });
+        return;
+      }
+
+      if (!req.user?.id || !req.user?.name) {
+        res.status(401).json({
+          error: 'User not authenticated'
+        });
+        return;
       }
 
       // Validate room access
       const accessValidation = await this.livekitService.validateRoomAccess(
-        req.user!.id,
+        req.user.id,
         roomName
       );
 
       if (!accessValidation.isValid) {
-        return res.status(403).json({
+        res.status(403).json({
           error: 'Access denied',
           reason: accessValidation.reason
         });
+        return;
       }
 
       // Generate token
       const { token, url, isCloud } = await this.livekitService.generateToken({
-        userId: req.user!.id,
-        userName: req.user!.name,
+        userId: req.user.id,
+        userName: req.user.name,
         roomName,
         metadata
       });
@@ -55,23 +70,28 @@ export class LiveKitController {
         error: 'Failed to generate token'
       });
     }
-  }
+  };
 
-  /**
-   * Validate access to a room
-   */
-  async validateAccess(req: Request, res: Response) {
+  validateAccess = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { roomName } = req.params;
 
       if (!roomName) {
-        return res.status(400).json({
+        res.status(400).json({
           error: 'Room name is required'
         });
+        return;
+      }
+
+      if (!req.user?.id) {
+        res.status(401).json({
+          error: 'User not authenticated'
+        });
+        return;
       }
 
       const validation = await this.livekitService.validateRoomAccess(
-        req.user!.id,
+        req.user.id,
         roomName
       );
 
@@ -82,5 +102,5 @@ export class LiveKitController {
         error: 'Failed to validate room access'
       });
     }
-  }
+  };
 } 

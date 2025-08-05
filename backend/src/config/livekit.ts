@@ -64,13 +64,13 @@ class LiveKitConfiguration {
     return isCloud ? this.cloudConfig : this.selfHostedConfig;
   }
 
-  public generateToken(params: {
+  public async generateToken(params: {
     userId: string;
     userName: string;
     roomName: string;
     isCloud: boolean;
     metadata?: string;
-  }): string {
+  }): Promise<string> {
     const config = this.getConfig(params.isCloud);
     
     if (!config.apiKey || !config.apiSecret) {
@@ -91,7 +91,7 @@ class LiveKitConfiguration {
       canPublishData: true
     });
 
-    return at.toJwt();
+    return await at.toJwt();
   }
 
   public getServerUrl(isCloud: boolean): string {

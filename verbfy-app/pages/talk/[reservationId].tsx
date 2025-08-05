@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { useAuthContext } from '../../src/context/AuthContext';
-import { LiveKitRoom } from '../../src/components/livekit/LiveKitRoom';
-import { LiveKitProvider } from '../../src/context/LiveKitContext';
+import { useAuthContext } from '@/context/AuthContext';
+import { LiveKitRoom } from '@/components/livekit/LiveKitRoom';
+import { LiveKitProvider } from '@/context/LiveKitContext';
 
 export default function TalkPage() {
   const router = useRouter();

@@ -2,8 +2,9 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export interface ILessonProgress extends Document {
   student: mongoose.Types.ObjectId;
-  lessonType: 'VerbfySpeak' | 'VerbfyListen' | 'VerbfyRead' | 'VerbfyWrite' | 'VerbfyGrammar' | 'VerbfyExam';
+  lessonType: 'VerbfySpeak' | 'VerbfyListen' | 'VerbfyRead' | 'VerbfyWrite' | 'VerbfyGrammar' | 'VerbfyVocab';
   level: 'Beginner' | 'Intermediate' | 'Advanced';
+  cefrLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
   totalLessons: number;
   completedLessons: number;
   averageScore: number; // 0-100
@@ -20,6 +21,19 @@ export interface ILessonProgress extends Document {
     grammar: number; // 0-100
     vocabulary: number; // 0-100
   };
+  // Enhanced tracking
+  weeklyProgress: {
+    week: string; // YYYY-WW format
+    lessonsCompleted: number;
+    timeSpent: number;
+    averageScore: number;
+  }[];
+  monthlyProgress: {
+    month: string; // YYYY-MM format
+    lessonsCompleted: number;
+    timeSpent: number;
+    averageScore: number;
+  }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,12 +42,17 @@ const LessonProgressSchema = new Schema<ILessonProgress>({
   student: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   lessonType: { 
     type: String, 
-    enum: ['VerbfySpeak', 'VerbfyListen', 'VerbfyRead', 'VerbfyWrite', 'VerbfyGrammar', 'VerbfyExam'], 
+    enum: ['VerbfySpeak', 'VerbfyListen', 'VerbfyRead', 'VerbfyWrite', 'VerbfyGrammar', 'VerbfyVocab'], 
     required: true 
   },
   level: { 
     type: String, 
     enum: ['Beginner', 'Intermediate', 'Advanced'], 
+    required: true 
+  },
+  cefrLevel: { 
+    type: String, 
+    enum: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'], 
     required: true 
   },
   totalLessons: { type: Number, default: 0 },
@@ -52,6 +71,19 @@ const LessonProgressSchema = new Schema<ILessonProgress>({
     grammar: { type: Number, min: 0, max: 100, default: 0 },
     vocabulary: { type: Number, min: 0, max: 100, default: 0 },
   },
+  // Enhanced tracking
+  weeklyProgress: [{
+    week: { type: String, required: true },
+    lessonsCompleted: { type: Number, default: 0 },
+    timeSpent: { type: Number, default: 0 },
+    averageScore: { type: Number, min: 0, max: 100, default: 0 }
+  }],
+  monthlyProgress: [{
+    month: { type: String, required: true },
+    lessonsCompleted: { type: Number, default: 0 },
+    timeSpent: { type: Number, default: 0 },
+    averageScore: { type: Number, min: 0, max: 100, default: 0 }
+  }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

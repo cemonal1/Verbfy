@@ -11,6 +11,9 @@ export interface IReservation extends Document {
   isPaid: boolean;
   lessonType?: string;
   lessonLevel?: string;
+  lessonDuration?: number; // Duration in minutes
+  dayOfWeek?: number; // Day of the week (0-6, Sunday-Saturday) for recurring reservations
+  feedback?: string; // Student feedback after lesson
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,6 +58,18 @@ const ReservationSchema: Schema = new Schema({
   },
   lessonLevel: {
     type: String
+  },
+  lessonDuration: {
+    type: Number,
+    default: 60 // Default 60 minutes
+  },
+  dayOfWeek: {
+    type: Number,
+    min: 0,
+    max: 6 // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  },
+  feedback: {
+    type: String
   }
 }, {
   timestamps: true
@@ -64,5 +79,6 @@ const ReservationSchema: Schema = new Schema({
 ReservationSchema.index({ teacher: 1, actualDate: 1 });
 ReservationSchema.index({ student: 1, actualDate: 1 });
 ReservationSchema.index({ status: 1 });
+ReservationSchema.index({ dayOfWeek: 1 });
 
 export const Reservation = mongoose.model<IReservation>('Reservation', ReservationSchema); 

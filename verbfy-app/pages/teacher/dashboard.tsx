@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import DashboardLayout from '../../src/layouts/DashboardLayout';
-import { useAuthContext } from '../../src/context/AuthContext';
-import api from '../../src/lib/api';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { useAuthContext } from '@/context/AuthContext';
+import api from '@/lib/api';
 import Link from 'next/link';
 
 interface Booking {

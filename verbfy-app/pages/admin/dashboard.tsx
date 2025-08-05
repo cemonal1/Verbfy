@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useAuthContext } from '../../src/context/AuthContext';
+import { useAuthContext } from '@/context/AuthContext';
 import { useRouter } from 'next/router';
-import api from '../../src/lib/api';
+import api from '@/lib/api';
 
 interface AdminStats {
   totalUsers: number;

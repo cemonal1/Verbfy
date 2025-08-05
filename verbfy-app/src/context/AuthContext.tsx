@@ -1,161 +1,303 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { AuthUser } from '../features/auth/model/AuthUser';
-import api, { setApiAccessToken } from '@/lib/api';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useRouter } from 'next/router';
+import api, { authAPI } from '../lib/api';
+import { tokenStorage } from '../utils/secureStorage';
 
-interface AuthContextType {
-  user: AuthUser | null;
-  setUser: (user: AuthUser | null) => void;
-  accessToken: string | null;
-  setAccessToken: (token: string | null) => void;
-  loading: boolean;
+// User interface
+export interface User {
+  _id: string;
+  id: string; // Alias for backward compatibility
+  name: string;
+  email: string;
+  role: 'student' | 'teacher' | 'admin';
+  avatar?: string;
+  // Learning progress fields
+  cefrLevel?: string;
+  overallProgress?: number;
+  currentStreak?: number;
+  longestStreak?: number;
+  totalStudyTime?: number;
+  achievements?: string[];
+  // Subscription fields
+  subscriptionStatus?: 'active' | 'inactive' | 'expired';
+  subscriptionType?: string;
+  subscriptionExpiry?: string;
+  // Lesson tokens
+  lessonTokens?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  setUser: () => {},
-  accessToken: null,
-  setAccessToken: () => {},
-  loading: true,
-});
+// Auth context interface
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  loading: boolean; // Alias for backward compatibility
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (userData: RegisterData) => Promise<boolean>;
+  logout: () => void;
+  refreshUser: () => Promise<void>;
+  setUser: (user: User | null) => void; // For backward compatibility
+  setAccessToken: (token: string) => void; // For backward compatibility
+}
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+// Register data interface
+interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+  role: 'student' | 'teacher';
+}
 
-  // Load authentication state from localStorage on app startup
+// Create context
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Provider component
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+
+  // Check if user is authenticated
+  const isAuthenticated = !!user;
+
+  // Load user on mount
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        // Check if we're in a browser environment
-        if (typeof window === 'undefined') {
-          console.log('SSR detected, skipping auth initialization');
-          setLoading(false);
-          return;
-        }
-
-        console.log('Initializing auth from localStorage...');
-        const storedUser = localStorage.getItem('verbfy_user');
-        const storedToken = localStorage.getItem('verbfy_access_token');
-
-        console.log('Stored user:', storedUser ? 'exists' : 'not found');
-        console.log('Stored token:', storedToken ? 'exists' : 'not found');
-
-        if (storedUser && storedToken) {
-          const parsedUser = JSON.parse(storedUser);
-          console.log('Parsed user:', parsedUser);
-          
-          // Set the token in the API client
-          setApiAccessToken(storedToken);
-          
-          // Check if token is about to expire (within 2 minutes)
-          try {
-            const tokenPayload = JSON.parse(atob(storedToken.split('.')[1]));
-            const tokenExp = tokenPayload.exp * 1000; // Convert to milliseconds
-            const now = Date.now();
-            const timeUntilExpiry = tokenExp - now;
-            
-            console.log('Token expires in:', Math.floor(timeUntilExpiry / 1000), 'seconds');
-            
-            // If token expires within 2 minutes, refresh it proactively
-            if (timeUntilExpiry < 120000) { // 2 minutes in milliseconds
-              console.log('Token expires soon, refreshing proactively...');
-              try {
-                const response = await api.post('/api/auth/refresh-token');
-                const newToken = response.data.accessToken;
-                console.log('Token refreshed proactively');
-                setApiAccessToken(newToken);
-                setAccessToken(newToken);
-                localStorage.setItem('verbfy_access_token', newToken);
-              } catch (refreshError) {
-                console.log('Proactive refresh failed, will validate existing token');
-              }
-            }
-          } catch (parseError) {
-            console.log('Could not parse token payload, proceeding with validation');
-          }
-          
-          // Validate the token by making a test request
-          try {
-            console.log('Validating token with backend...');
-            // Try to fetch user profile or validate token
-            await api.get('/api/auth/me');
-            
-            // If successful, restore the user session
-            console.log('Token validation successful, restoring session');
-            setUser(parsedUser);
-            setAccessToken(storedToken);
-          } catch (error) {
-            // Token is invalid, clear stored data
-            console.log('Stored token is invalid, clearing auth data');
-            console.error('Token validation error:', error);
-            localStorage.removeItem('verbfy_user');
-            localStorage.removeItem('verbfy_access_token');
-            setApiAccessToken(null);
-          }
-        } else {
-          console.log('No stored auth data found');
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-        // Clear any corrupted data
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('verbfy_user');
-          localStorage.removeItem('verbfy_access_token');
-        }
-        setApiAccessToken(null);
-      } finally {
-        console.log('Auth initialization complete');
-        setLoading(false);
-      }
-    };
-
-    initializeAuth();
+    loadUser();
   }, []);
 
-  // Update localStorage when user or token changes
-  const updateUser = (newUser: AuthUser | null) => {
-    console.log('updateUser called with:', newUser);
-    setUser(newUser);
-    if (typeof window !== 'undefined') {
-      if (newUser) {
-        localStorage.setItem('verbfy_user', JSON.stringify(newUser));
-        console.log('User saved to localStorage');
-      } else {
-        localStorage.removeItem('verbfy_user');
-        console.log('User removed from localStorage');
+  // Load user from token
+  const loadUser = async () => {
+    try {
+      const token = tokenStorage.getToken();
+      
+      if (!token) {
+        setIsLoading(false);
+        return;
       }
+
+      // Verify token and get user data
+      const response = await authAPI.getCurrentUser();
+      
+      if (response.data.success) {
+        const userData = response.data.user;
+        
+        // Add id alias for backward compatibility
+        const userWithId = {
+          ...userData,
+          id: userData._id
+        };
+        
+        setUser(userWithId);
+        // Update stored user data
+        tokenStorage.setUser(userWithId);
+      } else {
+        // Invalid token, clear it
+        tokenStorage.clear();
+      }
+    } catch (error) {
+      console.error('Error loading user:', error);
+      // Clear invalid token
+      tokenStorage.clear();
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const updateAccessToken = (newToken: string | null) => {
-    console.log('updateAccessToken called with:', newToken ? 'token exists' : 'null');
-    setAccessToken(newToken);
-    setApiAccessToken(newToken);
-    if (typeof window !== 'undefined') {
-      if (newToken) {
-        localStorage.setItem('verbfy_access_token', newToken);
-        console.log('Token saved to localStorage');
-      } else {
-        localStorage.removeItem('verbfy_access_token');
-        console.log('Token removed from localStorage');
+  // Login function
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      
+      const response = await authAPI.login({ email, password });
+      
+      if (response.data.success) {
+        const { token, user: userData } = response.data;
+        
+        // Add id alias for backward compatibility
+        const userWithId = {
+          ...userData,
+          id: userData._id
+        };
+        
+        // Store token and user data securely
+        tokenStorage.setToken(token);
+        tokenStorage.setUser(userWithId);
+        
+        // Set user in state
+        setUser(userWithId);
+        
+        return true;
       }
+      
+      return false;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // Register function
+  const register = async (userData: RegisterData): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      
+      const response = await authAPI.register(userData);
+      
+      if (response.data.success) {
+        const { token, user: newUser } = response.data;
+        
+        // Add id alias for backward compatibility
+        const userWithId = {
+          ...newUser,
+          id: newUser._id
+        };
+        
+        // Store token and user data securely
+        tokenStorage.setToken(token);
+        tokenStorage.setUser(userWithId);
+        
+        // Set user in state
+        setUser(userWithId);
+        
+        return true;
+      }
+      
+      return false;
+    } catch (error: any) {
+      console.error('Register error:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Logout function
+  const logout = async () => {
+    try {
+      // Call logout API
+      await authAPI.logout();
+    } catch (error) {
+      console.error('Logout API error:', error);
+    } finally {
+      // Clear secure storage
+      tokenStorage.clear();
+      
+      // Clear user state
+      setUser(null);
+      
+      // Redirect to login
+      router.push('/login');
+    }
+  };
+
+  // Set user function for backward compatibility
+  const setUserFunction = (newUser: User | null) => {
+    setUser(newUser);
+  };
+
+  // Refresh user data
+  const refreshUser = async () => {
+    try {
+      const response = await authAPI.getCurrentUser();
+      
+      if (response.data.success) {
+        const updatedUser = response.data.user;
+        
+        // Add id alias for backward compatibility
+        const userWithId = {
+          ...updatedUser,
+          id: updatedUser._id
+        };
+        
+        setUser(userWithId);
+        tokenStorage.setUser(userWithId);
+      }
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+      // If refresh fails, logout
+      logout();
+    }
+  };
+
+  // Context value
+  const value: AuthContextType = {
+    user,
+    isAuthenticated,
+    isLoading,
+    loading: isLoading, // Alias for backward compatibility
+    login,
+    register,
+    logout,
+    refreshUser,
+    setUser: setUserFunction, // For backward compatibility
+    setAccessToken: (token: string) => {
+      tokenStorage.setToken(token);
+    }, // For backward compatibility
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      setUser: updateUser, 
-      accessToken, 
-      setAccessToken: updateAccessToken,
-      loading 
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export function useAuthContext() {
-  return useContext(AuthContext);
+// Custom hook to use auth context
+export function useAuth() {
+  const context = useContext(AuthContext);
+  
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  
+  return context;
+}
+
+// Alias for backward compatibility
+export const useAuthContext = useAuth;
+
+// Role guard hook
+export function useRoleGuard(allowedRoles: ('student' | 'teacher' | 'admin')[]) {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.push('/login');
+        return;
+      }
+
+      if (user && !allowedRoles.includes(user.role)) {
+        // Redirect to appropriate dashboard based on user role
+        switch (user.role) {
+          case 'student':
+            router.push('/dashboard/student');
+            break;
+          case 'teacher':
+            router.push('/dashboard/teacher');
+            break;
+          case 'admin':
+            router.push('/dashboard/admin');
+            break;
+          default:
+            router.push('/login');
+        }
+      }
+    }
+  }, [user, isAuthenticated, isLoading, allowedRoles, router]);
+
+  return {
+    hasAccess: user ? allowedRoles.includes(user.role) : false,
+    isLoading,
+    user,
+  };
 } 
