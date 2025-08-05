@@ -1,22 +1,18 @@
-import express from 'express';
+import { Router } from 'express';
 import { LiveKitController } from '../controllers/livekitController';
-import { requireAuth } from '../middleware/auth';
+import { auth } from '../middleware/auth';
 
-const router = express.Router();
-const livekitController = new LiveKitController();
+const router = Router();
+const controller = new LiveKitController();
 
 // Generate token for a room
-router.post(
-  '/token/:roomName',
-  requireAuth,
-  livekitController.generateToken.bind(livekitController)
-);
+router.post('/token/:roomName', auth, async (req, res) => {
+  await controller.generateToken(req, res);
+});
 
 // Validate room access
-router.get(
-  '/validate/:roomName',
-  requireAuth,
-  livekitController.validateAccess.bind(livekitController)
-);
+router.get('/validate/:roomName', auth, async (req, res) => {
+  await controller.validateAccess(req, res);
+});
 
 export default router; 

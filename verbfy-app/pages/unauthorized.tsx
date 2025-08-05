@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { useAuthContext } from '../src/context/AuthContext';
+import { useAuthContext } from '@/context/AuthContext';
 
 export default function UnauthorizedPage() {
   const { user } = useAuthContext();

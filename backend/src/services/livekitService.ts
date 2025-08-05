@@ -41,7 +41,7 @@ export class LiveKitService {
     try {
       const isCloud = await this.shouldUseCloud(params.roomName);
       
-      const token = livekitConfig.generateToken({
+      const token = await livekitConfig.generateToken({
         userId: params.userId,
         userName: params.userName,
         roomName: params.roomName,

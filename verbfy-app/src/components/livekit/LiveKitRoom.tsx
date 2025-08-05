@@ -82,8 +82,8 @@ export const LiveKitRoom: React.FC<LiveKitRoomProps> = ({
 
   return (
     <div className="h-full">
-      <VideoConference room={room}>
-        <GridLayout>
+      <VideoConference>
+        <GridLayout tracks={useTracks()}>
           <ParticipantTile />
         </GridLayout>
         <RoomAudioRenderer />

@@ -1,6 +1,24 @@
 import { Router } from 'express';
 import { auth, requireRole } from '../middleware/auth';
-import * as adminController from '../controllers/adminController';
+import {
+  // User Management
+  getUsers,
+  getUserById,
+  updateUserRole,
+  updateUserStatus,
+  deleteUser,
+  // Material Moderation
+  getMaterials,
+  approveMaterial,
+  deleteMaterial,
+  // Payment Management
+  getPayments,
+  refundPayment,
+  // Logs & Activity
+  getLogs,
+  // Analytics/Overview
+  getOverview
+} from '../controllers/adminController';
 
 const router = Router();
 
@@ -8,16 +26,32 @@ const router = Router();
 router.use(auth);
 router.use(requireRole('admin'));
 
-// Get admin statistics
-router.get('/stats', adminController.getAdminStats);
+// Analytics/Overview
+router.get('/overview', getOverview);
 
-// Get recent activities
-router.get('/activities', adminController.getRecentActivities);
+// User Management
+router.get('/users', getUsers);
+router.get('/users/:id', getUserById);
+router.patch('/users/:id/role', updateUserRole);
+router.patch('/users/:id/status', updateUserStatus);
+router.delete('/users/:id', deleteUser);
 
-// Get all users with pagination and filtering
-router.get('/users', adminController.getAllUsers);
+// Material Moderation
+router.get('/materials', getMaterials);
+router.patch('/materials/:id/approve', approveMaterial);
+router.delete('/materials/:id', deleteMaterial);
 
-// Update user status
-router.patch('/users/:userId/status', adminController.updateUserStatus);
+// Payment Management
+router.get('/payments', getPayments);
+router.patch('/payments/:id/refund', refundPayment);
+
+// Logs & Activity
+router.get('/logs', getLogs);
+
+// Legacy routes for backward compatibility
+router.get('/stats', getOverview);
+router.get('/activities', getLogs);
+router.get('/getAllUsers', getUsers);
+router.patch('/users/:userId/status', updateUserStatus);
 
 export default router; 

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { useAuthContext } from '../src/context/AuthContext';
+import { useAuthContext } from '@/context/AuthContext';
 
 export default function DashboardRedirect() {
   const router = useRouter();

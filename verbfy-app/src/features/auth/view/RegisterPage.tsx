@@ -9,10 +9,13 @@ import HomeButton from '@/components/shared/HomeButton';
 interface RegisterResponse {
   accessToken: string;
   user: {
+    _id: string;
     id: string;
     name: string;
     email: string;
     role: 'student' | 'teacher';
+    createdAt: string;
+    updatedAt: string;
   };
 }
 

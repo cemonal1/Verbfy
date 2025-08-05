@@ -1,14 +1,12 @@
 import React from 'react';
-import DashboardLayout from '../../src/layouts/DashboardLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 function TeacherEarningsPage() {
   return (
     <DashboardLayout allowedRoles={['teacher']}>
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center py-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Earnings & Analytics</h1>
-          <p className="text-xl text-gray-600">Coming Soon - Track your earnings and teaching analytics</p>
-        </div>
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-4">Earnings</h1>
+        <p>Earnings content will be displayed here.</p>
       </div>
     </DashboardLayout>
   );

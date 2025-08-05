@@ -1,21 +1,18 @@
-// Simple toast implementation - can be replaced with a proper toast library later
+// Toast implementation that integrates with the existing Toast component system
+import { toast } from '../components/common/Toast';
+
 export const toastError = (message: string) => {
-  console.error('Toast Error:', message);
-  // For now, just use alert - replace with proper toast library
-  if (typeof window !== 'undefined') {
-    alert(`❌ ${message}`);
-  }
+  toast.error(message);
 };
 
 export const toastSuccess = (message: string) => {
-  // In a real app, you'd use a toast library like react-hot-toast or react-toastify
-  alert(`✅ ${message}`);
+  toast.success(message);
 };
 
 export const toastWarning = (message: string) => {
-  console.warn('Toast Warning:', message);
-  // For now, just use alert - replace with proper toast library
-  if (typeof window !== 'undefined') {
-    alert(`Warning: ${message}`);
-  }
+  toast.warning(message);
+};
+
+export const toastInfo = (message: string) => {
+  toast.info(message);
 }; 

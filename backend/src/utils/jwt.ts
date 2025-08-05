@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
-// Check if we're in development and provide helpful error messages
+// Validate required environment variables
 if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
   console.error('❌ JWT Configuration Error:');
   console.error('   JWT_SECRET and JWT_REFRESH_SECRET must be defined in environment variables');
@@ -21,18 +21,17 @@ if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
   console.error('   You can generate them using: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
   console.error('');
   
-  // In development, we can provide a fallback, but warn the user
-  if (process.env.NODE_ENV === 'development') {
-    console.warn('⚠️  Using fallback JWT secrets for development (NOT SECURE FOR PRODUCTION)');
-    console.warn('   Please set proper JWT secrets in your .env file');
+  // CRITICAL: Never use fallback secrets in production
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be defined in environment variables for production');
   } else {
     throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be defined in environment variables');
   }
 }
 
-// Use fallback secrets for development if not provided
-const SECRET = JWT_SECRET || 'dev-jwt-secret-not-for-production-use-this-only-for-development';
-const REFRESH_SECRET = JWT_REFRESH_SECRET || 'dev-refresh-jwt-secret-not-for-production-use-this-only-for-development';
+// Use environment variables only - no fallbacks
+const SECRET = JWT_SECRET!;
+const REFRESH_SECRET = JWT_REFRESH_SECRET!;
 
 export const signAccessToken = (payload: any): string => {
   const token = jwt.sign(payload, SECRET, { expiresIn: '15m' });
@@ -49,6 +48,7 @@ export const verifyToken = (token: string): any => {
     const decoded = jwt.verify(token, SECRET);
     return decoded;
   } catch (error) {
+    console.error('Access token verification failed:', error);
     throw error;
   }
 };
@@ -58,6 +58,7 @@ export const verifyRefreshToken = (token: string): any => {
     const decoded = jwt.verify(token, REFRESH_SECRET);
     return decoded;
   } catch (error) {
+    console.error('Refresh token verification failed:', error);
     throw error;
   }
 }; 

@@ -1,8 +1,8 @@
-# 🎓 Verbfy - Modern English Learning Platform
+# 🎓 Verbfy - Premium English Learning Platform
 
 ## Overview
 
-Verbfy is a premium English learning platform that connects students with teachers through real-time video lessons. Built with modern technologies and a focus on user experience, Verbfy provides a robust platform for both one-on-one lessons and group conversations.
+Verbfy is a premium English learning platform that connects students with teachers through real-time video lessons. Built with modern technologies and a focus on user experience, Verbfy provides a robust platform for both one-on-one lessons and group conversations. **Production-ready** with full domain deployment support.
 
 ## 🚀 Features
 
@@ -12,6 +12,8 @@ Verbfy is a premium English learning platform that connects students with teache
 - **Group Conversations**: Up to 5-person free conversation rooms
 - **Role-Based Access**: Separate interfaces for students, teachers, and admins
 - **Responsive Design**: Mobile-first approach for all device sizes
+- **Enterprise Security**: HTTPS, CSP, rate limiting, and comprehensive security measures
+- **Production Ready**: Full domain deployment support with Docker and Nginx
 
 ## 🛠️ Tech Stack
 
@@ -136,19 +138,28 @@ npm test
 
 ## 📦 Deployment
 
-1. **Backend Deployment**
-   - Set up MongoDB Atlas cluster
-   - Configure environment variables
-   - Deploy to your preferred hosting (e.g., DigitalOcean, AWS)
+### Quick Deployment
+```bash
+# Run the automated deployment script
+chmod +x deploy-production.sh
+./deploy-production.sh
+```
 
-2. **Frontend Deployment**
-   - Build the Next.js application
-   - Deploy to Vercel or your preferred hosting
+### Manual Deployment
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed production deployment instructions.
 
-3. **LiveKit Setup**
-   - Choose between self-hosted or LiveKit Cloud
-   - Configure TURN servers
-   - Set up monitoring
+### Domain Configuration
+- **Main Domain**: `verbfy.com`
+- **API Subdomain**: `api.verbfy.com`
+- **LiveKit Subdomain**: `livekit.verbfy.com`
+
+### Production Features
+- ✅ **Docker Containerization** - Complete application containerization
+- ✅ **Nginx Reverse Proxy** - SSL termination and load balancing
+- ✅ **Automatic SSL** - Let's Encrypt certificate management
+- ✅ **Security Headers** - Comprehensive security measures
+- ✅ **Rate Limiting** - API protection and abuse prevention
+- ✅ **Health Monitoring** - Automated service health checks
 
 ## 🤝 Contributing
 
