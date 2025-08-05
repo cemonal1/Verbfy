@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
-import { useConversationRoomViewModel } from '../../src/features/conversation/viewmodel/useConversationRoomViewModel';
-import { useWebRTC } from '../../src/features/lessonRoom/webrtc/useWebRTC';
-import { useAuthContext } from '../../src/context/AuthContext';
-import { useChatViewModel } from '../../src/features/chat/viewmodel/useChatViewModel';
-import ChatBox from '../../src/features/chat/view/ChatBox';
+import { useConversationRoomViewModel } from '@/features/conversation/viewmodel/useConversationRoomViewModel';
+import { useWebRTC } from '@/features/lessonRoom/webrtc/useWebRTC';
+import { useAuthContext } from '@/context/AuthContext';
+import { useChatViewModel } from '@/features/chat/viewmodel/useChatViewModel';
+import ChatBox from '@/features/chat/view/ChatBox';
 
 function RoomPage() {
   const router = useRouter();

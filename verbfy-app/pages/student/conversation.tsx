@@ -1,19 +1,16 @@
 import React from 'react';
-import DashboardLayout from '../../src/layouts/DashboardLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 
 function StudentConversationPage() {
   return (
     <DashboardLayout allowedRoles={['student']}>
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center py-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Conversation Rooms</h1>
-          <p className="text-xl text-gray-600 mb-6">Coming Soon - Join conversation rooms to practice English</p>
-          <Link 
-            href="/rooms" 
-            className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 transform hover:scale-105"
-          >
-            Browse Rooms
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-4">Conversation Rooms</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Link href="/rooms" className="block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
+            <h3 className="text-lg font-semibold mb-2">Join Room</h3>
+            <p className="text-gray-600">Enter a conversation room to practice English.</p>
           </Link>
         </div>
       </div>

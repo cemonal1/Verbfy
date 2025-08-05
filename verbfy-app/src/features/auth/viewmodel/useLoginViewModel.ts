@@ -1,13 +1,12 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { useAuthContext } from '@/context/AuthContext';
+import { useAuthContext, User } from '@/context/AuthContext';
 import api, { setApiAccessToken } from '@/lib/api';
 import { toastError } from '@/lib/toast';
-import { AuthUser } from '../model/AuthUser';
 
 interface LoginResponse {
   accessToken: string;
-  user: AuthUser;
+  user: User;
 }
 
 export function useLoginViewModel() {

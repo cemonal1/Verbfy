@@ -1,8 +1,8 @@
 import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useAuthContext } from '../src/context/AuthContext';
-import HomeButton from '../src/components/shared/HomeButton';
+import { useAuthContext } from '@/context/AuthContext';
+import HomeButton from '@/components/shared/HomeButton';
 
 export default function LandingPage() {
   const { user } = useAuthContext();

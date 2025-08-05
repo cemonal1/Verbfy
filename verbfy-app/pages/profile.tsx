@@ -1,6 +1,6 @@
 import React from 'react';
-import DashboardLayout from '../src/layouts/DashboardLayout';
-import { useAuthContext } from '../src/context/AuthContext';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { useAuthContext } from '@/context/AuthContext';
 
 function ProfilePage() {
   const { user } = useAuthContext();
