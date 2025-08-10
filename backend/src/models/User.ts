@@ -5,6 +5,9 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: 'student' | 'teacher' | 'admin';
+  // Approval workflow for teachers
+  isApproved?: boolean;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
   profileImage?: string;
   bio?: string;
   phone?: string;
@@ -60,6 +63,9 @@ const UserSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['student', 'teacher', 'admin'], required: true },
+  // Approval workflow for teachers: students are approved by default
+  isApproved: { type: Boolean, default: true },
+  approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' },
   profileImage: { type: String },
   bio: { type: String },
   phone: { type: String },

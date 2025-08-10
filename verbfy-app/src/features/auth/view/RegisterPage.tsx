@@ -186,7 +186,7 @@ export default function RegisterPage() {
                 onChange={(e) => setRole(e.target.value as 'student' | 'teacher')}
               >
                 <option value="student">Student - Learn English</option>
-                <option value="teacher">Teacher - Teach English</option>
+                <option value="teacher">Teacher - Teach English (requires admin approval)</option>
               </select>
             </div>
 

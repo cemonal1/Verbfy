@@ -78,11 +78,21 @@ export const register = async (req: Request, res: Response) => {
     const hashed = await bcrypt.hash(password, 10);
     
     console.log('Creating new user...');
-    const user = await User.create({ name, email, password: hashed, role });
+    // Teachers require admin approval
+    const requiresApproval = role === 'teacher';
+    const user = await User.create({
+      name,
+      email,
+      password: hashed,
+      role,
+      isApproved: requiresApproval ? false : true,
+      approvalStatus: requiresApproval ? 'pending' : 'approved',
+    });
     console.log('User created:', { id: user._id, name: user.name, email: user.email, role: user.role });
 
     console.log('Generating tokens...');
-    const accessToken = signAccessToken({ id: user._id, name: user.name, email: user.email, role: user.role });
+    const effectiveRole = user.role === 'teacher' && user.isApproved === false ? 'student' : user.role;
+    const accessToken = signAccessToken({ id: user._id, name: user.name, email: user.email, role: effectiveRole });
     const refreshToken = signRefreshToken({ id: user._id, version: user.refreshTokenVersion });
     
     console.log('Setting refresh token cookie...');
@@ -92,7 +102,7 @@ export const register = async (req: Request, res: Response) => {
     res.status(201).json({
       success: true,
       accessToken,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+      user: { id: user._id, name: user.name, email: user.email, role: user.role, isApproved: user.isApproved, approvalStatus: user.approvalStatus }
     });
   } catch (err) {
     console.error('Registration error:', err);
@@ -125,7 +135,8 @@ export const login = async (req: Request, res: Response) => {
     }
 
     console.log('Generating tokens...');
-    const accessToken = signAccessToken({ id: user._id, name: user.name, email: user.email, role: user.role });
+    const loginEffectiveRole = user.role === 'teacher' && user.isApproved === false ? 'student' : user.role;
+    const accessToken = signAccessToken({ id: user._id, name: user.name, email: user.email, role: loginEffectiveRole });
     const refreshToken = signRefreshToken({ id: user._id, version: user.refreshTokenVersion });
     
     console.log('Setting refresh token cookie...');
@@ -135,7 +146,7 @@ export const login = async (req: Request, res: Response) => {
     res.json({
       success: true,
       accessToken,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+      user: { id: user._id, name: user.name, email: user.email, role: user.role, isApproved: user.isApproved, approvalStatus: user.approvalStatus }
     });
   } catch (err) {
     console.error('Login error:', err);

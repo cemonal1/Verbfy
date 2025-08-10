@@ -127,7 +127,8 @@ export const oauthCallback = async (req: Request, res: Response) => {
     // Find or create user
     let user = await User.findOne({ email });
     if (!user) {
-      user = await User.create({ name, email, password: 'oauth__placeholder', role: 'student' });
+      // OAuth signup defaults to student; teacher upgrade requires admin approval via separate flow
+      user = await User.create({ name, email, password: 'oauth__placeholder', role: 'student', isApproved: true, approvalStatus: 'approved' });
     }
 
     const accessToken = signAccessToken({ id: user._id, name: user.name, email: user.email, role: user.role });
