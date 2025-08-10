@@ -7,13 +7,11 @@ import { Notification } from '../models/Notification';
 // Create Stripe checkout session
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
-    // Check if Stripe is configured
-    if (!stripe) {
-      return res.status(503).json({
-        success: false,
-        message: 'Payment system is not configured. Please contact support.'
-      });
-    }
+    // Stripe disabled: region not supported
+    return res.status(503).json({
+      success: false,
+      message: 'Payments are currently unavailable in your region.'
+    });
 
     const userId = (req as any).user.id;
     const { productId, couponCode } = req.body;
@@ -59,54 +57,12 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
     // Apply coupon if provided
     if (couponCode) {
-      try {
-        const coupon = await stripe.coupons.retrieve(couponCode);
-        sessionOptions.discounts = [{ coupon: coupon.id }];
-      } catch (error) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid coupon code'
-        });
-      }
+      // Coupon handling disabled while payments are unavailable
     }
 
     // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create(sessionOptions);
-
-    // Create payment record
-    const payment = new Payment({
-      user: userId,
-      type: product.type,
-      amount: product.price,
-      currency: product.currency,
-      status: 'pending',
-      stripeSessionId: session.id,
-      product: {
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        quantity: (product as any).quantity,
-        duration: (product as any).duration
-      },
-      metadata: {
-        lessonTokens: (product as any).quantity,
-        subscriptionExpiry: product.type === 'subscription' 
-          ? new Date(Date.now() + (product as any).duration * 24 * 60 * 60 * 1000)
-          : undefined,
-        couponCode
-      }
-    });
-
-    await payment.save();
-
-    res.json({
-      success: true,
-      data: {
-        sessionId: session.id,
-        url: session.url
-      },
-      message: 'Checkout session created successfully'
-    });
+    // Unreachable while payments disabled
+    // Keeping structure for future enablement
   } catch (error) {
     console.error('Error creating checkout session:', error);
     res.status(500).json({
@@ -118,57 +74,10 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
 // Handle Stripe webhook
 export const handleWebhook = async (req: Request, res: Response) => {
-  // Check if Stripe is configured
-  if (!stripe) {
-    return res.status(503).json({
-      success: false,
-      message: 'Payment system is not configured'
-    });
-  }
+  // Stripe disabled: region not supported
+  return res.status(503).json({ success: false, message: 'Payments are currently unavailable in your region.' });
 
-  const sig = req.headers['stripe-signature'] as string;
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-  if (!endpointSecret) {
-    console.error('STRIPE_WEBHOOK_SECRET is not configured');
-    return res.status(500).json({
-      success: false,
-      message: 'Webhook secret is not configured'
-    });
-  }
-
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-  } catch (err) {
-    console.error('Webhook signature verification failed:', err);
-    return res.status(400).send(`Webhook Error: ${err}`);
-  }
-
-  try {
-    switch (event.type) {
-      case 'checkout.session.completed':
-        await handleCheckoutSessionCompleted(event.data.object);
-        break;
-      
-      case 'checkout.session.expired':
-        await handleCheckoutSessionExpired(event.data.object);
-        break;
-      
-      case 'payment_intent.payment_failed':
-        await handlePaymentFailed(event.data.object);
-        break;
-      
-      default:
-        console.log(`Unhandled event type: ${event.type}`);
-    }
-
-    res.json({ received: true });
-  } catch (error) {
-    console.error('Error handling webhook:', error);
-    res.status(500).json({ error: 'Webhook handler failed' });
-  }
+  // Unreachable while payments disabled
 };
 
 // Handle successful checkout session

@@ -39,7 +39,7 @@ dotenv.config();
 // Validate environment variables before starting the application
 try {
   validateEnvironment();
-} catch (error) {
+} catch (error: any) {
   console.error('❌ Environment validation failed:', error.message);
   process.exit(1);
 }
@@ -49,20 +49,19 @@ const app = express();
 const server = createServer(app);
 
 // Security middleware
+const isDev = process.env.NODE_ENV !== 'production';
+const cspDirectives: any = {
+  defaultSrc: ["'self'"],
+  styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+  fontSrc: ["'self'", "https://fonts.gstatic.com"],
+  imgSrc: ["'self'", "data:", "https:"],
+  scriptSrc: isDev ? ["'self'", "'unsafe-inline'", "'unsafe-eval'"] : ["'self'"],
+  connectSrc: ["'self'", "https:", "wss:"],
+  frameSrc: ["'none'"],
+  objectSrc: ["'none'"]
+};
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      connectSrc: ["'self'", "wss:", "https:"],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-      upgradeInsecureRequests: []
-    }
-  },
+  contentSecurityPolicy: { directives: cspDirectives },
   crossOriginEmbedderPolicy: false
 }));
 
@@ -75,12 +74,21 @@ const io = new SocketIOServer(server, {
   }
 });
 
+// Attach io to request for controllers that need to emit events
+app.use((req, _res, next) => {
+  (req as any).io = io;
+  next();
+});
+
 // Connect to MongoDB
 connectDB();
 
-// Rate limiting middleware
+// Rate limiting middleware (exclude health check)
 app.use('/api/auth', authLimiter); // Stricter rate limiting for auth endpoints
-app.use('/api', apiLimiter); // General rate limiting for all API endpoints
+app.use((req, res, next) => {
+  if (req.path === '/api/health') return next();
+  return apiLimiter(req, res, next);
+});
 
 // CORS middleware
 app.use(cors({
@@ -97,14 +105,14 @@ app.use(cookieParser());
 
 // Request logging middleware (development only)
 if (process.env.NODE_ENV === 'development') {
-  app.use((req, res, next) => {
+  app.use((req, _res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
     next();
   });
 }
 
 // Enhanced health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),

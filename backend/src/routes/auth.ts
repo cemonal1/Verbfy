@@ -8,6 +8,7 @@ router.post('/login', login);
 router.post('/refresh-token', refreshToken);
 router.post('/logout', logout);
 router.get('/me', me);
+router.get('/profile', me);
 router.get('/teachers', getTeachers);
 
 export default router; 
