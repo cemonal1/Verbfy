@@ -32,6 +32,10 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !password) return;
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
     
     setLoading(true);
     setError(null);
@@ -67,27 +71,19 @@ export default function RegisterPage() {
     }
   };
 
-  const handleSocialLogin = async (provider: 'google' | 'outlook' | 'apple') => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await api.post('/api/auth/social-login', { provider });
-      setApiAccessToken(res.data.accessToken);
-      setUser(res.data.user);
-      toastSuccess('Authentication successful!');
-      if (res.data.user.role === 'student') {
-        router.push('/student/dashboard');
-      } else if (res.data.user.role === 'teacher') {
-        router.push('/teacher/dashboard');
-      } else {
-        router.push('/dashboard');
+  const handleSocialLogin = (provider: 'google' | 'outlook' | 'apple') => {
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+    const w = 520, h = 600;
+    const y = window.top?.outerHeight ? Math.max(0, (window.top!.outerHeight - h) / 2) : 100;
+    const x = window.top?.outerWidth ? Math.max(0, (window.top!.outerWidth - w) / 2) : 100;
+    window.open(`${base}/api/auth/oauth/${provider}`, 'oauthLogin', `width=${w},height=${h},left=${x},top=${y}`);
+    const handler = (event: MessageEvent) => {
+      const data: any = event.data || {};
+      if (data?.type === 'oauth-success' && data?.token) {
+        window.location.href = '/dashboard';
       }
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Authentication failed';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
+    };
+    window.addEventListener('message', handler, { once: true });
   };
 
   return (
