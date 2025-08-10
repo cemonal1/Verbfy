@@ -18,9 +18,19 @@ export default function LoginPage() {
     await login(email, password);
   };
 
-  const handleSocialLogin = (provider: string) => {
-    // TODO: Implement social login
-    console.log(`Logging in with ${provider}`);
+  const handleSocialLogin = (provider: 'google' | 'outlook' | 'apple') => {
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+    const w = 520, h = 600;
+    const y = window.top?.outerHeight ? Math.max(0, (window.top!.outerHeight - h) / 2) : 100;
+    const x = window.top?.outerWidth ? Math.max(0, (window.top!.outerWidth - w) / 2) : 100;
+    window.open(`${base}/api/auth/oauth/${provider}`, 'oauthLogin', `width=${w},height=${h},left=${x},top=${y}`);
+    const handler = (event: MessageEvent) => {
+      const data: any = event.data || {};
+      if (data?.type === 'oauth-success' && data?.token) {
+        window.location.href = '/dashboard';
+      }
+    };
+    window.addEventListener('message', handler, { once: true });
   };
 
   return (

@@ -63,6 +63,9 @@ export const register = async (req: Request, res: Response) => {
       console.log('Missing required fields:', { name: !!name, email: !!email, password: !!password, role: !!role });
       return res.status(400).json({ success: false, message: 'All fields required' });
     }
+    if (typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long' });
+    }
 
     console.log('Checking for existing user with email:', email);
     const existing = await User.findOne({ email });
