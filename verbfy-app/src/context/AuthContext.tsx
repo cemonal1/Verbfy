@@ -11,6 +11,11 @@ export interface User {
   email: string;
   role: 'student' | 'teacher' | 'admin';
   avatar?: string;
+  profileImage?: string;
+  bio?: string;
+  phone?: string;
+  isApproved?: boolean;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
   // Learning progress fields
   cefrLevel?: string;
   overallProgress?: number;

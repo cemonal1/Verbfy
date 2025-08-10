@@ -55,7 +55,7 @@ export default function LoginPage() {
 
         {/* Main Login Form */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 sm:p-8 space-y-6">
-          <div className="text-center">
+            <div className="text-center">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
               Sign in to your account
             </h2>
@@ -87,6 +87,7 @@ export default function LoginPage() {
                 </div>
               </div>
             </div>
+            {/* If the user is a teacher awaiting approval, we could show a notice after login; handled post-auth */}
 
             {/* Password Field */}
             <div className="space-y-2">
