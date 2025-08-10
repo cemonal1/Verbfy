@@ -17,13 +17,13 @@ router.post('/webhook', express.raw({ type: 'application/json' }), handleWebhook
 // Protected routes (require authentication)
 router.use(auth);
 
-// Create checkout session
+// Create checkout session (disabled - region restriction)
 router.post('/create-session', createCheckoutSession);
 
 // Get user's payment history
 router.get('/history', getPaymentHistory);
 
-// Get available products
+// Get available products (informational; payments disabled)
 router.get('/products', getProducts);
 
 // Get payment statistics
@@ -32,7 +32,7 @@ router.get('/stats', getPaymentStats);
 // Admin routes (require admin role)
 router.use(requireRole('admin'));
 
-// Refund payment (admin only)
+// Refund payment (admin only) - will return unavailable
 router.post('/:paymentId/refund', refundPayment);
 
 export default router; 

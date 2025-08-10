@@ -32,15 +32,16 @@ export const me = async (req: Request, res: Response) => {
   try {
     const userData = getUserFromToken(req);
     if (!userData) {
-      return res.status(401).json({ message: 'Invalid token' });
+      return res.status(401).json({ success: false, message: 'Invalid token' });
     }
     
     const user = await User.findById(userData.id).select('_id name email role');
     if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      return res.status(401).json({ success: false, message: 'User not found' });
     }
     
     res.json({ 
+      success: true,
       user: { 
         id: user._id, 
         name: user.name, 
@@ -49,7 +50,7 @@ export const me = async (req: Request, res: Response) => {
       } 
     });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -60,14 +61,14 @@ export const register = async (req: Request, res: Response) => {
     const { name, email, password, role } = req.body;
     if (!name || !email || !password || !role) {
       console.log('Missing required fields:', { name: !!name, email: !!email, password: !!password, role: !!role });
-      return res.status(400).json({ message: 'All fields required' });
+      return res.status(400).json({ success: false, message: 'All fields required' });
     }
 
     console.log('Checking for existing user with email:', email);
     const existing = await User.findOne({ email });
     if (existing) {
       console.log('Email already registered:', email);
-      return res.status(400).json({ message: 'Email already registered' });
+      return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
     console.log('Hashing password...');
@@ -85,10 +86,14 @@ export const register = async (req: Request, res: Response) => {
     setRefreshTokenCookie(res, refreshToken);
     
     console.log('Registration successful');
-    res.status(201).json({ accessToken, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    res.status(201).json({
+      success: true,
+      accessToken,
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+    });
   } catch (err) {
     console.error('Registration error:', err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -99,21 +104,21 @@ export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
     if (!email || !password) {
       console.log('Missing required fields:', { email: !!email, password: !!password });
-      return res.status(400).json({ message: 'All fields required' });
+      return res.status(400).json({ success: false, message: 'All fields required' });
     }
 
     console.log('Finding user with email:', email);
     const user = await User.findOne({ email });
     if (!user) {
       console.log('User not found:', email);
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ success: false, message: 'Invalid credentials' });
     }
 
     console.log('Comparing passwords...');
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       console.log('Password mismatch for user:', email);
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ success: false, message: 'Invalid credentials' });
     }
 
     console.log('Generating tokens...');
@@ -124,20 +129,24 @@ export const login = async (req: Request, res: Response) => {
     setRefreshTokenCookie(res, refreshToken);
     
     console.log('Login successful:', { userId: user._id, role: user.role });
-    res.json({ accessToken, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    res.json({
+      success: true,
+      accessToken,
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+    });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
 export const refreshToken = async (req: Request, res: Response) => {
   try {
     console.log('Refresh token request received');
-    const token = req.cookies.refreshToken;
+    const token = (req as any).cookies?.refreshToken || req.cookies?.refreshToken;
     if (!token) {
       console.log('No refresh token in cookies');
-      return res.status(401).json({ message: 'No refresh token' });
+      return res.status(401).json({ success: false, message: 'No refresh token' });
     }
     
     console.log('Verifying refresh token...');
@@ -147,7 +156,7 @@ export const refreshToken = async (req: Request, res: Response) => {
       console.log('Refresh token verified successfully for user:', payload.id);
     } catch (error) {
       console.error('Refresh token verification failed:', error);
-      return res.status(401).json({ message: 'Invalid refresh token' });
+      return res.status(401).json({ success: false, message: 'Invalid refresh token' });
     }
     
     console.log('Finding user with ID:', payload.id);
@@ -158,7 +167,7 @@ export const refreshToken = async (req: Request, res: Response) => {
         userVersion: user?.refreshTokenVersion, 
         tokenVersion: payload.version 
       });
-      return res.status(401).json({ message: 'Invalid refresh token' });
+      return res.status(401).json({ success: false, message: 'Invalid refresh token' });
     }
     
     console.log('Rotating refresh token...');
@@ -172,23 +181,23 @@ export const refreshToken = async (req: Request, res: Response) => {
     setRefreshTokenCookie(res, newRefreshToken);
     
     console.log('Token refresh successful for user:', user._id);
-    res.json({ accessToken: newAccessToken });
+    res.json({ success: true, accessToken: newAccessToken });
   } catch (err) {
     console.error('Refresh token error:', err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
 export const logout = async (_req: Request, res: Response) => {
   res.clearCookie('refreshToken', { path: '/api/auth' });
-  res.json({ message: 'Logged out' });
+  res.json({ success: true, message: 'Logged out' });
 };
 
 export const getTeachers = async (_req: Request, res: Response) => {
   try {
     const teachers = await User.find({ role: 'teacher' }).select('_id name');
-    res.json(teachers);
+    res.json({ success: true, data: teachers });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 }; 

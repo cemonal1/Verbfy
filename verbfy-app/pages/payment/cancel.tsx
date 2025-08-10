@@ -14,12 +14,8 @@ export default function PaymentCancelPage() {
           </div>
 
           {/* Cancel Message */}
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Payment Cancelled
-          </h1>
-          <p className="text-lg text-gray-600 mb-8">
-            Your payment was cancelled. No charges were made to your account.
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Payments Unavailable</h1>
+          <p className="text-lg text-gray-600 mb-8">Payments are currently unavailable in your region.</p>
 
           {/* Information */}
           <div className="bg-gray-50 rounded-lg p-6 mb-8">
@@ -69,12 +65,7 @@ export default function PaymentCancelPage() {
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/payment/subscribe"
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-            >
-              Try Again
-            </Link>
+            {/* Try Again hidden while payments disabled */}
             <Link
               href="/dashboard"
               className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"

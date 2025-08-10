@@ -69,15 +69,13 @@ export default function PaymentHistoryPage() {
         <div className="mb-8">
           <div className="flex items-center mb-4">
             <CreditCardIcon className="h-8 w-8 text-blue-600 mr-3" />
-            <h1 className="text-3xl font-bold text-gray-900">Payment History</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Payments Unavailable</h1>
           </div>
-          <p className="text-gray-600">
-            View and manage all your payment transactions and subscription details
-          </p>
+          <p className="text-gray-600">Payments are currently unavailable in your region.</p>
         </div>
 
-        {/* Payment Statistics */}
-        {stats && (
+        {/* Payment Statistics (optional when disabled) */}
+        {false && stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
@@ -86,7 +84,7 @@ export default function PaymentHistoryPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Payments</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalPayments}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.totalPayments ?? 0}</p>
                 </div>
               </div>
             </div>
@@ -99,7 +97,7 @@ export default function PaymentHistoryPage() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Spent</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(stats.totalAmount)}
+                    {formatCurrency(stats?.totalAmount ?? 0)}
                   </p>
                 </div>
               </div>
@@ -112,7 +110,7 @@ export default function PaymentHistoryPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Completed</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.completedPayments}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.completedPayments ?? 0}</p>
                 </div>
               </div>
             </div>
@@ -124,7 +122,7 @@ export default function PaymentHistoryPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Failed</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.failedPayments}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.failedPayments ?? 0}</p>
                 </div>
               </div>
             </div>
@@ -182,8 +180,7 @@ export default function PaymentHistoryPage() {
           </div>
         )}
 
-        {/* Payment History Table */}
-        <PaymentHistoryTable />
+        {/* Payment History Table hidden while disabled */}
 
         {/* Help section */}
         <div className="mt-8 bg-gray-50 rounded-lg p-6">

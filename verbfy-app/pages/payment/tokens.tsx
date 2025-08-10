@@ -24,23 +24,9 @@ export default function TokensPage() {
   }, []);
 
   const loadProducts = async () => {
-    try {
-      setLoading(true);
-      const response = await paymentAPI.getProducts({ type: 'lesson_tokens' });
-      
-      if (response.data.success) {
-        setProducts(response.data.data);
-      } else {
-        // Fallback to local products if API fails
-        setProducts(Object.values(PRODUCTS).filter(p => p.type === 'lesson_tokens'));
-      }
-    } catch (error) {
-      console.error('Error loading products:', error);
-      // Fallback to local products
-      setProducts(Object.values(PRODUCTS).filter(p => p.type === 'lesson_tokens'));
-    } finally {
-      setLoading(false);
-    }
+    // Payments disabled: hide products
+    setProducts([]);
+    setLoading(false);
   };
 
   const checkUserTokens = () => {
@@ -49,9 +35,7 @@ export default function TokensPage() {
     }
   };
 
-  const handlePurchase = () => {
-    toast.success('Redirecting to secure checkout...');
-  };
+  const handlePurchase = () => {};
 
   if (loading) {
     return (
@@ -79,12 +63,8 @@ export default function TokensPage() {
           <div className="flex justify-center mb-4">
             <CreditCardIcon className="h-12 w-12 text-blue-600" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Buy Lesson Tokens
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Purchase lesson credits to book individual sessions with our expert teachers
-          </p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Payments Unavailable</h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">Payments are currently unavailable in your region.</p>
         </div>
 
         {/* Current token balance */}
@@ -112,17 +92,19 @@ export default function TokensPage() {
           </div>
         </div>
 
-        {/* Token packages */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          {products.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onPurchase={handlePurchase}
-              className="h-full"
-            />
-          ))}
-        </div>
+        {/* Token packages hidden while disabled */}
+        {products.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onPurchase={handlePurchase}
+                className="h-full"
+              />
+            ))}
+          </div>
+        )}
 
         {/* How it works */}
         <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
@@ -271,12 +253,8 @@ export default function TokensPage() {
           </div>
         </div>
 
-        {/* Security notice */}
-        <div className="text-center mt-8">
-          <p className="text-sm text-gray-500">
-            🔒 All payments are processed securely by Stripe. Your payment information is never stored on our servers.
-          </p>
-        </div>
+        {/* Payments disabled notice */}
+        <div className="text-center mt-8 text-sm text-gray-500">Payments are disabled.</div>
       </div>
     </DashboardLayout>
   );
