@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../common/Toast';
 import NotificationBadge from '../notification/NotificationBadge';
+import { NotificationProvider } from '@/context/NotificationContext';
 import NotificationPanel from '../notification/NotificationPanel';
 
 interface DashboardLayoutProps {
@@ -209,6 +210,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
+      <NotificationProvider>
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -340,6 +342,7 @@ export default function DashboardLayout({
         isOpen={notificationPanelOpen}
         onClose={() => setNotificationPanelOpen(false)}
       />
+      </NotificationProvider>
     </div>
   );
 } 
