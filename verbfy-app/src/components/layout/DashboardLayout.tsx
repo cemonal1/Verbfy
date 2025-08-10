@@ -51,7 +51,7 @@ export default function DashboardLayout({
       {
         name: 'Dashboard',
         href: '/dashboard',
-        icon: '��',
+        icon: '🏠',
         current: router.pathname === '/dashboard'
       },
       {
@@ -123,7 +123,7 @@ export default function DashboardLayout({
       {
         name: 'Payments',
         href: '/payment',
-        icon: '��',
+        icon: '💳',
         current: router.pathname.startsWith('/payment')
       }
     ];
@@ -208,7 +208,7 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -239,7 +239,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Navigation */}
-        <nav className="mt-6 px-3">
+        <nav className="mt-4 px-3">
           <div className="space-y-1">
             {navigationItems.map((item) => (
               <Link
@@ -254,8 +254,8 @@ export default function DashboardLayout({
                 `}
                 onClick={() => setSidebarOpen(false)}
               >
-                <span className="mr-3 text-lg">{item.icon}</span>
-                {item.name}
+                <span className="mr-3 text-lg" aria-hidden>{item.icon}</span>
+                <span>{item.name}</span>
               </Link>
             ))}
           </div>
@@ -293,14 +293,15 @@ export default function DashboardLayout({
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 min-h-screen">
         {/* Top bar */}
-        <div className="sticky top-0 z-30 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur dark:bg-gray-800/80 shadow-sm border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between h-14 px-4 sm:px-6 lg:px-8">
             {/* Mobile menu button */}
             <button
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label="Open sidebar"
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -309,34 +310,24 @@ export default function DashboardLayout({
 
             {/* Page title */}
             <div className="flex-1 lg:flex-none">
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h1 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                 {title}
               </h1>
             </div>
 
             {/* Right side actions */}
-            <div className="flex items-center space-x-4">
-              {/* Notifications */}
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <NotificationBadge 
                 onClick={() => setNotificationPanelOpen(true)}
                 className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               />
-
-              {/* User menu (mobile) */}
-              <div className="lg:hidden">
-                <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </button>
-              </div>
             </div>
           </div>
         </div>
 
         {/* Page content */}
         <main className="flex-1">
-          <div className="py-6">
+          <div className="pt-4 pb-6 sm:py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               {children}
             </div>

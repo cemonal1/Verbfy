@@ -201,6 +201,53 @@ export const deleteUser = async (req: Request, res: Response) => {
   }
 };
 
+// Teacher approval workflow
+export const listPendingTeachers = async (_req: Request, res: Response) => {
+  try {
+    const users = await User.find({ role: 'teacher', approvalStatus: 'pending' })
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ success: true, data: users });
+  } catch (error) {
+    console.error('Error listing pending teachers:', error);
+    res.status(500).json({ success: false, message: 'Failed to list pending teachers' });
+  }
+};
+
+export const approveTeacher = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findOneAndUpdate(
+      { _id: id, role: 'teacher' },
+      { isApproved: true, approvalStatus: 'approved' },
+      { new: true }
+    ).select('-password');
+    if (!user) return res.status(404).json({ success: false, message: 'Teacher not found' });
+    res.json({ success: true, data: user, message: 'Teacher approved' });
+  } catch (error) {
+    console.error('Error approving teacher:', error);
+    res.status(500).json({ success: false, message: 'Failed to approve teacher' });
+  }
+};
+
+export const rejectTeacher = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const user = await User.findOneAndUpdate(
+      { _id: id, role: 'teacher' },
+      { isApproved: false, approvalStatus: 'rejected' },
+      { new: true }
+    ).select('-password');
+    if (!user) return res.status(404).json({ success: false, message: 'Teacher not found' });
+    res.json({ success: true, data: user, message: `Teacher rejected${reason ? ': ' + reason : ''}` });
+  } catch (error) {
+    console.error('Error rejecting teacher:', error);
+    res.status(500).json({ success: false, message: 'Failed to reject teacher' });
+  }
+};
+
 // Material Moderation
 export const getMaterials = async (req: Request, res: Response) => {
   try {
