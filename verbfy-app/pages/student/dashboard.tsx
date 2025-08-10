@@ -213,9 +213,12 @@ function StudentDashboardPage() {
         <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 hover:shadow-md transition-all duration-300">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div className="flex-1">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                 Hi, {user?.name || 'Student'} 👋
               </h1>
+               {user && (user as any).approvalStatus === 'pending' && (
+                 <p className="text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-md px-3 py-2 mb-3 text-sm">Your teacher application is pending approval. You can continue using student features meanwhile.</p>
+               )}
               <p className="text-base sm:text-lg font-semibold text-gray-700 mb-2">
                 Ready to improve your English today?
               </p>
