@@ -19,6 +19,7 @@ import {
   // Analytics/Overview
   getOverview
 } from '../controllers/adminController';
+import { listPendingTeachers, approveTeacher, rejectTeacher } from '../controllers/adminController';
 
 const router = Router();
 
@@ -35,6 +36,10 @@ router.get('/users/:id', getUserById);
 router.patch('/users/:id/role', updateUserRole);
 router.patch('/users/:id/status', updateUserStatus);
 router.delete('/users/:id', deleteUser);
+// Teacher approval
+router.get('/teachers/pending', listPendingTeachers);
+router.patch('/teachers/:id/approve', approveTeacher);
+router.patch('/teachers/:id/reject', rejectTeacher);
 
 // Material Moderation
 router.get('/materials', getMaterials);
