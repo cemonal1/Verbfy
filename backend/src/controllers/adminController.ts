@@ -226,7 +226,7 @@ export const approveTeacher = async (req: Request, res: Response) => {
     ).select('-password');
     if (!user) return res.status(404).json({ success: false, message: 'Teacher not found' });
     try {
-      await AuditLog.createLog({
+      await (AuditLog as any).createLog({
         userId: (req as any).user?.id,
         event: {
           type: 'user.approval',
@@ -270,7 +270,7 @@ export const rejectTeacher = async (req: Request, res: Response) => {
     ).select('-password');
     if (!user) return res.status(404).json({ success: false, message: 'Teacher not found' });
     try {
-      await AuditLog.createLog({
+      await (AuditLog as any).createLog({
         userId: (req as any).user?.id,
         event: {
           type: 'user.approval',

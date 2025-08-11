@@ -3,7 +3,6 @@ import User from '../models/User';
 import bcrypt from 'bcryptjs';
 import { signAccessToken, signRefreshToken, verifyToken, verifyRefreshToken } from '../utils/jwt';
 import { sendEmail } from '../utils/email';
-import User from '../models/User';
 import VerificationToken from '../models/VerificationToken';
 import crypto from 'crypto';
 

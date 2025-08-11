@@ -56,7 +56,7 @@ const server = createServer(app);
 // Init Sentry (optional)
 if (process.env.SENTRY_DSN) {
   Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0.1 });
-  app.use(Sentry.Handlers.requestHandler());
+  app.use((Sentry as any).Handlers.requestHandler());
 }
 
 // Logger
@@ -216,7 +216,7 @@ app.use('*', notFoundHandler);
 // Global error handler (must be last)
 app.use(errorHandler);
 if (process.env.SENTRY_DSN) {
-  app.use(Sentry.Handlers.errorHandler());
+  app.use((Sentry as any).Handlers.errorHandler());
 }
 
 // Start server
