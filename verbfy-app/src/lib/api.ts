@@ -123,7 +123,7 @@ export const materialsAPI = {
 export const authAPI = {
   // Login
   login: (credentials: { email: string; password: string }) => {
-    return api.post('/api/auth/login', credentials);
+    return api.post('/api/auth/login', credentials, { withCredentials: true });
   },
 
   // Register
@@ -133,17 +133,17 @@ export const authAPI = {
 
   // Logout
   logout: () => {
-    return api.post('/api/auth/logout');
+    return api.post('/api/auth/logout', {}, { withCredentials: true });
   },
 
   // Get current user
   getCurrentUser: () => {
-    return api.get('/api/auth/me');
+    return api.get('/api/auth/me', { withCredentials: true });
   },
 
   // Refresh token
   refreshToken: () => {
-    return api.post('/api/auth/refresh');
+    return api.post('/api/auth/refresh', {}, { withCredentials: true });
   },
 };
 
