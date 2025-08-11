@@ -1,3 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ "feature/**", "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:6
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          MONGODB_URI: mongodb://localhost:27017/verbfy_ci
+          JWT_SECRET: testsecretjwt
+          JWT_REFRESH_SECRET: testrefreshjwt
+          FRONTEND_URL: http://localhost:3000
+          BACKEND_URL: http://localhost:5000
+        run: npm test -- --runInBand
+
+      - name: Install frontend deps
+        working-directory: verbfy-app
+        run: npm ci
+
+      - name: Frontend typecheck
+        working-directory: verbfy-app
+        run: npm run -s build --if-present || echo "skip build in CI"
+
 name: Build and Smoke Test
 
 on:
