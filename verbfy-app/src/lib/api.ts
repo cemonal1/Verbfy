@@ -14,7 +14,7 @@ import { tokenStorage } from '../utils/secureStorage';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
   timeout: 30000, // 30 seconds
   headers: {
     'Content-Type': 'application/json',
@@ -156,6 +156,15 @@ export const userAPI = {
   // Update user profile
   updateProfile: (data: any) => {
     return api.put('/api/users/profile', data);
+  },
+
+  // Upload avatar
+  uploadAvatar: (file: File) => {
+    const form = new FormData();
+    form.append('avatar', file);
+    return api.post('/api/users/profile/avatar', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
   },
 
   // Get all teachers (for students)

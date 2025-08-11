@@ -255,10 +255,10 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     if (!isAuthenticated || !user) return;
 
     // Connect to Socket.IO server
-    const socketUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const socketUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     socketRef.current = io(socketUrl, {
       auth: {
-        token: localStorage.getItem('verbfy_token')
+        token: (typeof window !== 'undefined' ? (window as any) : undefined) ? localStorage.getItem('verbfy_token') : undefined
       }
     });
 
