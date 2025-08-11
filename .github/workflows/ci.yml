@@ -25,6 +25,9 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            verbfy-app/package-lock.json
 
       - name: Install backend deps
         working-directory: backend
@@ -41,19 +44,20 @@ jobs:
         run: npm test -- --runInBand --coverage
 
       - name: Upload backend coverage
-        if: always()
+        if: ${{ always() && hashFiles('backend/coverage/lcov.info') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage
           path: backend/coverage
 
       - name: Upload coverage to Codecov (backend)
-        if: always()
+        if: ${{ always() && hashFiles('backend/coverage/lcov.info') != '' }}
         uses: codecov/codecov-action@v4
         with:
           files: backend/coverage/lcov.info
           flags: backend
-          fail_ci_if_error: true
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Backend lint (if configured)
         working-directory: backend
@@ -72,19 +76,20 @@ jobs:
         run: npm test -- --coverage || echo "no frontend tests"
 
       - name: Upload frontend coverage
-        if: always()
+        if: ${{ always() && hashFiles('verbfy-app/coverage/lcov.info') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: frontend-coverage
           path: verbfy-app/coverage
 
       - name: Upload coverage to Codecov (frontend)
-        if: always()
+        if: ${{ always() && hashFiles('verbfy-app/coverage/lcov.info') != '' }}
         uses: codecov/codecov-action@v4
         with:
           files: verbfy-app/coverage/lcov.info
           flags: frontend
-          fail_ci_if_error: true
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Frontend lint (if configured)
         working-directory: verbfy-app
