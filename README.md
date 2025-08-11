@@ -1,5 +1,7 @@
 # 🎓 Verbfy - Premium English Learning Platform
 
+[![CI](https://github.com/cemonal1/Verbfy/actions/workflows/ci.yml/badge.svg)](https://github.com/cemonal1/Verbfy/actions/workflows/ci.yml)
+
 ## Overview
 
 Verbfy is a premium English learning platform that connects students with teachers through real-time video lessons. Built with modern technologies and a focus on user experience, Verbfy provides a robust platform for both one-on-one lessons and group conversations. **Production-ready** with full domain deployment support.
@@ -71,7 +73,8 @@ Verbfy is a premium English learning platform that connects students with teache
 
    Frontend (.env.local):
    ```env
-   NEXT_PUBLIC_API_URL=http://localhost:5000
+    NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
+    NEXT_PUBLIC_API_URL=http://localhost:5000
    NEXT_PUBLIC_LIVEKIT_URL=your_livekit_url
    ```
 
