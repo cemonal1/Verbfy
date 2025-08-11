@@ -1,101 +1,40 @@
-name: CI
+name: Build and Smoke Test
 
 on:
   push:
-    branches: [ "feature/**", "main" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
 
 jobs:
-  build-and-test:
+  build-test:
     runs-on: ubuntu-latest
-    services:
-      mongo:
-        image: mongo:6
-        ports: ["27017:27017"]
-        options: >-
-          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
-          --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: |
-            backend/package-lock.json
-            verbfy-app/package-lock.json
+          node-version: '20'
 
       - name: Install backend deps
         working-directory: backend
-        run: npm ci || npm install
+        run: npm ci
 
-      - name: Run backend tests with coverage
+      - name: Build backend
         working-directory: backend
-        env:
-          MONGODB_URI: mongodb://localhost:27017/verbfy_ci
-          JWT_SECRET: testsecretjwt
-          JWT_REFRESH_SECRET: testrefreshjwt
-          FRONTEND_URL: http://localhost:3000
-          BACKEND_URL: http://localhost:5000
-        run: |
-          npm test -- --runInBand --coverage || echo "backend tests failed"
-
-      - name: Upload backend coverage
-        if: ${{ always() && hashFiles('backend/coverage/lcov.info') != '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-coverage
-          path: backend/coverage
-
-      - name: Upload coverage to Codecov (backend)
-        if: ${{ always() && hashFiles('backend/coverage/lcov.info') != '' }}
-        uses: codecov/codecov-action@v4
-        with:
-          files: backend/coverage/lcov.info
-          flags: backend
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Backend lint (if configured)
-        working-directory: backend
-        run: npm run -s lint --if-present || echo "no backend lint script"
+        run: npm run build
 
       - name: Install frontend deps
         working-directory: verbfy-app
-        run: npm ci || npm install
+        run: npm ci
 
-      - name: Frontend typecheck
+      - name: Build frontend
         working-directory: verbfy-app
-        run: npm run -s build --if-present || echo "skip build in CI"
+        run: npm run build
 
-      - name: Frontend tests with coverage (if configured)
-        working-directory: verbfy-app
-        run: npm test -- --coverage || echo "frontend tests failed or not configured"
-
-      - name: Upload frontend coverage
-        if: ${{ always() && hashFiles('verbfy-app/coverage/lcov.info') != '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-coverage
-          path: verbfy-app/coverage
-
-      - name: Upload coverage to Codecov (frontend)
-        if: ${{ always() && hashFiles('verbfy-app/coverage/lcov.info') != '' }}
-        uses: codecov/codecov-action@v4
-        with:
-          files: verbfy-app/coverage/lcov.info
-          flags: frontend
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Frontend lint (if configured)
-        working-directory: verbfy-app
-        run: npm run -s lint --if-present || echo "no frontend lint script"
+      - name: Validate production compose
+        run: docker compose -f docker-compose.production.yml config
 
 

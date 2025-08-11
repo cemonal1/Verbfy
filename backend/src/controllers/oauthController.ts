@@ -134,6 +134,13 @@ export const oauthCallback = async (req: Request, res: Response) => {
     const accessToken = signAccessToken({ id: user._id, name: user.name, email: user.email, role: user.role });
     const refreshToken = signRefreshToken({ id: user._id, version: user.refreshTokenVersion });
     setRefreshTokenCookie(res, refreshToken);
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 1000,
+    });
 
     // Send data back to the opener window and close popup
     const origin = (process.env.FRONTEND_URL || '').replace(/\/$/, '');

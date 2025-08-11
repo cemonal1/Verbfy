@@ -14,7 +14,7 @@ import { tokenStorage } from '../utils/secureStorage';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000',
   timeout: 30000, // 30 seconds
   headers: {
     'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ export const materialsAPI = {
 export const authAPI = {
   // Login
   login: (credentials: { email: string; password: string }) => {
-    return api.post('/api/auth/login', credentials, { withCredentials: true });
+    return api.post('/api/auth/login', credentials);
   },
 
   // Register
@@ -133,17 +133,17 @@ export const authAPI = {
 
   // Logout
   logout: () => {
-    return api.post('/api/auth/logout', {}, { withCredentials: true });
+    return api.post('/api/auth/logout');
   },
 
   // Get current user
   getCurrentUser: () => {
-    return api.get('/api/auth/me', { withCredentials: true });
+    return api.get('/api/auth/me');
   },
 
   // Refresh token
   refreshToken: () => {
-    return api.post('/api/auth/refresh', {}, { withCredentials: true });
+    return api.post('/api/auth/refresh');
   },
 };
 
@@ -165,6 +165,11 @@ export const userAPI = {
     return api.post('/api/users/profile/avatar', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+  },
+
+  // Get S3 presigned upload URL
+  getPresignedUploadUrl: (key: string, contentType: string) => {
+    return api.get(`/api/users/uploads/presign`, { params: { key, contentType } });
   },
 
   // Get all teachers (for students)
