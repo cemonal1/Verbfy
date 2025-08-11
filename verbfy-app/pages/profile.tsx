@@ -112,11 +112,41 @@ function ProfilePage() {
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">CV URL</label>
-                <input className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.cvUrl} onChange={(e)=>setForm({ ...form, cvUrl: e.target.value })} placeholder="https://..." />
+                <div className="flex gap-2">
+                  <input className="flex-1 border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.cvUrl} onChange={(e)=>setForm({ ...form, cvUrl: e.target.value })} placeholder="https://..." />
+                  <button type="button" className="px-3 py-2 rounded bg-gray-100" onClick={async()=>{
+                    const file = await new Promise<File|null>((resolve)=>{
+                      const input = document.createElement('input'); input.type='file'; input.accept='application/pdf';
+                      input.onchange = ()=> resolve(input.files?.[0] || null); input.click();
+                    });
+                    if (!file) return;
+                    const res = await fetch(`/api/users/uploads/signed-url?folder=teacher-cv&fileName=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`);
+                    const data = await res.json();
+                    if (data?.success) {
+                      await fetch(data.data.uploadUrl, { method:'PUT', headers:{ 'Content-Type': file.type }, body: file });
+                      setForm({ ...form, cvUrl: data.data.publicUrl });
+                    }
+                  }}>Upload</button>
+                </div>
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Intro Video URL</label>
-                <input className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.introVideoUrl} onChange={(e)=>setForm({ ...form, introVideoUrl: e.target.value })} placeholder="https://..." />
+                <div className="flex gap-2">
+                  <input className="flex-1 border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.introVideoUrl} onChange={(e)=>setForm({ ...form, introVideoUrl: e.target.value })} placeholder="https://..." />
+                  <button type="button" className="px-3 py-2 rounded bg-gray-100" onClick={async()=>{
+                    const file = await new Promise<File|null>((resolve)=>{
+                      const input = document.createElement('input'); input.type='file'; input.accept='video/mp4';
+                      input.onchange = ()=> resolve(input.files?.[0] || null); input.click();
+                    });
+                    if (!file) return;
+                    const res = await fetch(`/api/users/uploads/signed-url?folder=teacher-video&fileName=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`);
+                    const data = await res.json();
+                    if (data?.success) {
+                      await fetch(data.data.uploadUrl, { method:'PUT', headers:{ 'Content-Type': file.type }, body: file });
+                      setForm({ ...form, introVideoUrl: data.data.publicUrl });
+                    }
+                  }}>Upload</button>
+                </div>
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Email</label>
