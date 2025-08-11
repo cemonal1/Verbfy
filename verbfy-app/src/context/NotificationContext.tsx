@@ -258,7 +258,15 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     const socketUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     socketRef.current = io(socketUrl, {
       auth: {
-        token: (typeof window !== 'undefined' ? (window as any) : undefined) ? localStorage.getItem('verbfy_token') : undefined
+        // Use the central tokenStorage to avoid mismatch with axios
+        token: (() => {
+          try {
+            const { tokenStorage } = require('../utils/secureStorage');
+            return tokenStorage.getToken();
+          } catch {
+            return undefined;
+          }
+        })()
       }
     });
 
