@@ -19,6 +19,8 @@ export interface IUser extends Document {
   experience?: number; // years of experience
   education?: string;
   certifications?: string[];
+   cvUrl?: string;
+   introVideoUrl?: string;
   hourlyRate?: number;
   rating?: number;
   totalLessons?: number;
@@ -77,6 +79,8 @@ const UserSchema = new Schema<IUser>({
   experience: { type: Number, min: 0 },
   education: { type: String },
   certifications: [{ type: String }],
+  cvUrl: { type: String },
+  introVideoUrl: { type: String },
   hourlyRate: { type: Number, min: 0 },
   rating: { type: Number, min: 0, max: 5, default: 0 },
   totalLessons: { type: Number, default: 0 },

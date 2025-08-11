@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import User from '../models/User';
 import bcrypt from 'bcryptjs';
 import { signAccessToken, signRefreshToken, verifyToken, verifyRefreshToken } from '../utils/jwt';
+import { sendEmail } from '../utils/email';
+import User from '../models/User';
 
 // Helper: set refresh token cookie
 const setRefreshTokenCookie = (res: Response, token: string) => {
@@ -99,6 +101,25 @@ export const register = async (req: Request, res: Response) => {
     setRefreshTokenCookie(res, refreshToken);
     
     console.log('Registration successful');
+    if (requiresApproval) {
+      // Notify admins
+      try {
+        const admins = await User.find({ role: 'admin' }).select('email').lean();
+        const adminEmails = admins.map(a => a.email).filter(Boolean);
+        if (adminEmails.length) {
+          await sendEmail(adminEmails, 'New teacher application', `
+            <p>A new teacher has registered and awaits approval:</p>
+            <ul>
+              <li>Name: ${user.name}</li>
+              <li>Email: ${user.email}</li>
+            </ul>
+            <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/users">Review applications</a></p>
+          `);
+        }
+      } catch (e) {
+        console.warn('Failed to send admin teacher application email:', e);
+      }
+    }
     res.status(201).json({
       success: true,
       accessToken,

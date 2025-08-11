@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import UserModel from '../models/User';
+import path from 'path';
 
 // Get all teachers
 export const getTeachers = async (req: AuthRequest, res: Response) => {
@@ -9,7 +10,7 @@ export const getTeachers = async (req: AuthRequest, res: Response) => {
       .select('name email specialty rating')
       .sort({ name: 1 });
 
-    res.json(teachers);
+    res.json({ success: true, teachers });
   } catch (error: any) {
     console.error('Error fetching teachers:', error);
     res.status(500).json({ 
@@ -25,7 +26,7 @@ export const getStudents = async (req: AuthRequest, res: Response) => {
       .select('name email')
       .sort({ name: 1 });
 
-    res.json(students);
+    res.json({ success: true, students });
   } catch (error: any) {
     console.error('Error fetching students:', error);
     res.status(500).json({ 
@@ -46,7 +47,7 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    res.json(user);
+    res.json({ success: true, user });
   } catch (error: any) {
     console.error('Error fetching current user:', error);
     res.status(500).json({ 
@@ -58,31 +59,36 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
 // Update current user profile
 export const updateCurrentUser = async (req: AuthRequest, res: Response) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, bio, phone, specialties, experience, education, certifications, cvUrl, introVideoUrl } = req.body;
     const userId = req.user!.id;
 
-    // Validate input
-    if (!name || !email) {
-      return res.status(400).json({ 
-        message: 'Name and email are required' 
-      });
+    // Validate minimal input (allow partial updates)
+    if (!name && !email && !bio && !phone && !specialties && !experience && !education && !certifications && !cvUrl && !introVideoUrl) {
+      return res.status(400).json({ success: false, message: 'No valid fields to update' });
     }
 
     // Check if email is already taken by another user
-    const existingUser = await UserModel.findOne({ 
-      email, 
-      _id: { $ne: userId } 
-    });
-
-    if (existingUser) {
-      return res.status(400).json({ 
-        message: 'Email is already taken' 
-      });
+    if (email) {
+      const existingUser = await UserModel.findOne({ email, _id: { $ne: userId } });
+      if (existingUser) {
+        return res.status(400).json({ success: false, message: 'Email is already taken' });
+      }
     }
 
     const updatedUser = await UserModel.findByIdAndUpdate(
       userId,
-      { name, email },
+      { $set: { 
+        ...(name && { name }), 
+        ...(email && { email }), 
+        ...(bio && { bio }), 
+        ...(phone && { phone }),
+        ...(specialties && { specialties }),
+        ...(typeof experience !== 'undefined' && { experience }),
+        ...(education && { education }),
+        ...(certifications && { certifications }),
+        ...(cvUrl && { cvUrl }),
+        ...(introVideoUrl && { introVideoUrl }),
+      } },
       { new: true, runValidators: true }
     ).select('-password -refreshTokenVersion');
 
@@ -92,11 +98,33 @@ export const updateCurrentUser = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    res.json(updatedUser);
+    res.json({ success: true, user: updatedUser });
   } catch (error: any) {
     console.error('Error updating user profile:', error);
-    res.status(500).json({ 
-      message: error.message || 'Failed to update user profile' 
-    });
+    res.status(500).json({ success: false, message: error.message || 'Failed to update user profile' });
   }
 }; 
+
+// Upload avatar for current user
+export const uploadAvatar = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const userId = req.user!.id;
+    // Build public URL for avatar
+    const publicPath = `/uploads/avatars/${req.file.filename}`;
+
+    const updated = await UserModel.findByIdAndUpdate(
+      userId,
+      { $set: { profileImage: publicPath } },
+      { new: true }
+    ).select('-password -refreshTokenVersion');
+
+    return res.json({ success: true, user: updated, avatarUrl: publicPath });
+  } catch (error: any) {
+    console.error('Error uploading avatar:', error);
+    return res.status(500).json({ success: false, message: 'Failed to upload avatar' });
+  }
+};
