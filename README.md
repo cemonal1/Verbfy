@@ -1,6 +1,7 @@
 # 🎓 Verbfy - Premium English Learning Platform
 
 [![CI](https://github.com/cemonal1/Verbfy/actions/workflows/ci.yml/badge.svg)](https://github.com/cemonal1/Verbfy/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/cemonal1/Verbfy/branch/main/graph/badge.svg)](https://codecov.io/gh/cemonal1/Verbfy)
 
 ## Overview
 
