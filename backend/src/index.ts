@@ -1,9 +1,14 @@
 import express from 'express';
+import pino from 'pino';
+import pinoHttp from 'pino-http';
+import * as Sentry from '@sentry/node';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import { createServer } from 'http';
+import path from 'path';
+import fs from 'fs';
 import { Server as SocketIOServer } from 'socket.io';
 import { connectDB } from './config/db';
 import { validateEnvironment } from './config/env';
@@ -48,6 +53,16 @@ try {
 const app = express();
 const server = createServer(app);
 
+// Init Sentry (optional)
+if (process.env.SENTRY_DSN) {
+  Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0.1 });
+  app.use(Sentry.Handlers.requestHandler());
+}
+
+// Logger
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+app.use(pinoHttp({ logger }));
+
 // Security middleware
 const isDev = process.env.NODE_ENV !== 'production';
 const cspDirectives: any = {
@@ -64,6 +79,17 @@ app.use(helmet({
   contentSecurityPolicy: { directives: cspDirectives },
   crossOriginEmbedderPolicy: false
 }));
+
+// Serve static uploads (avatars, materials, etc.)
+const uploadsRoot = path.resolve(__dirname, '../uploads');
+try {
+  if (!fs.existsSync(uploadsRoot)) {
+    fs.mkdirSync(uploadsRoot, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Could not ensure uploads directory exists:', e);
+}
+app.use('/uploads', express.static(uploadsRoot));
 
 // Initialize Socket.IO
 const io = new SocketIOServer(server, {
@@ -189,6 +215,9 @@ app.use('*', notFoundHandler);
 
 // Global error handler (must be last)
 app.use(errorHandler);
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.errorHandler());
+}
 
 // Start server
 const PORT = process.env.PORT || 5000;
