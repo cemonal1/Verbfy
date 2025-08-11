@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 import { signAccessToken, signRefreshToken, verifyToken, verifyRefreshToken } from '../utils/jwt';
 import { sendEmail } from '../utils/email';
 import User from '../models/User';
+import VerificationToken from '../models/VerificationToken';
+import crypto from 'crypto';
 
 // Helper: set refresh token cookie
 const setRefreshTokenCookie = (res: Response, token: string) => {
@@ -101,6 +103,21 @@ export const register = async (req: Request, res: Response) => {
     setRefreshTokenCookie(res, refreshToken);
     
     console.log('Registration successful');
+    // Send email verification for all non-admin signups
+    try {
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24h
+      await VerificationToken.create({ userId: user._id, token, expiresAt });
+      const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
+      await sendEmail(user.email, 'Verify your Verbfy email', `
+        <p>Hi ${user.name},</p>
+        <p>Please verify your email to activate your account:</p>
+        <p><a href="${verifyUrl}">Verify Email</a></p>
+        <p>This link expires in 24 hours.</p>
+      `);
+    } catch (e) {
+      console.warn('Failed to send verification email:', e);
+    }
     if (requiresApproval) {
       // Notify admins
       try {

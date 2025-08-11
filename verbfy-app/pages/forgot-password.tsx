@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
+import api from '@/lib/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -10,12 +11,13 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     if (!email) return;
     
-    setLoading(true);
-    // TODO: Implement forgot password API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      setLoading(true);
+      await api.post('/api/auth/password/request-reset', { email });
       setSubmitted(true);
-    }, 2000);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {
