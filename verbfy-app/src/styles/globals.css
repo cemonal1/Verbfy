@@ -379,6 +379,11 @@ img, video, iframe {
   @apply w-16 h-16;
 }
 
+/* Default avatar helper */
+img[alt="Avatar"], img.default-avatar {
+  object-fit: cover;
+}
+
 /* Enhanced modal styles */
 .modal-overlay {
   @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
