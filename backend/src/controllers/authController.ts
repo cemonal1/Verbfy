@@ -18,6 +18,17 @@ const setRefreshTokenCookie = (res: Response, token: string) => {
   });
 };
 
+// Helper: set access token cookie (short-lived)
+const setAccessTokenCookie = (res: Response, token: string) => {
+  res.cookie('accessToken', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 15 * 60 * 1000, // 15 minutes
+  });
+};
+
 // Helper: extract user from token
 const getUserFromToken = (req: Request) => {
   const authHeader = req.headers.authorization;
@@ -101,6 +112,7 @@ export const register = async (req: Request, res: Response) => {
     
     console.log('Setting refresh token cookie...');
     setRefreshTokenCookie(res, refreshToken);
+    setAccessTokenCookie(res, accessToken);
     
     console.log('Registration successful');
     // Send email verification for all non-admin signups
@@ -179,6 +191,7 @@ export const login = async (req: Request, res: Response) => {
     
     console.log('Setting refresh token cookie...');
     setRefreshTokenCookie(res, refreshToken);
+    setAccessTokenCookie(res, accessToken);
     
     console.log('Login successful:', { userId: user._id, role: user.role });
     res.json({
@@ -231,6 +244,7 @@ export const refreshToken = async (req: Request, res: Response) => {
     const newAccessToken = signAccessToken({ id: user._id, name: user.name, email: user.email, role: user.role });
     const newRefreshToken = signRefreshToken({ id: user._id, version: user.refreshTokenVersion });
     setRefreshTokenCookie(res, newRefreshToken);
+    setAccessTokenCookie(res, newAccessToken);
     
     console.log('Token refresh successful for user:', user._id);
     res.json({ success: true, accessToken: newAccessToken });
@@ -242,6 +256,7 @@ export const refreshToken = async (req: Request, res: Response) => {
 
 export const logout = async (_req: Request, res: Response) => {
   res.clearCookie('refreshToken', { path: '/api/auth' });
+  res.clearCookie('accessToken', { path: '/' });
   res.json({ success: true, message: 'Logged out' });
 };
 
