@@ -47,6 +47,14 @@ jobs:
           name: backend-coverage
           path: backend/coverage
 
+      - name: Upload coverage to Codecov (backend)
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: backend/coverage/lcov.info
+          flags: backend
+          fail_ci_if_error: true
+
       - name: Backend lint (if configured)
         working-directory: backend
         run: npm run -s lint --if-present || echo "no backend lint script"
@@ -69,6 +77,14 @@ jobs:
         with:
           name: frontend-coverage
           path: verbfy-app/coverage
+
+      - name: Upload coverage to Codecov (frontend)
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: verbfy-app/coverage/lcov.info
+          flags: frontend
+          fail_ci_if_error: true
 
       - name: Frontend lint (if configured)
         working-directory: verbfy-app
