@@ -90,43 +90,4 @@ jobs:
         working-directory: verbfy-app
         run: npm run -s lint --if-present || echo "no frontend lint script"
 
-name: Build and Smoke Test
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  build-test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install backend deps
-        working-directory: backend
-        run: npm ci
-
-      - name: Build backend
-        working-directory: backend
-        run: npm run build
-
-      - name: Install frontend deps
-        working-directory: verbfy-app
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: verbfy-app
-        run: npm run build
-
-      - name: Validate production compose
-        run: docker compose -f docker-compose.production.yml config
-
 
