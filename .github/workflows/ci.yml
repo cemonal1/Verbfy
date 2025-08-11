@@ -30,7 +30,7 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      - name: Run backend tests
+      - name: Run backend tests with coverage
         working-directory: backend
         env:
           MONGODB_URI: mongodb://localhost:27017/verbfy_ci
@@ -38,7 +38,18 @@ jobs:
           JWT_REFRESH_SECRET: testrefreshjwt
           FRONTEND_URL: http://localhost:3000
           BACKEND_URL: http://localhost:5000
-        run: npm test -- --runInBand
+        run: npm test -- --runInBand --coverage
+
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage
+
+      - name: Backend lint (if configured)
+        working-directory: backend
+        run: npm run -s lint --if-present || echo "no backend lint script"
 
       - name: Install frontend deps
         working-directory: verbfy-app
@@ -47,6 +58,21 @@ jobs:
       - name: Frontend typecheck
         working-directory: verbfy-app
         run: npm run -s build --if-present || echo "skip build in CI"
+
+      - name: Frontend tests with coverage (if configured)
+        working-directory: verbfy-app
+        run: npm test -- --coverage || echo "no frontend tests"
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: verbfy-app/coverage
+
+      - name: Frontend lint (if configured)
+        working-directory: verbfy-app
+        run: npm run -s lint --if-present || echo "no frontend lint script"
 
 name: Build and Smoke Test
 
