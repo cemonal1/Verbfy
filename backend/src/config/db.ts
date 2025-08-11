@@ -26,7 +26,7 @@ export const connectDB = async () => {
         bufferCommands: false, // Disable mongoose buffering
         retryWrites: true,
         w: 'majority'
-      });
+      } as any);
       
       console.log('✅ MongoDB connected successfully');
       

@@ -1,4 +1,6 @@
 import { Response } from 'express';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { AuthRequest } from '../middleware/auth';
 import UserModel from '../models/User';
 import path from 'path';
@@ -126,5 +128,26 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Error uploading avatar:', error);
     return res.status(500).json({ success: false, message: 'Failed to upload avatar' });
+  }
+};
+
+// Generate S3 presigned upload URL for teacher documents (cv/video)
+export const getPresignedUploadUrl = async (req: AuthRequest, res: Response) => {
+  try {
+    const key = (req.query.key as string) || '';
+    const contentType = (req.query.contentType as string) || '';
+    if (!key || !contentType) {
+      return res.status(400).json({ success: false, message: 'key and contentType are required' });
+    }
+    const region = process.env.AWS_REGION || 'us-east-1';
+    const bucket = process.env.S3_BUCKET as string;
+    if (!bucket) return res.status(500).json({ success: false, message: 'S3 is not configured' });
+    const s3 = new S3Client({ region });
+    const cmd = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
+    const url = await getSignedUrl(s3, cmd, { expiresIn: 300 });
+    return res.json({ success: true, url });
+  } catch (error: any) {
+    console.error('getPresignedUploadUrl error:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
   }
 };

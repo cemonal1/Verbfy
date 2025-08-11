@@ -4,7 +4,6 @@ import path from 'path';
 import fs from 'fs';
 import { auth, requireRole } from '../middleware/auth';
 import * as userController from '../controllers/userController';
-import { getSignedUploadUrl } from '../controllers/uploadController';
 
 const router = Router();
 
@@ -46,7 +45,7 @@ router.put('/profile', auth, userController.updateCurrentUser);
 // Upload avatar
 router.post('/profile/avatar', auth, upload.single('avatar'), userController.uploadAvatar);
 
-// Signed upload URL for teacher documents
-router.get('/uploads/signed-url', auth, getSignedUploadUrl);
+// S3 presigned upload URL for teacher documents
+router.get('/uploads/presign', auth, userController.getPresignedUploadUrl);
 
 export default router; 

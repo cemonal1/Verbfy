@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useReducer, useRef, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { tokenStorage } from '../utils/secureStorage';
 import { useAuth } from './AuthContext';
 import { useToast } from '../components/common/Toast';
 import api from '../lib/api';
@@ -118,11 +119,14 @@ export function ChatProvider({ children }: ChatProviderProps) {
   // Initialize Socket.IO connection
   useEffect(() => {
     if (isAuthenticated && user) {
-      const socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000', {
-        auth: {
-          token: localStorage.getItem('verbfy_token')
+      const socket = io(
+        process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000',
+        {
+          auth: {
+            token: tokenStorage.getToken() || undefined
+          }
         }
-      });
+      );
 
       socketRef.current = socket;
 

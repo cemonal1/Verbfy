@@ -1,7 +1,4 @@
 import express from 'express';
-import pino from 'pino';
-import pinoHttp from 'pino-http';
-import * as Sentry from '@sentry/node';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
@@ -14,6 +11,7 @@ import { connectDB } from './config/db';
 import { validateEnvironment } from './config/env';
 import { apiLimiter, authLimiter } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import pinoHttp from 'pino-http';
 import livekitRoutes from './routes/livekitRoutes';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/userRoutes';
@@ -53,16 +51,6 @@ try {
 const app = express();
 const server = createServer(app);
 
-// Init Sentry (optional)
-if (process.env.SENTRY_DSN) {
-  Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0.1 });
-  app.use((Sentry as any).Handlers.requestHandler());
-}
-
-// Logger
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
-app.use(pinoHttp({ logger }));
-
 // Security middleware
 const isDev = process.env.NODE_ENV !== 'production';
 const cspDirectives: any = {
@@ -71,13 +59,27 @@ const cspDirectives: any = {
   fontSrc: ["'self'", "https://fonts.gstatic.com"],
   imgSrc: ["'self'", "data:", "https:"],
   scriptSrc: isDev ? ["'self'", "'unsafe-inline'", "'unsafe-eval'"] : ["'self'"],
-  connectSrc: ["'self'", "https:", "wss:"],
+  connectSrc: [
+    "'self'",
+    "https:",
+    "wss:",
+    process.env.LIVEKIT_CLOUD_URL || '',
+    process.env.LIVEKIT_SELF_URL || ''
+  ].filter(Boolean),
   frameSrc: ["'none'"],
   objectSrc: ["'none'"]
 };
 app.use(helmet({
   contentSecurityPolicy: { directives: cspDirectives },
   crossOriginEmbedderPolicy: false
+}));
+
+// Structured logging
+app.use(pinoHttp({
+  transport: process.env.NODE_ENV !== 'production' ? {
+    target: 'pino-pretty',
+    options: { colorize: true, singleLine: true }
+  } : undefined
 }));
 
 // Serve static uploads (avatars, materials, etc.)
@@ -91,12 +93,25 @@ try {
 }
 app.use('/uploads', express.static(uploadsRoot));
 
-// Initialize Socket.IO
+// Initialize Socket.IO with auth
 const io = new SocketIOServer(server, {
   cors: {
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     methods: ['GET', 'POST'],
     credentials: true
+  }
+});
+
+io.use((socket, next) => {
+  try {
+    const token = (socket.handshake.auth && (socket.handshake.auth as any).token) as string | undefined;
+    if (!token) return next(new Error('Unauthorized'));
+    const { verifyToken } = require('./utils/jwt');
+    const payload = verifyToken(token);
+    (socket as any).user = payload;
+    next();
+  } catch (e) {
+    next(new Error('Unauthorized'));
   }
 });
 
@@ -215,9 +230,6 @@ app.use('*', notFoundHandler);
 
 // Global error handler (must be last)
 app.use(errorHandler);
-if (process.env.SENTRY_DSN) {
-  app.use((Sentry as any).Handlers.errorHandler());
-}
 
 // Start server
 const PORT = process.env.PORT || 5000;

@@ -226,7 +226,7 @@ export const approveTeacher = async (req: Request, res: Response) => {
     ).select('-password');
     if (!user) return res.status(404).json({ success: false, message: 'Teacher not found' });
     try {
-      await (AuditLog as any).createLog({
+      await AuditLog.create({
         userId: (req as any).user?.id,
         event: {
           type: 'user.approval',
@@ -240,7 +240,7 @@ export const approveTeacher = async (req: Request, res: Response) => {
         request: { method: req.method, url: req.originalUrl, ip: req.ip, userAgent: req.get('user-agent') || '' },
         response: { statusCode: 200, statusMessage: 'OK', responseTime: 0 },
         metadata: { tags: ['teacher', 'approval'] }
-      });
+      } as any);
     } catch (e) { /* non-blocking */ }
     // Notify teacher
     try {
@@ -270,7 +270,7 @@ export const rejectTeacher = async (req: Request, res: Response) => {
     ).select('-password');
     if (!user) return res.status(404).json({ success: false, message: 'Teacher not found' });
     try {
-      await (AuditLog as any).createLog({
+      await AuditLog.create({
         userId: (req as any).user?.id,
         event: {
           type: 'user.approval',
@@ -284,7 +284,7 @@ export const rejectTeacher = async (req: Request, res: Response) => {
         request: { method: req.method, url: req.originalUrl, ip: req.ip, userAgent: req.get('user-agent') || '' },
         response: { statusCode: 200, statusMessage: 'OK', responseTime: 0 },
         metadata: { tags: ['teacher', 'approval'] }
-      });
+      } as any);
     } catch (e) { /* non-blocking */ }
     // Notify teacher
     try {
