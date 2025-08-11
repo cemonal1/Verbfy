@@ -9,6 +9,8 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     services:
       mongo:
         image: mongo:6
@@ -52,14 +54,14 @@ jobs:
           path: backend/coverage
 
       - name: Upload coverage to Codecov (backend)
-        if: ${{ always() && hashFiles('backend/coverage/lcov.info') != '' && (github.event.repository.private == false || secrets.CODECOV_TOKEN != '') }}
+        if: ${{ always() && hashFiles('backend/coverage/lcov.info') != '' }}
         uses: codecov/codecov-action@v4
         with:
           files: backend/coverage/lcov.info
           flags: backend
           fail_ci_if_error: false
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          CODECOV_TOKEN: ${{ env.CODECOV_TOKEN }}
 
       - name: Backend lint (if configured)
         working-directory: backend
@@ -85,14 +87,14 @@ jobs:
           path: verbfy-app/coverage
 
       - name: Upload coverage to Codecov (frontend)
-        if: ${{ always() && hashFiles('verbfy-app/coverage/lcov.info') != '' && (github.event.repository.private == false || secrets.CODECOV_TOKEN != '') }}
+        if: ${{ always() && hashFiles('verbfy-app/coverage/lcov.info') != '' }}
         uses: codecov/codecov-action@v4
         with:
           files: verbfy-app/coverage/lcov.info
           flags: frontend
           fail_ci_if_error: false
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          CODECOV_TOKEN: ${{ env.CODECOV_TOKEN }}
 
       - name: Frontend lint (if configured)
         working-directory: verbfy-app
