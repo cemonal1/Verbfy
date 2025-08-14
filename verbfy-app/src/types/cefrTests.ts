@@ -106,6 +106,7 @@ export interface StartTestResponse {
     description: string;
     cefrLevel: string;
     testType: string;
+    timed?: boolean;
     totalTime: number;
     sections: {
       name: string;
