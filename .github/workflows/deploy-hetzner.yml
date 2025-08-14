@@ -1,0 +1,49 @@
+name: Deploy API to Hetzner
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'nginx/**'
+      - 'docker-compose.hetzner.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Backend build check
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          port: ${{ secrets.HETZNER_PORT || 22 }}
+          script: |
+            set -e
+            export APP_DIR="${{ secrets.HETZNER_PATH }}"
+            if [ ! -d "$APP_DIR" ]; then sudo mkdir -p "$APP_DIR"; sudo chown -R $USER:$USER "$APP_DIR"; fi
+            cd "$APP_DIR"
+            if [ ! -d .git ]; then
+              git clone ${{ secrets.GIT_REPO }} .
+            fi
+            git fetch --all
+            git reset --hard origin/main
+            docker compose -f docker-compose.hetzner.yml up -d --build
+            docker system prune -f
+
+
