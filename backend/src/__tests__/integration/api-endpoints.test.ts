@@ -21,10 +21,10 @@ describe('API Endpoints Integration', () => {
   let authToken: string
   let testUser: any
 
-  beforeAll(async () => {
+beforeAll(async () => {
     // Connect to test database only if not already connected
     if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(process.env.MONGODB_URI!)
+    await mongoose.connect(process.env.MONGO_URI as string)
     }
   })
 

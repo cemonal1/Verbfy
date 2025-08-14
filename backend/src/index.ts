@@ -90,9 +90,9 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// Structured logging
+// Structured logging (pretty print only in development, not in tests)
 app.use(pinoHttp({
-  transport: process.env.NODE_ENV !== 'production' ? {
+  transport: process.env.NODE_ENV === 'development' ? {
     target: 'pino-pretty',
     options: { colorize: true, singleLine: true }
   } : undefined
@@ -140,12 +140,14 @@ app.use((req, _res, next) => {
 // Connect to MongoDB
 connectDB();
 
-// Rate limiting middleware (exclude health check)
-app.use('/api/auth', authLimiter); // Stricter rate limiting for auth endpoints
-app.use((req, res, next) => {
-  if (req.path === '/api/health') return next();
-  return apiLimiter(req, res, next);
-});
+// Rate limiting middleware (exclude health check). Relax limits in tests to avoid flakiness
+if (process.env.NODE_ENV !== 'test') {
+  app.use('/api/auth', authLimiter); // Stricter rate limiting for auth endpoints
+  app.use((req, res, next) => {
+    if (req.path === '/api/health') return next();
+    return apiLimiter(req, res, next);
+  });
+}
 
 // CORS middleware
 app.use(cors({

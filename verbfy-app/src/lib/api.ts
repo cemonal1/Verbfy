@@ -651,6 +651,12 @@ export const cefrTestsAPI = {
     return response.data;
   },
 
+  // Get test attempt details (may not be available on all backends)
+  getTestAttempt: async (attemptId: string): Promise<TestAttempt> => {
+    const response = await api.get(`/api/cefr-tests/attempt/${attemptId}`);
+    return response.data;
+  },
+
   // Get test statistics
   getTestStats: async (testId: string): Promise<TestStats> => {
     const response = await api.get(`/api/cefr-tests/${testId}/stats`);

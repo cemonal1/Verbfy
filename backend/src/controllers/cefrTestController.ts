@@ -322,7 +322,7 @@ export class CEFRTestController {
 
       // Placement decision (overall + tie-break by sections + anti-guessing streak)
       let recommendedLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2' = 'A1';
-      let totalCorrect = processedAnswers.filter(a => a.isCorrect).length;
+      let totalCorrect = processedAnswers.filter((a: any) => a.isCorrect).length;
 
       // Compute per-section correct counts by global index ranges
       const sectionLengths = test.sections.map((s: any) => s.questions.length);
