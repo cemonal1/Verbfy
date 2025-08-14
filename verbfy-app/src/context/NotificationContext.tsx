@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
+import { tokenStorage } from '../utils/secureStorage';
 import api from '../lib/api';
 import { useAuth } from './AuthContext';
 import {
@@ -255,10 +256,10 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     if (!isAuthenticated || !user) return;
 
     // Connect to Socket.IO server
-    const socketUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const socketUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
     socketRef.current = io(socketUrl, {
       auth: {
-        token: localStorage.getItem('verbfy_token')
+        token: tokenStorage.getToken() || undefined
       }
     });
 

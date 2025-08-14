@@ -1,10 +1,13 @@
 import React, { useState, ReactNode } from 'react';
 import Link from 'next/link';
+import BrandLogo from '@/components/shared/BrandLogo';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../common/Toast';
 import NotificationBadge from '../notification/NotificationBadge';
+import { NotificationProvider } from '@/context/NotificationContext';
 import NotificationPanel from '../notification/NotificationPanel';
+import { useI18n } from '@/lib/i18n';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -18,6 +21,7 @@ export default function DashboardLayout({
   title = 'Dashboard'
 }: DashboardLayoutProps) {
   const { user, logout } = useAuth();
+  const { t, locale, setLocale } = useI18n();
   const { success } = useToast();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -49,81 +53,93 @@ export default function DashboardLayout({
   const getNavigationItems = () => {
     const baseItems = [
       {
-        name: 'Dashboard',
+        name: t('nav.dashboard','Dashboard'),
         href: '/dashboard',
-        icon: '��',
+        icon: '🏠',
         current: router.pathname === '/dashboard'
       },
+        {
+          name: 'Placement',
+          href: '/placement',
+          icon: '🧭',
+          current: router.pathname.startsWith('/placement')
+        },
+        {
+          name: 'VerbfyGames',
+          href: '/verbfy-games',
+          icon: '🎮',
+          current: router.pathname.startsWith('/verbfy-games')
+        },
       {
-        name: 'Profile',
+        name: t('nav.profile','Profile'),
         href: '/profile',
         icon: '👤',
         current: router.pathname === '/profile'
       },
       {
-        name: 'VerbfyTalk',
+        name: t('nav.verbfytalk','VerbfyTalk'),
         href: '/verbfy-talk',
         icon: '🎥',
         current: router.pathname.startsWith('/verbfy-talk')
       },
       {
-        name: 'Free Materials',
+        name: t('nav.freeMaterials','Free Materials'),
         href: '/free-materials',
         icon: '📚',
         current: router.pathname.startsWith('/free-materials')
       },
       {
-        name: 'Verbfy Lessons',
+        name: t('nav.verbfyLessons','Verbfy Lessons'),
         href: '/verbfy-lessons',
         icon: '📖',
         current: router.pathname.startsWith('/verbfy-lessons')
       },
       {
-        name: 'CEFR Tests',
+        name: t('nav.cefrTests','CEFR Tests'),
         href: '/cefr-tests',
         icon: '📝',
         current: router.pathname.startsWith('/cefr-tests')
       },
       {
-        name: 'Personalized Curriculum',
+        name: t('nav.curriculum','Personalized Curriculum'),
         href: '/personalized-curriculum',
         icon: '🎯',
         current: router.pathname.startsWith('/personalized-curriculum')
       },
       {
-        name: 'AI Learning Assistant',
+        name: t('nav.aiLearning','AI Learning Assistant'),
         href: '/ai-learning',
         icon: '🤖',
         current: router.pathname.startsWith('/ai-learning')
       },
       {
-        name: 'Adaptive Learning',
+        name: t('nav.adaptive','Adaptive Learning'),
         href: '/adaptive-learning',
         icon: '🎯',
         current: router.pathname.startsWith('/adaptive-learning')
       },
       {
-        name: 'AI Content Generation',
+        name: t('nav.aiContent','AI Content Generation'),
         href: '/ai-content-generation',
         icon: '✨',
         current: router.pathname.startsWith('/ai-content-generation')
       },
       {
-        name: 'Chat',
+        name: t('nav.chat','Chat'),
         href: '/chat',
         icon: '💬',
         current: router.pathname.startsWith('/chat')
       },
       {
-        name: 'Materials',
+        name: t('nav.materials','Materials'),
         href: '/materials',
         icon: '📁',
         current: router.pathname.startsWith('/materials')
       },
       {
-        name: 'Payments',
+        name: t('nav.payments','Payments'),
         href: '/payment',
-        icon: '��',
+        icon: '💳',
         current: router.pathname.startsWith('/payment')
       }
     ];
@@ -131,13 +147,13 @@ export default function DashboardLayout({
     // Add role-specific items
     if (user.role === 'student') {
       baseItems.splice(1, 0, {
-        name: 'My Lessons',
+        name: t('student.myLessons','My Lessons'),
         href: '/lessons',
         icon: '📖',
         current: router.pathname === '/lessons'
       });
       baseItems.splice(2, 0, {
-        name: 'Find Teachers',
+        name: t('student.findTeachers','Find Teachers'),
         href: '/teachers',
         icon: '👨‍🏫',
         current: router.pathname === '/teachers'
@@ -146,25 +162,25 @@ export default function DashboardLayout({
 
     if (user.role === 'teacher') {
       baseItems.splice(1, 0, {
-        name: 'My Students',
+        name: t('teacher.myStudents','My Students'),
         href: '/students',
         icon: '👥',
         current: router.pathname === '/students'
       });
       baseItems.splice(2, 0, {
-        name: 'Schedule',
+        name: t('teacher.schedule','Schedule'),
         href: '/schedule',
         icon: '📅',
         current: router.pathname === '/schedule'
       });
       baseItems.splice(3, 0, {
-        name: 'Earnings',
+        name: t('teacher.earnings','Earnings'),
         href: '/earnings',
         icon: '💰',
         current: router.pathname === '/earnings'
       });
       baseItems.splice(4, 0, {
-        name: 'Advanced Analytics',
+        name: t('teacher.analyticsAdvanced','Advanced Analytics'),
         href: '/teacher/analytics-advanced',
         icon: '📊',
         current: router.pathname === '/teacher/analytics-advanced'
@@ -173,19 +189,19 @@ export default function DashboardLayout({
 
     if (user.role === 'admin') {
       baseItems.splice(1, 0, {
-        name: 'Users',
+        name: t('admin.users','Users'),
         href: '/admin/users',
         icon: '👥',
         current: router.pathname === '/admin/users'
       });
       baseItems.splice(2, 0, {
-        name: 'Analytics',
+        name: t('admin.analytics','Analytics'),
         href: '/admin/analytics',
         icon: '📊',
         current: router.pathname === '/admin/analytics'
       });
       baseItems.splice(3, 0, {
-        name: 'Settings',
+        name: t('admin.settings','Settings'),
         href: '/admin/settings',
         icon: '⚙️',
         current: router.pathname === '/admin/settings'
@@ -208,7 +224,8 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
+      <NotificationProvider>
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -224,10 +241,7 @@ export default function DashboardLayout({
       `}>
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
-          <Link href="/" className="flex items-center space-x-2">
-            <span className="text-2xl">📚</span>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">Verbfy</span>
-          </Link>
+          <BrandLogo size={44} withTitle />
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -239,7 +253,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Navigation */}
-        <nav className="mt-6 px-3">
+        <nav className="mt-4 px-3">
           <div className="space-y-1">
             {navigationItems.map((item) => (
               <Link
@@ -254,8 +268,8 @@ export default function DashboardLayout({
                 `}
                 onClick={() => setSidebarOpen(false)}
               >
-                <span className="mr-3 text-lg">{item.icon}</span>
-                {item.name}
+                <span className="mr-3 text-lg" aria-hidden>{item.icon}</span>
+                <span>{item.name}</span>
               </Link>
             ))}
           </div>
@@ -293,14 +307,15 @@ export default function DashboardLayout({
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 min-h-screen">
         {/* Top bar */}
-        <div className="sticky top-0 z-30 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur dark:bg-gray-800/80 shadow-sm border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between h-14 px-4 sm:px-6 lg:px-8">
             {/* Mobile menu button */}
             <button
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label="Open sidebar"
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -309,34 +324,34 @@ export default function DashboardLayout({
 
             {/* Page title */}
             <div className="flex-1 lg:flex-none">
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h1 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                 {title}
               </h1>
+              <p className="hidden sm:block text-[11px] text-gray-500 dark:text-gray-400 -mt-0.5">Verbing Up Your Language Skills!</p>
             </div>
 
             {/* Right side actions */}
-            <div className="flex items-center space-x-4">
-              {/* Notifications */}
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              {/* Language toggle */}
+              <button
+                onClick={() => setLocale(locale === 'en' ? 'tr' : 'en')}
+                className="px-2 py-1 text-xs rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                aria-label="Toggle language"
+                title={locale === 'en' ? 'Türkçe' : 'English'}
+              >
+                {locale === 'en' ? 'TR' : 'EN'}
+              </button>
               <NotificationBadge 
                 onClick={() => setNotificationPanelOpen(true)}
                 className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               />
-
-              {/* User menu (mobile) */}
-              <div className="lg:hidden">
-                <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </button>
-              </div>
             </div>
           </div>
         </div>
 
         {/* Page content */}
         <main className="flex-1">
-          <div className="py-6">
+          <div className="pt-4 pb-6 sm:py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               {children}
             </div>
@@ -349,6 +364,7 @@ export default function DashboardLayout({
         isOpen={notificationPanelOpen}
         onClose={() => setNotificationPanelOpen(false)}
       />
+      </NotificationProvider>
     </div>
   );
 } 

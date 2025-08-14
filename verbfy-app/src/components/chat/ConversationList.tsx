@@ -82,18 +82,13 @@ function ConversationItem({ conversation, isSelected, onClick }: ConversationIte
     >
       {/* Avatar */}
       <div className="flex-shrink-0">
-        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-          {otherParticipant.avatar ? (
-            <img
-              src={otherParticipant.avatar}
-              alt={otherParticipant.name}
-              className="w-12 h-12 rounded-full object-cover"
-            />
-          ) : (
-            <span className="text-lg font-medium text-blue-600 dark:text-blue-400">
-              {otherParticipant.name.charAt(0).toUpperCase()}
-            </span>
-          )}
+        <div className="w-12 h-12 rounded-full overflow-hidden bg-blue-50 dark:bg-blue-900">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={otherParticipant.avatar || '/images/default-avatar.png'}
+            alt={otherParticipant.name}
+            className="w-12 h-12 object-cover"
+          />
         </div>
       </div>
 

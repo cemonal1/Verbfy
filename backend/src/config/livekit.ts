@@ -14,9 +14,10 @@ class LiveKitConfiguration {
   private constructor() {
     // Cloud configuration
     this.cloudConfig = {
-      apiKey: process.env.LIVEKIT_CLOUD_API_KEY || '',
-      apiSecret: process.env.LIVEKIT_CLOUD_API_SECRET || '',
-      url: process.env.LIVEKIT_CLOUD_URL || ''
+      // Support both LIVEKIT_CLOUD_* and generic LIVEKIT_* envs
+      apiKey: process.env.LIVEKIT_CLOUD_API_KEY || process.env.LIVEKIT_API_KEY || '',
+      apiSecret: process.env.LIVEKIT_CLOUD_API_SECRET || process.env.LIVEKIT_API_SECRET || '',
+      url: process.env.LIVEKIT_CLOUD_URL || process.env.LIVEKIT_URL || ''
     };
 
     // Self-hosted configuration

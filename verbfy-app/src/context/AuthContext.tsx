@@ -11,6 +11,12 @@ export interface User {
   email: string;
   role: 'student' | 'teacher' | 'admin';
   avatar?: string;
+  profileImage?: string;
+  bio?: string;
+  phone?: string;
+  emailVerified?: boolean;
+  isApproved?: boolean;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
   // Learning progress fields
   cefrLevel?: string;
   overallProgress?: number;
@@ -75,35 +81,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loadUser = async () => {
     try {
       const token = tokenStorage.getToken();
-      
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-
-      // Verify token and get user data
+      // Even if token is missing (cookie-only auth), try to fetch current user
       const response = await authAPI.getCurrentUser();
-      
       if (response.data.success) {
         const userData = response.data.user;
-        
-        // Add id alias for backward compatibility
         const userWithId = {
           ...userData,
           id: userData._id
-        };
-        
+        } as User;
         setUser(userWithId);
-        // Update stored user data
         tokenStorage.setUser(userWithId);
       } else {
-        // Invalid token, clear it
-        tokenStorage.clear();
+        if (!token) {
+          setUser(null);
+        } else {
+          tokenStorage.clear();
+        }
       }
     } catch (error) {
-      console.error('Error loading user:', error);
-      // Clear invalid token
+      // If cookies are absent or invalid, clear any residual storage
       tokenStorage.clear();
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -113,31 +111,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setIsLoading(true);
-      
       const response = await authAPI.login({ email, password });
-      
       if (response.data.success) {
-        const { token, user: userData } = response.data;
-        
-        // Add id alias for backward compatibility
-        const userWithId = {
-          ...userData,
-          id: userData._id
-        };
-        
-        // Store token and user data securely
-        tokenStorage.setToken(token);
+        const { accessToken, user: userData, token } = response.data;
+        const userWithId = { ...userData, id: userData._id } as User;
+        const provided = accessToken || token;
+        if (provided) tokenStorage.setToken(provided);
         tokenStorage.setUser(userWithId);
-        
-        // Set user in state
         setUser(userWithId);
-        
         return true;
       }
-      
       return false;
-    } catch (error: any) {
-      console.error('Login error:', error);
+    } catch (_error) {
       return false;
     } finally {
       setIsLoading(false);
@@ -148,31 +133,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const register = async (userData: RegisterData): Promise<boolean> => {
     try {
       setIsLoading(true);
-      
       const response = await authAPI.register(userData);
-      
       if (response.data.success) {
-        const { token, user: newUser } = response.data;
-        
-        // Add id alias for backward compatibility
-        const userWithId = {
-          ...newUser,
-          id: newUser._id
-        };
-        
-        // Store token and user data securely
-        tokenStorage.setToken(token);
+        const { accessToken, user: newUser, token } = response.data;
+        const userWithId = { ...newUser, id: newUser._id } as User;
+        const provided = accessToken || token;
+        if (provided) tokenStorage.setToken(provided);
         tokenStorage.setUser(userWithId);
-        
-        // Set user in state
         setUser(userWithId);
-        
         return true;
       }
-      
       return false;
-    } catch (error: any) {
-      console.error('Register error:', error);
+    } catch (_error) {
       return false;
     } finally {
       setIsLoading(false);

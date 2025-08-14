@@ -143,7 +143,7 @@ export const setupSocketServer = (server: HTTPServer) => {
   const io = new SocketIOServer(server, {
     cors: {
       origin: process.env.NODE_ENV === 'production' 
-        ? process.env.NEXT_PUBLIC_API_URL 
+        ? process.env.FRONTEND_URL 
         : "http://localhost:3000",
       credentials: true
     }

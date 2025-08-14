@@ -5,6 +5,8 @@ import { useAuthContext } from '@/context/AuthContext';
 import api, { setApiAccessToken } from '@/lib/api';
 import { toastSuccess, toastError } from '@/lib/toast';
 import HomeButton from '@/components/shared/HomeButton';
+import BrandLogo from '@/components/shared/BrandLogo';
+import { useI18n } from '@/lib/i18n';
 
 interface RegisterResponse {
   accessToken: string;
@@ -22,6 +24,7 @@ interface RegisterResponse {
 export default function RegisterPage() {
   const { setUser, setAccessToken } = useAuthContext();
   const router = useRouter();
+  const { t, locale, setLocale } = useI18n();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,6 +35,10 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !password) return;
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
     
     setLoading(true);
     setError(null);
@@ -67,31 +74,34 @@ export default function RegisterPage() {
     }
   };
 
-  const handleSocialLogin = async (provider: 'google' | 'outlook' | 'apple') => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await api.post('/api/auth/social-login', { provider });
-      setApiAccessToken(res.data.accessToken);
-      setUser(res.data.user);
-      toastSuccess('Authentication successful!');
-      if (res.data.user.role === 'student') {
-        router.push('/student/dashboard');
-      } else if (res.data.user.role === 'teacher') {
-        router.push('/teacher/dashboard');
-      } else {
-        router.push('/dashboard');
+  const handleSocialLogin = (provider: 'google' | 'outlook' | 'apple') => {
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+    const w = 520, h = 600;
+    const y = window.top?.outerHeight ? Math.max(0, (window.top!.outerHeight - h) / 2) : 100;
+    const x = window.top?.outerWidth ? Math.max(0, (window.top!.outerWidth - w) / 2) : 100;
+    window.open(`${base}/api/auth/oauth/${provider}`, 'oauthLogin', `width=${w},height=${h},left=${x},top=${y}`);
+    const handler = (event: MessageEvent) => {
+      const data: any = event.data || {};
+      if (data?.type === 'oauth-success' && data?.token) {
+        window.location.href = '/dashboard';
       }
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Authentication failed';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
+    };
+    window.addEventListener('message', handler, { once: true });
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-4 sm:py-8 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Language toggle */}
+      <div className="absolute top-4 right-4 z-10">
+        <button
+          onClick={() => setLocale(locale === 'en' ? 'tr' : 'en')}
+          className="px-2 py-1 text-xs rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+          aria-label="Toggle language"
+          title={locale === 'en' ? 'Türkçe' : 'English'}
+        >
+          {locale === 'en' ? 'TR' : 'EN'}
+        </button>
+      </div>
       {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-60 h-60 sm:w-80 sm:h-80 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse"></div>
@@ -101,21 +111,17 @@ export default function RegisterPage() {
       <div className="relative w-full max-w-sm sm:max-w-md space-y-6 sm:space-y-8">
         {/* Logo and Brand */}
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 sm:h-16 sm:w-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mb-4 sm:mb-6 transform hover:scale-105 transition-transform duration-300">
-            <span className="text-xl sm:text-2xl font-bold text-white">V</span>
+          <div className="flex justify-center mb-4 sm:mb-6">
+            <BrandLogo size={88} />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            Verbfy
-          </h1>
-          <p className="text-gray-600 text-base sm:text-lg">Join the learning revolution</p>
+          <p className="text-xs text-blue-600 font-semibold mb-1">Verbing Up Your Language Skills!</p>
+          <p className="text-gray-600 text-base sm:text-lg">{t('auth.register.tagline','Join the learning revolution')}</p>
         </div>
 
         {/* Main Registration Form */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 sm:p-8 space-y-6">
           <div className="text-center">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-              Create your account
-            </h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{t('auth.register.title','Create your account')}</h2>
             <p className="text-gray-600 text-sm sm:text-base">
               Start your English learning journey today
             </p>
@@ -124,9 +130,7 @@ export default function RegisterPage() {
           <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
             {/* Name Field */}
             <div className="space-y-2">
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                Full Name
-              </label>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">{t('auth.register.name','Full Name')}</label>
               <input
                 id="name"
                 name="name"
@@ -134,7 +138,7 @@ export default function RegisterPage() {
                 autoComplete="name"
                 required
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400 text-gray-900 bg-white/50 backdrop-blur-sm text-sm sm:text-base"
-                placeholder="Enter your full name"
+                placeholder={t('auth.register.namePlaceholder','Enter your full name')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -142,9 +146,7 @@ export default function RegisterPage() {
 
             {/* Email Field */}
             <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email Address
-              </label>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">{t('auth.register.email','Email Address')}</label>
               <input
                 id="email"
                 name="email"
@@ -152,7 +154,7 @@ export default function RegisterPage() {
                 autoComplete="email"
                 required
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400 text-gray-900 bg-white/50 backdrop-blur-sm text-sm sm:text-base"
-                placeholder="Enter your email"
+                placeholder={t('auth.register.emailPlaceholder','Enter your email')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -160,9 +162,7 @@ export default function RegisterPage() {
 
             {/* Password Field */}
             <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">{t('auth.register.password','Password')}</label>
               <input
                 id="password"
                 name="password"
@@ -170,7 +170,7 @@ export default function RegisterPage() {
                 autoComplete="new-password"
                 required
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400 text-gray-900 bg-white/50 backdrop-blur-sm text-sm sm:text-base"
-                placeholder="Create a strong password"
+                placeholder={t('auth.register.passwordPlaceholder','Create a strong password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -178,9 +178,7 @@ export default function RegisterPage() {
 
             {/* Role Selection */}
             <div className="space-y-2">
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-                I want to join as
-              </label>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700">{t('auth.register.role','I want to join as')}</label>
               <select
                 id="role"
                 name="role"
@@ -189,8 +187,8 @@ export default function RegisterPage() {
                 value={role}
                 onChange={(e) => setRole(e.target.value as 'student' | 'teacher')}
               >
-                <option value="student">Student - Learn English</option>
-                <option value="teacher">Teacher - Teach English</option>
+                <option value="student">{t('auth.register.role.student','Student - Learn English')}</option>
+                <option value="teacher">{t('auth.register.role.teacher','Teacher - Teach English (requires admin approval)')}</option>
               </select>
             </div>
 
@@ -213,12 +211,12 @@ export default function RegisterPage() {
               {loading ? (
                 <div className="flex items-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating account...
+                  {t('auth.register.creating','Creating account...')}
                 </div>
               ) : (
                 <>
                   <i className="fas fa-user-plus mr-2"></i>
-                  Create account
+                  {t('auth.register.submit','Create account')}
                 </>
               )}
             </button>
@@ -230,7 +228,7 @@ export default function RegisterPage() {
               <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or sign up with</span>
+              <span className="px-2 bg-white text-gray-500">{t('auth.register.or','Or sign up with')}</span>
             </div>
           </div>
 
@@ -241,7 +239,7 @@ export default function RegisterPage() {
               className="w-full inline-flex justify-center py-2.5 sm:py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-[1.02]"
             >
               <i className="fab fa-google text-red-500 mr-3"></i>
-              Continue with Google
+              {t('auth.register.google','Continue with Google')}
             </button>
             
             <button
@@ -249,7 +247,7 @@ export default function RegisterPage() {
               className="w-full inline-flex justify-center py-2.5 sm:py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-[1.02]"
             >
               <i className="fas fa-envelope text-blue-500 mr-3"></i>
-              Continue with Outlook
+              {t('auth.register.outlook','Continue with Outlook')}
             </button>
             
             <button
@@ -257,7 +255,7 @@ export default function RegisterPage() {
               className="w-full inline-flex justify-center py-2.5 sm:py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-[1.02]"
             >
               <i className="fab fa-apple text-gray-900 mr-3"></i>
-              Continue with Apple
+              {t('auth.register.apple','Continue with Apple')}
             </button>
           </div>
         </div>
@@ -265,12 +263,12 @@ export default function RegisterPage() {
         {/* Sign In CTA */}
         <div className="text-center">
           <p className="text-gray-600 text-sm sm:text-base">
-            Already have an account?{' '}
+            {t('auth.register.have','Already have an account?')}{' '}
             <Link 
               href="/login" 
               className="font-semibold text-blue-600 hover:text-blue-500 transition-colors duration-200 hover:underline"
             >
-              Sign in here
+              {t('auth.register.signin','Sign in here')}
             </Link>
           </p>
         </div>
@@ -279,17 +277,17 @@ export default function RegisterPage() {
         <div className="text-center space-y-2">
           <div className="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-gray-700 transition-colors">
-              Privacy Policy
+              {t('footer.privacy','Privacy Policy')}
             </Link>
             <Link href="/terms" className="hover:text-gray-700 transition-colors">
-              Terms of Service
+              {t('footer.terms','Terms of Service')}
             </Link>
             <Link href="/help" className="hover:text-gray-700 transition-colors">
-              Help Center
+              {t('footer.help','Help Center')}
             </Link>
           </div>
           <p className="text-xs text-gray-400">
-            © 2024 Verbfy. All rights reserved.
+            © 2024 Verbfy. {t('footer.rights','All rights reserved.')}
           </p>
         </div>
       </div>

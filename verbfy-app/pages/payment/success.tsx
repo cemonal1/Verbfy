@@ -42,15 +42,11 @@ export default function PaymentSuccessPage() {
           </div>
 
           {/* Success Message */}
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Payment Successful!
-          </h1>
-          <p className="text-lg text-gray-600 mb-8">
-            Thank you for your purchase. Your payment has been processed successfully.
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Payments Unavailable</h1>
+          <p className="text-lg text-gray-600 mb-8">Payments are currently unavailable in your region.</p>
 
           {/* Session ID */}
-          {session_id && (
+          {false && session_id && (
             <div className="bg-gray-50 rounded-lg p-4 mb-8">
               <p className="text-sm text-gray-600">
                 <span className="font-medium">Transaction ID:</span> {session_id}

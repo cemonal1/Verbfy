@@ -20,31 +20,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
   onPurchase, 
   className = '' 
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
+  const [isLoading] = useState(false);
 
   const handlePurchase = async () => {
-    try {
-      setIsLoading(true);
-      
-      const response = await paymentAPI.createCheckoutSession({
-        productId: product.id,
-        couponCode: couponCode || undefined
-      });
-
-      if (response.data.success) {
-        // Redirect to Stripe Checkout
-        window.location.href = response.data.data.url;
-        onPurchase?.();
-      } else {
-        toast.error(response.data.message || 'Failed to create checkout session');
-      }
-    } catch (error: any) {
-      console.error('Error creating checkout session:', error);
-      toast.error(error.response?.data?.message || 'Failed to create checkout session');
-    } finally {
-      setIsLoading(false);
-    }
+    toast.error('Payments are currently unavailable in your region.');
   };
 
   const isSubscription = product.type === 'subscription';
@@ -107,15 +86,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </ul>
         </div>
 
-        {/* Coupon code input */}
+        {/* Payments disabled notice */}
         <div className="mb-6">
-          <input
-            type="text"
-            placeholder="Coupon code (optional)"
-            value={couponCode}
-            onChange={(e) => setCouponCode(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
+            Payments are currently unavailable in your region.
+          </div>
         </div>
 
         {/* Purchase button */}
@@ -142,9 +117,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Security notice */}
         <div className="mt-4 text-center">
-          <p className="text-xs text-gray-500">
-            🔒 Secure payment powered by Stripe
-          </p>
+          <p className="text-xs text-gray-500">Payments are disabled.</p>
         </div>
       </div>
     </div>

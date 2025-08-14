@@ -37,12 +37,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ className = '' }) => {
       icon: DocumentTextIcon,
       current: currentPath === '/admin/materials'
     },
-    {
-      name: 'Payments',
-      href: '/admin/payments',
-      icon: CreditCardIcon,
-      current: currentPath === '/admin/payments'
-    },
+    // Payments section hidden (region unsupported)
     {
       name: 'Logs',
       href: '/admin/logs',
