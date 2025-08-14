@@ -1,5 +1,5 @@
 import express from 'express';
-import { auth } from '../middleware/auth';
+import { auth, requireRole } from '../middleware/auth';
 import {
   getNotifications,
   createNotification,
@@ -21,7 +21,7 @@ router.get('/', getNotifications);
 router.get('/unread-count', getUnreadCount);
 
 // Create new notification (admin/system use)
-router.post('/', createNotification);
+router.post('/', requireRole('admin'), createNotification);
 
 // Mark single notification as read
 router.patch('/:id/read', markAsRead);

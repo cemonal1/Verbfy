@@ -216,6 +216,18 @@ function TeacherDashboardPage() {
     );
   }
 
+  // Pending approval notice
+  if ((user as any)?.approvalStatus === 'pending' || (user as any)?.isApproved === false) {
+    return (
+      <DashboardLayout allowedRoles={['teacher']}>
+        <div className="max-w-2xl mx-auto bg-yellow-50 border border-yellow-200 rounded-xl p-6 mt-6">
+          <h2 className="text-lg font-semibold text-yellow-800">Your teacher account is awaiting approval</h2>
+          <p className="text-yellow-700 mt-2">Our team will review your application shortly. You will receive a notification once approved. You can continue exploring as a student in the meantime.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (error) {
     return (
       <DashboardLayout allowedRoles={['teacher']}>

@@ -4,11 +4,16 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import { createServer } from 'http';
+import path from 'path';
+import fs from 'fs';
+import * as Sentry from '@sentry/node';
 import { Server as SocketIOServer } from 'socket.io';
 import { connectDB } from './config/db';
 import { validateEnvironment } from './config/env';
 import { apiLimiter, authLimiter } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { setCsrfCookie, verifyCsrf } from './middleware/csrf';
+import pinoHttp from 'pino-http';
 import livekitRoutes from './routes/livekitRoutes';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/userRoutes';
@@ -32,6 +37,7 @@ import teacherAnalyticsRoutes from './routes/teacherAnalytics';
 import aiContentGenerationRoutes from './routes/aiContentGeneration';
 import organizationRoutes from './routes/organization';
 import rolesRoutes from './routes/roles';
+import gameRoutes from './routes/gameRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -39,7 +45,7 @@ dotenv.config();
 // Validate environment variables before starting the application
 try {
   validateEnvironment();
-} catch (error) {
+} catch (error: any) {
   console.error('❌ Environment validation failed:', error.message);
   process.exit(1);
 }
@@ -48,25 +54,62 @@ try {
 const app = express();
 const server = createServer(app);
 
+// Behind proxy (nginx) trust X-Forwarded-* for secure cookies and IPs
+app.set('trust proxy', 1);
+
+// Sentry init (non-blocking if DSN missing)
+try {
+  Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0.0 });
+  // Support both v7 (Handlers) and guard types
+  const reqHandler = (Sentry as any).Handlers?.requestHandler?.();
+  if (reqHandler) app.use(reqHandler);
+} catch (_) {}
+
 // Security middleware
+const isDev = process.env.NODE_ENV !== 'production';
+const allowedFrames = (process.env.ALLOWED_FRAME_SRC || '').split(',').map(s => s.trim()).filter(Boolean);
+const cspDirectives: any = {
+  defaultSrc: ["'self'"],
+  styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+  fontSrc: ["'self'", "https://fonts.gstatic.com"],
+  imgSrc: ["'self'", "data:", "https:"],
+  scriptSrc: isDev ? ["'self'", "'unsafe-inline'", "'unsafe-eval'"] : ["'self'"],
+  connectSrc: [
+    "'self'",
+    "https:",
+    "wss:",
+    process.env.LIVEKIT_CLOUD_URL || '',
+    process.env.LIVEKIT_SELF_URL || ''
+  ].filter(Boolean),
+  // Allow embedding trusted frames for VerbfyGames (iframe-based games)
+  frameSrc: isDev ? ["'self'", "https:", "http:", ...allowedFrames] : ["'self'", ...allowedFrames],
+  objectSrc: ["'none'"]
+};
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      connectSrc: ["'self'", "wss:", "https:"],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-      upgradeInsecureRequests: []
-    }
-  },
+  contentSecurityPolicy: { directives: cspDirectives },
   crossOriginEmbedderPolicy: false
 }));
 
-// Initialize Socket.IO
+// Structured logging
+app.use(pinoHttp({
+  transport: process.env.NODE_ENV !== 'production' ? {
+    target: 'pino-pretty',
+    options: { colorize: true, singleLine: true }
+  } : undefined
+}));
+
+// Serve static uploads (avatars, materials, etc.)
+const uploadsRoot = path.resolve(__dirname, '../uploads');
+try {
+  if (!fs.existsSync(uploadsRoot)) {
+    fs.mkdirSync(uploadsRoot, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Could not ensure uploads directory exists:', e);
+}
+app.use('/uploads', express.static(uploadsRoot));
+
+// Initialize Socket.IO with auth
 const io = new SocketIOServer(server, {
   cors: {
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -75,19 +118,42 @@ const io = new SocketIOServer(server, {
   }
 });
 
+io.use((socket, next) => {
+  try {
+    const token = (socket.handshake.auth && (socket.handshake.auth as any).token) as string | undefined;
+    if (!token) return next(new Error('Unauthorized'));
+    const { verifyToken } = require('./utils/jwt');
+    const payload = verifyToken(token);
+    (socket as any).user = payload;
+    next();
+  } catch (e) {
+    next(new Error('Unauthorized'));
+  }
+});
+
+// Attach io to request for controllers that need to emit events
+app.use((req, _res, next) => {
+  (req as any).io = io;
+  next();
+});
+
 // Connect to MongoDB
 connectDB();
 
-// Rate limiting middleware
+// Rate limiting middleware (exclude health check)
 app.use('/api/auth', authLimiter); // Stricter rate limiting for auth endpoints
-app.use('/api', apiLimiter); // General rate limiting for all API endpoints
+app.use((req, res, next) => {
+  if (req.path === '/api/health') return next();
+  return apiLimiter(req, res, next);
+});
 
 // CORS middleware
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-csrf-token', 'X-CSRF-Token'],
+  exposedHeaders: ['set-cookie', 'X-CSRF-Token']
 }));
 
 // Body parsing middleware
@@ -95,16 +161,20 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
+// CSRF: issue token cookie and header, and verify on state-changing requests in production
+app.use(setCsrfCookie);
+app.use(verifyCsrf);
+
 // Request logging middleware (development only)
 if (process.env.NODE_ENV === 'development') {
-  app.use((req, res, next) => {
+  app.use((req, _res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
     next();
   });
 }
 
 // Enhanced health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
@@ -138,6 +208,7 @@ app.use('/api/teacher-analytics', teacherAnalyticsRoutes);
 app.use('/api/ai-content-generation', aiContentGenerationRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/roles', rolesRoutes);
+app.use('/api/games', gameRoutes);
 
 // Socket.IO event handling
 io.on('connection', (socket) => {
@@ -180,6 +251,10 @@ io.on('connection', (socket) => {
 app.use('*', notFoundHandler);
 
 // Global error handler (must be last)
+try {
+  const errHandler = (Sentry as any).Handlers?.errorHandler?.();
+  if (errHandler) app.use(errHandler);
+} catch (_) {}
 app.use(errorHandler);
 
 // Start server

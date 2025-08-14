@@ -5,6 +5,14 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: 'student' | 'teacher' | 'admin';
+  emailVerified?: boolean;
+  emailVerificationToken?: string | null;
+  emailVerificationExpires?: Date | null;
+  passwordResetToken?: string | null;
+  passwordResetExpires?: Date | null;
+  // Approval workflow for teachers
+  isApproved?: boolean;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
   profileImage?: string;
   bio?: string;
   phone?: string;
@@ -16,6 +24,8 @@ export interface IUser extends Document {
   experience?: number; // years of experience
   education?: string;
   certifications?: string[];
+   cvUrl?: string;
+   introVideoUrl?: string;
   hourlyRate?: number;
   rating?: number;
   totalLessons?: number;
@@ -60,6 +70,14 @@ const UserSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['student', 'teacher', 'admin'], required: true },
+  emailVerified: { type: Boolean, default: false },
+  emailVerificationToken: { type: String, default: null },
+  emailVerificationExpires: { type: Date, default: null },
+  passwordResetToken: { type: String, default: null },
+  passwordResetExpires: { type: Date, default: null },
+  // Approval workflow for teachers: students are approved by default
+  isApproved: { type: Boolean, default: true },
+  approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' },
   profileImage: { type: String },
   bio: { type: String },
   phone: { type: String },
@@ -71,6 +89,8 @@ const UserSchema = new Schema<IUser>({
   experience: { type: Number, min: 0 },
   education: { type: String },
   certifications: [{ type: String }],
+  cvUrl: { type: String },
+  introVideoUrl: { type: String },
   hourlyRate: { type: Number, min: 0 },
   rating: { type: Number, min: 0, max: 5, default: 0 },
   totalLessons: { type: Number, default: 0 },
@@ -134,5 +154,7 @@ UserSchema.index({ role: 1 });
 UserSchema.index({ isActive: 1 });
 UserSchema.index({ rating: -1 }); // For teacher ranking
 UserSchema.index({ totalLessons: -1 }); // For teacher popularity
+UserSchema.index({ emailVerificationToken: 1 });
+UserSchema.index({ passwordResetToken: 1, passwordResetExpires: 1 });
 
 export default mongoose.model<IUser>('User', UserSchema); 

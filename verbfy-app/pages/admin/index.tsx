@@ -1,4 +1,30 @@
 import React, { useEffect } from 'react';
+import { useRoleGuard } from '@/context/AuthContext';
+import Link from 'next/link';
+
+export default function AdminHome() {
+  const { hasAccess, isLoading } = useRoleGuard(['admin']);
+  useEffect(() => {}, [hasAccess]);
+  if (isLoading) return <div className="p-8">Loading...</div>;
+  if (!hasAccess) return null;
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <h1 className="text-3xl font-bold mb-6">Admin</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Link href="/admin/users" className="p-5 rounded-xl border border-gray-200 hover:shadow">Users</Link>
+        <Link href="/admin/materials" className="p-5 rounded-xl border border-gray-200 hover:shadow">Materials</Link>
+        <Link href="/verbfy-talk" className="p-5 rounded-xl border border-gray-200 hover:shadow">VerbfyTalk</Link>
+        <Link href="/verbfy-listen" className="p-5 rounded-xl border border-gray-200 hover:shadow">VerbfyListen</Link>
+        <Link href="/verbfy-write" className="p-5 rounded-xl border border-gray-200 hover:shadow">VerbfyWrite</Link>
+        <Link href="/verbfy-read" className="p-5 rounded-xl border border-gray-200 hover:shadow">VerbfyRead</Link>
+        <Link href="/verbfy-grammar" className="p-5 rounded-xl border border-gray-200 hover:shadow">VerbfyGrammar</Link>
+        <Link href="/verbfy-exam" className="p-5 rounded-xl border border-gray-200 hover:shadow">VerbfyExam</Link>
+      </div>
+    </div>
+  );
+}
+
+import React, { useEffect } from 'react';
 import { useRoleGuard } from '../../src/hooks/useAuth';
 import { useAdmin } from '../../src/context/AdminContext';
 import AdminSidebar from '../../src/components/admin/AdminSidebar';
