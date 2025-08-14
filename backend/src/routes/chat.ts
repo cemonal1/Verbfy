@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { auth, requireRole } from '../middleware/auth';
+import { idempotencyMiddleware } from '../middleware/idempotency';
 import * as chatController from '../controllers/chatController';
 
 const router = Router();
@@ -28,12 +29,14 @@ router.get('/conversations/:conversationId/messages',
 // Send a message (students and teachers only)
 router.post('/messages',
   requireRole(['student', 'teacher']),
+  idempotencyMiddleware,
   chatController.sendMessage
 );
 
 // Mark messages as read (students and teachers only)
 router.patch('/conversations/:conversationId/read',
   requireRole(['student', 'teacher']),
+  idempotencyMiddleware,
   chatController.markAsRead
 );
 

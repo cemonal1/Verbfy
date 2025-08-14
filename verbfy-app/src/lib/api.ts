@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 import { RoomFilters, RoomsResponse, CreateRoomData, RoomResponse, JoinRoomData } from '@/types/verbfyTalk';
 import { MaterialFilters, MaterialsResponse, FreeMaterial, UploadMaterialData } from '@/types/freeMaterials';
 import { LessonFilters, LessonResponse, StartLessonResponse, SubmitLessonRequest, SubmitLessonResponse, LessonStats, VerbfyLesson } from '@/types/verbfyLessons';
@@ -16,6 +17,7 @@ import { tokenStorage } from '../utils/secureStorage';
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000',
   timeout: 30000, // 30 seconds
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -31,6 +33,20 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
+    // CSRF token: read XSRF-TOKEN cookie and send as header for write methods
+    try {
+      const isWrite = ['post', 'put', 'patch', 'delete'].includes((config.method || 'get').toLowerCase());
+      if (isWrite && typeof document !== 'undefined') {
+        const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/);
+        const csrf = match ? decodeURIComponent(match[1]) : undefined;
+        if (csrf) {
+          (config.headers as any)['X-CSRF-Token'] = csrf;
+        }
+        // Idempotency-Key for write requests
+        (config.headers as any)['Idempotency-Key'] = uuidv4();
+      }
+    } catch {}
+
     return config;
   },
   (error) => {
@@ -611,45 +627,60 @@ export const cefrTestsAPI = {
   getTests: async (filters: any = {}): Promise<TestResponse> => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value.toString());
+      if (value !== undefined && value !== null) params.append(key, value.toString());
     });
-    const response = await api.get(`/cefr-tests?${params.toString()}`);
+    const response = await api.get(`/api/cefr-tests?${params.toString()}`);
     return response.data;
   },
 
   // Get test by ID
   getTest: async (testId: string): Promise<CEFRTest> => {
-    const response = await api.get(`/cefr-tests/${testId}`);
+    const response = await api.get(`/api/cefr-tests/${testId}`);
     return response.data;
   },
 
   // Start test
   startTest: async (testId: string): Promise<StartTestResponse> => {
-    const response = await api.post(`/cefr-tests/${testId}/start`);
+    const response = await api.post(`/api/cefr-tests/${testId}/start`);
     return response.data;
   },
 
   // Submit test
   submitTest: async (attemptId: string, data: SubmitTestRequest): Promise<SubmitTestResponse> => {
-    const response = await api.post(`/cefr-tests/attempts/${attemptId}/submit`, data);
-    return response.data;
-  },
-
-  // Get test attempt
-  getTestAttempt: async (attemptId: string): Promise<TestAttempt> => {
-    const response = await api.get(`/cefr-tests/attempts/${attemptId}`);
-    return response.data;
-  },
-
-  // Get placement recommendation
-  getPlacementRecommendation: async (): Promise<PlacementRecommendation> => {
-    const response = await api.get('/cefr-tests/placement-recommendation');
+    const response = await api.post(`/api/cefr-tests/attempt/${attemptId}/submit`, data);
     return response.data;
   },
 
   // Get test statistics
   getTestStats: async (testId: string): Promise<TestStats> => {
-    const response = await api.get(`/cefr-tests/${testId}/stats`);
+    const response = await api.get(`/api/cefr-tests/${testId}/stats`);
+    return response.data;
+  },
+
+  // Get placement recommendation
+  getPlacementRecommendation: async (): Promise<PlacementRecommendation> => {
+    const response = await api.get('/api/cefr-tests/placement/recommendation');
+    return response.data;
+  },
+
+  // Seed 50Q Global Placement (admin only)
+  seedGlobalPlacement: async () => {
+    const response = await api.post('/api/cefr-tests/seed/global-placement');
+    return response.data;
+  },
+  // Seed Kids A1–B1 (admin only)
+  seedKidsA1B1: async () => {
+    const response = await api.post('/api/cefr-tests/seed/kids-a1-b1');
+    return response.data;
+  },
+  // Seed Adults A1–B2 (admin only)
+  seedAdultsA1B2: async () => {
+    const response = await api.post('/api/cefr-tests/seed/adults-a1-b2');
+    return response.data;
+  },
+  // Seed Advanced B1–C2 (admin only)
+  seedAdvancedB1C2: async () => {
+    const response = await api.post('/api/cefr-tests/seed/advanced-b1-c2');
     return response.data;
   },
 };
@@ -746,6 +777,19 @@ export const achievementsAPI = {
   unlockAchievement: async (achievementId: number): Promise<any> => {
     const response = await api.post(`/achievements/${achievementId}/unlock`);
     return response.data;
+  },
+};
+
+// Games API
+export const gamesAPI = {
+  list: async (params?: any) => {
+    return api.get('/api/games', { params });
+  },
+  create: async (data: { title: string; description?: string; category?: string; level?: string; thumbnailUrl?: string; gameUrl: string }) => {
+    return api.post('/api/games', data);
+  },
+  delete: async (id: string) => {
+    return api.delete(`/api/games/${id}`);
   },
 };
 

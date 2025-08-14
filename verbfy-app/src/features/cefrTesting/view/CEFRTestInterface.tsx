@@ -20,6 +20,7 @@ export const CEFRTestInterface: React.FC<CEFRTestInterfaceProps> = ({
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<{[key: string]: any}>({});
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [timed, setTimed] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [attemptId, setAttemptId] = useState<string | null>(null);
@@ -31,6 +32,7 @@ export const CEFRTestInterface: React.FC<CEFRTestInterfaceProps> = ({
   }, [testId]);
 
   useEffect(() => {
+    if (!timed) return;
     if (timeRemaining > 0) {
       const timer = setTimeout(() => {
         setTimeRemaining(timeRemaining - 1);
@@ -39,7 +41,7 @@ export const CEFRTestInterface: React.FC<CEFRTestInterfaceProps> = ({
     } else if (timeRemaining === 0 && test) {
       handleSubmit();
     }
-  }, [timeRemaining, test]);
+  }, [timeRemaining, test, timed]);
 
   const fetchTest = async () => {
     try {
@@ -50,7 +52,10 @@ export const CEFRTestInterface: React.FC<CEFRTestInterfaceProps> = ({
       // Start the test
       const startResponse = await cefrTestsAPI.startTest(testId);
       setAttemptId(startResponse.attemptId);
-      setTimeRemaining(startResponse.test.totalTime * 60); // Convert to seconds
+      setTimed(!!startResponse.test.timed);
+      if (startResponse.test.timed) {
+        setTimeRemaining(startResponse.test.totalTime * 60); // Convert to seconds
+      }
     } catch (error) {
       console.error('Error fetching test:', error);
     } finally {
@@ -113,7 +118,12 @@ export const CEFRTestInterface: React.FC<CEFRTestInterfaceProps> = ({
       if (onComplete) {
         onComplete(result);
       } else {
-        router.push(`/cefr-tests/result/${attemptId}`);
+        try {
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(`cefr_result_${attemptId}` as string, JSON.stringify(result));
+          }
+        } catch {}
+        router.push(`/cefr-tests/results/${attemptId}`);
       }
     } catch (error) {
       console.error('Error submitting test:', error);
@@ -181,15 +191,22 @@ export const CEFRTestInterface: React.FC<CEFRTestInterfaceProps> = ({
               <div className="text-sm text-gray-500">
                 Progress: {getProgress().toFixed(1)}%
               </div>
-              <div className="text-sm font-medium text-red-600">
-                ⏱️ {formatTime(timeRemaining)}
-              </div>
+              {timed && (
+                <div className="text-sm font-medium text-red-600">
+                  ⏱️ {formatTime(timeRemaining)}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {test.description && (
+          <div className="bg-blue-50 border border-blue-100 text-blue-800 rounded-lg px-4 py-3 mb-6 text-sm">
+            {test.description}
+          </div>
+        )}
         <div className="bg-white rounded-lg shadow-md">
           {/* Progress Bar */}
           <div className="p-6 border-b">

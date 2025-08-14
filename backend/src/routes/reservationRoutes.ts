@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { auth, requireRole } from '../middleware/auth';
 import * as reservationController from '../controllers/reservationController';
+import { idempotencyMiddleware } from '../middleware/idempotency';
 
 const router = Router();
 
 // Book a lesson (student only)
-router.post('/reserve', auth, requireRole('student'), reservationController.bookReservation);
+router.post('/reserve', auth, requireRole('student'), idempotencyMiddleware, reservationController.bookReservation);
 
 // Get student's bookings
 router.get('/student', auth, requireRole('student'), reservationController.getStudentBookings);
@@ -20,6 +21,6 @@ router.get('/upcoming', auth, reservationController.getUpcomingReservations);
 router.get('/:reservationId', auth, reservationController.getReservationById);
 
 // Cancel reservation
-router.delete('/:reservationId', auth, reservationController.cancelReservation);
+router.delete('/:reservationId', auth, idempotencyMiddleware, reservationController.cancelReservation);
 
 export default router; 

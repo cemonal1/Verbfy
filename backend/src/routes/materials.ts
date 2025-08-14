@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { auth, requireRole } from '../middleware/auth';
 import * as materialsController from '../controllers/materialsController';
+import { idempotencyMiddleware } from '../middleware/idempotency';
 
 const router = Router();
 
@@ -97,6 +98,7 @@ router.use(auth);
 // Upload material (teachers and admins only)
 router.post('/upload', 
   requireRole(['teacher', 'admin']),
+  idempotencyMiddleware,
   upload.single('file'),
   handleMulterError,
   materialsController.uploadMaterial
@@ -118,9 +120,9 @@ router.get('/:id/preview', materialsController.previewMaterial);
 router.get('/:id/download', materialsController.downloadMaterial);
 
 // Update material (owner or admin only)
-router.put('/:id', materialsController.updateMaterial);
+router.put('/:id', idempotencyMiddleware, materialsController.updateMaterial);
 
 // Delete material (owner or admin only)
-router.delete('/:id', materialsController.deleteMaterial);
+router.delete('/:id', idempotencyMiddleware, materialsController.deleteMaterial);
 
 export default router; 

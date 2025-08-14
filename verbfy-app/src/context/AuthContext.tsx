@@ -14,6 +14,7 @@ export interface User {
   profileImage?: string;
   bio?: string;
   phone?: string;
+  emailVerified?: boolean;
   isApproved?: boolean;
   approvalStatus?: 'pending' | 'approved' | 'rejected';
   // Learning progress fields

@@ -88,6 +88,14 @@ export const validateEnvironment = (): void => {
   validateMongoURI();
   validateFrontendURL();
 
+  // Recommended variables (warn-only)
+  const recommended = ['SENTRY_DSN', 'STRIPE_SECRET_KEY'];
+  for (const v of recommended) {
+    if (!process.env[v]) {
+      console.warn(`⚠️  Recommended env var missing: ${v}`);
+    }
+  }
+
   console.log('✅ Environment validation passed');
 };
 

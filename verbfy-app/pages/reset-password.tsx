@@ -36,8 +36,9 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
         <form onSubmit={submit} className="max-w-md w-full bg-white rounded-xl shadow p-6">
           <h1 className="text-2xl font-semibold mb-4">Reset Password</h1>
-          <label className="block text-sm font-medium text-gray-700">New Password (min 8 chars)</label>
+          <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">New Password (min 8 chars)</label>
           <input
+            id="newPassword"
             type="password"
             required
             minLength={8}
@@ -45,8 +46,9 @@ export default function ResetPasswordPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           />
-          <label className="block text-sm font-medium text-gray-700 mt-3">Confirm Password</label>
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mt-3">Confirm Password</label>
           <input
+            id="confirmPassword"
             type="password"
             required
             minLength={8}
