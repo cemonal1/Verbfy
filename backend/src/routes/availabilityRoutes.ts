@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as availabilityController from '../controllers/availabilityController';
 import { auth, requireRole } from '../middleware/auth';
+import { idempotencyMiddleware } from '../middleware/idempotency';
 
 const router = Router();
 
@@ -8,7 +9,7 @@ const router = Router();
 router.get('/test', auth, availabilityController.testEndpoint);
 
 // Teacher sets their availability
-router.post('/set', auth, requireRole('teacher'), availabilityController.setAvailability);
+router.post('/set', auth, requireRole('teacher'), idempotencyMiddleware, availabilityController.setAvailability);
 
 // Get teacher's own availability
 router.get('/my-availability', auth, requireRole('teacher'), availabilityController.getMyAvailability);
@@ -20,6 +21,6 @@ router.get('/:teacherId', auth, availabilityController.getTeacherAvailability);
 router.get('/:teacherId/available', auth, availabilityController.getAvailableSlotsForBooking);
 
 // Delete specific availability slot
-router.delete('/slot/:slotId', auth, requireRole('teacher'), availabilityController.deleteAvailabilitySlot);
+router.delete('/slot/:slotId', auth, requireRole('teacher'), idempotencyMiddleware, availabilityController.deleteAvailabilitySlot);
 
 export default router; 

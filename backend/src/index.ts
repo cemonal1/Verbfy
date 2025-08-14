@@ -6,11 +6,13 @@ import helmet from 'helmet';
 import { createServer } from 'http';
 import path from 'path';
 import fs from 'fs';
+import * as Sentry from '@sentry/node';
 import { Server as SocketIOServer } from 'socket.io';
 import { connectDB } from './config/db';
 import { validateEnvironment } from './config/env';
 import { apiLimiter, authLimiter } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { setCsrfCookie, verifyCsrf } from './middleware/csrf';
 import pinoHttp from 'pino-http';
 import livekitRoutes from './routes/livekitRoutes';
 import authRoutes from './routes/auth';
@@ -35,6 +37,7 @@ import teacherAnalyticsRoutes from './routes/teacherAnalytics';
 import aiContentGenerationRoutes from './routes/aiContentGeneration';
 import organizationRoutes from './routes/organization';
 import rolesRoutes from './routes/roles';
+import gameRoutes from './routes/gameRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -51,8 +54,20 @@ try {
 const app = express();
 const server = createServer(app);
 
+// Behind proxy (nginx) trust X-Forwarded-* for secure cookies and IPs
+app.set('trust proxy', 1);
+
+// Sentry init (non-blocking if DSN missing)
+try {
+  Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0.0 });
+  // Support both v7 (Handlers) and guard types
+  const reqHandler = (Sentry as any).Handlers?.requestHandler?.();
+  if (reqHandler) app.use(reqHandler);
+} catch (_) {}
+
 // Security middleware
 const isDev = process.env.NODE_ENV !== 'production';
+const allowedFrames = (process.env.ALLOWED_FRAME_SRC || '').split(',').map(s => s.trim()).filter(Boolean);
 const cspDirectives: any = {
   defaultSrc: ["'self'"],
   styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -66,7 +81,8 @@ const cspDirectives: any = {
     process.env.LIVEKIT_CLOUD_URL || '',
     process.env.LIVEKIT_SELF_URL || ''
   ].filter(Boolean),
-  frameSrc: ["'none'"],
+  // Allow embedding trusted frames for VerbfyGames (iframe-based games)
+  frameSrc: isDev ? ["'self'", "https:", "http:", ...allowedFrames] : ["'self'", ...allowedFrames],
   objectSrc: ["'none'"]
 };
 app.use(helmet({
@@ -136,13 +152,18 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-csrf-token', 'X-CSRF-Token'],
+  exposedHeaders: ['set-cookie', 'X-CSRF-Token']
 }));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+
+// CSRF: issue token cookie and header, and verify on state-changing requests in production
+app.use(setCsrfCookie);
+app.use(verifyCsrf);
 
 // Request logging middleware (development only)
 if (process.env.NODE_ENV === 'development') {
@@ -187,6 +208,7 @@ app.use('/api/teacher-analytics', teacherAnalyticsRoutes);
 app.use('/api/ai-content-generation', aiContentGenerationRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/roles', rolesRoutes);
+app.use('/api/games', gameRoutes);
 
 // Socket.IO event handling
 io.on('connection', (socket) => {
@@ -229,6 +251,10 @@ io.on('connection', (socket) => {
 app.use('*', notFoundHandler);
 
 // Global error handler (must be last)
+try {
+  const errHandler = (Sentry as any).Handlers?.errorHandler?.();
+  if (errHandler) app.use(errHandler);
+} catch (_) {}
 app.use(errorHandler);
 
 // Start server

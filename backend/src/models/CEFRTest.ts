@@ -5,6 +5,8 @@ export interface ICEFRTest extends Document {
   description: string;
   cefrLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
   testType: 'placement' | 'progress' | 'certification';
+  timed?: boolean;
+  scoringRubric?: { min: number; max: number; level: 'A1'|'A2'|'B1'|'B2'|'C1'|'C2' }[];
   sections: {
     name: string;
     description: string;
@@ -48,6 +50,7 @@ const CEFRTestSchema = new Schema<ICEFRTest>({
     enum: ['placement', 'progress', 'certification'], 
     required: true 
   },
+  timed: { type: Boolean, default: true },
   sections: [{
     name: { type: String, required: true },
     description: { type: String, required: true },

@@ -20,6 +20,7 @@ import {
   getOverview
 } from '../controllers/adminController';
 import { listPendingTeachers, approveTeacher, rejectTeacher } from '../controllers/adminController';
+import { idempotencyMiddleware } from '../middleware/idempotency';
 
 const router = Router();
 
@@ -33,22 +34,22 @@ router.get('/overview', getOverview);
 // User Management
 router.get('/users', getUsers);
 router.get('/users/:id', getUserById);
-router.patch('/users/:id/role', updateUserRole);
-router.patch('/users/:id/status', updateUserStatus);
-router.delete('/users/:id', deleteUser);
+router.patch('/users/:id/role', idempotencyMiddleware, updateUserRole);
+router.patch('/users/:id/status', idempotencyMiddleware, updateUserStatus);
+router.delete('/users/:id', idempotencyMiddleware, deleteUser);
 // Teacher approval
 router.get('/teachers/pending', listPendingTeachers);
-router.patch('/teachers/:id/approve', approveTeacher);
-router.patch('/teachers/:id/reject', rejectTeacher);
+router.patch('/teachers/:id/approve', idempotencyMiddleware, approveTeacher);
+router.patch('/teachers/:id/reject', idempotencyMiddleware, rejectTeacher);
 
 // Material Moderation
 router.get('/materials', getMaterials);
-router.patch('/materials/:id/approve', approveMaterial);
-router.delete('/materials/:id', deleteMaterial);
+router.patch('/materials/:id/approve', idempotencyMiddleware, approveMaterial);
+router.delete('/materials/:id', idempotencyMiddleware, deleteMaterial);
 
 // Payment Management
 router.get('/payments', getPayments);
-router.patch('/payments/:id/refund', refundPayment);
+router.patch('/payments/:id/refund', idempotencyMiddleware, refundPayment);
 
 // Logs & Activity
 router.get('/logs', getLogs);
@@ -57,6 +58,6 @@ router.get('/logs', getLogs);
 router.get('/stats', getOverview);
 router.get('/activities', getLogs);
 router.get('/getAllUsers', getUsers);
-router.patch('/users/:userId/status', updateUserStatus);
+router.patch('/users/:userId/status', idempotencyMiddleware, updateUserStatus);
 
 export default router; 

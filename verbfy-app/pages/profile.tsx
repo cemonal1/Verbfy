@@ -3,12 +3,15 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/context/AuthContext';
 import { userAPI } from '@/lib/api';
 import Image from 'next/image';
+import api from '@/lib/api';
 
 function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const [form, setForm] = useState({ name: '', email: '', bio: '', phone: '', specialties: '' as any, experience: '' as any, education: '', certifications: '' as any, cvUrl: '', introVideoUrl: '' });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyMsg, setVerifyMsg] = useState('');
   const fileInput = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -81,6 +84,37 @@ function ProfilePage() {
             </div>
 
             <form onSubmit={onSave} className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Email verification status */}
+              <div className="sm:col-span-2">
+                <div className="flex items-center justify-between rounded-md border p-3 bg-gray-50">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">Email verification</div>
+                    <div className="text-xs text-gray-600">{(user as any)?.emailVerified ? 'Your email is verified.' : 'Your email is not verified.'}</div>
+                    {verifyMsg && <div className="text-xs text-gray-700 mt-1">{verifyMsg}</div>}
+                  </div>
+                  {!(user as any)?.emailVerified && (
+                    <button
+                      type="button"
+                      onClick={async ()=>{
+                        try {
+                          setVerifying(true);
+                          setVerifyMsg('');
+                          const res = await api.post('/api/auth/verify-email/request');
+                          setVerifyMsg(res.data?.message || 'Verification email sent if your email is eligible.');
+                        } catch (e: any) {
+                          setVerifyMsg(e?.response?.data?.message || 'Failed to send verification email');
+                        } finally {
+                          setVerifying(false);
+                        }
+                      }}
+                      disabled={verifying}
+                      className="inline-flex items-center rounded-md bg-green-600 px-3 py-1.5 text-white text-sm hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {verifying ? 'Sending…' : 'Resend verification'}
+                    </button>
+                  )}
+                </div>
+              </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Name</label>
                 <input
