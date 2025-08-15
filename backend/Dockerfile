@@ -7,7 +7,8 @@ WORKDIR /app
 
 # Copy package files and install ALL deps (incl. dev) to build TypeScript
 COPY package*.json ./
-RUN npm ci
+# Use npm install to avoid lockfile mismatch errors on first deploy
+RUN npm install
 
 # Copy source and build
 COPY . .
@@ -22,7 +23,8 @@ WORKDIR /app
 
 # Copy only package files and install production deps for smaller image
 COPY package*.json ./
-RUN npm ci --omit=dev
+# Use npm install to avoid lockfile mismatch errors
+RUN npm install --omit=dev
 
 # Copy compiled output from builder
 COPY --from=builder /app/dist ./dist
