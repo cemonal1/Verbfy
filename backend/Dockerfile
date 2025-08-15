@@ -28,7 +28,6 @@ RUN npm install --omit=dev
 
 # Copy compiled output from builder
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/.env.production ./ .env.production 2>/dev/null || true
 
 ENV NODE_ENV=production
 
