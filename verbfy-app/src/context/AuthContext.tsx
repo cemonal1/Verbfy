@@ -57,7 +57,7 @@ interface RegisterData {
 }
 
 // Create context
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Provider component
 interface AuthProviderProps {
