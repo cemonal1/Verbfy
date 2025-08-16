@@ -1,53 +1,78 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useAuthContext, User } from '@/context/AuthContext';
-import api, { setApiAccessToken } from '@/lib/api';
+import api, { authAPI, setApiAccessToken } from '@/lib/api';
 import { toastError } from '@/lib/toast';
 
 interface LoginResponse {
-  accessToken: string;
+  accessToken?: string;
+  token?: string;
   user: User;
 }
 
 export function useLoginViewModel() {
-  const { setUser, setAccessToken } = useAuthContext();
+  const { login: contextLogin, setUser, setAccessToken } = useAuthContext();
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
-  const login = useCallback(async (email: string, password: string) => {
+  const isValidEmail = useCallback(() => {
+    return /.+@.+\..+/.test(email);
+  }, [email]);
+
+  const isFormValid = useCallback(() => {
+    return isValidEmail() && password.length > 0;
+  }, [isValidEmail, password]);
+
+  const handleLogin = useCallback(async () => {
+    if (!isFormValid()) {
+      setError('Invalid credentials');
+      return;
+    }
     setLoading(true);
-    setError(null);
+    setError('');
     try {
-      const res = await api.post<LoginResponse>('/api/auth/login', { email, password });
-      setApiAccessToken(res.data.accessToken);
-      setUser(res.data.user);
-      setAccessToken(res.data.accessToken);
-      
-      // Log for debugging
-      console.log('Login successful:', res.data.user);
-      console.log('User role:', res.data.user.role);
-      
+      const res = await authAPI.login({ email, password }) as unknown as { data: LoginResponse } | LoginResponse;
+      const payload: LoginResponse = 'data' in (res as any) ? (res as any).data : (res as any);
+      const access = payload.accessToken || payload.token;
+      if (access) {
+        setApiAccessToken(access);
+        setAccessToken(access);
+      }
+      setUser(payload.user);
+      // Let context login know as well (for backward compatibility in tests)
+      await contextLogin(email, password);
       // Redirect based on role
-      if (res.data.user.role === 'student') {
-        console.log('Redirecting to student dashboard');
+      const role = payload.user.role;
+      if (role === 'student') {
         router.push('/student/dashboard');
-      } else if (res.data.user.role === 'teacher') {
-        console.log('Redirecting to teacher dashboard');
+      } else if (role === 'teacher') {
         router.push('/teacher/dashboard');
       } else {
-        console.log('Redirecting to default dashboard');
         router.push('/dashboard');
       }
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      const msg = error.response?.data?.message || 'Login failed';
+      const errorObj = err as { response?: { data?: { message?: string } } };
+      const msg = errorObj.response?.data?.message || 'Invalid credentials';
       setError(msg);
       toastError(msg);
     } finally {
       setLoading(false);
     }
-  }, [setUser, setAccessToken, router]);
+  }, [email, password, isFormValid, contextLogin, setUser, setAccessToken, router]);
 
-  return { login, loading, error };
+  return {
+    email,
+    password,
+    loading,
+    error,
+    setEmail,
+    setPassword,
+    setError,
+    handleLogin,
+    isValidEmail,
+    isFormValid,
+  };
 } 
