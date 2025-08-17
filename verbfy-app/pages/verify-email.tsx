@@ -6,7 +6,7 @@ import api from '../src/lib/api';
 export default function VerifyEmailPage() {
   const router = useRouter();
   const { token: queryToken } = router.query as { token?: string };
-  const token = typeof queryToken === 'string' ? queryToken : 'test-token';
+  const token = typeof queryToken === 'string' ? queryToken : undefined;
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
 
