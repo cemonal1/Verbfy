@@ -44,7 +44,7 @@ export default function RegisterPage() {
     setError(null);
     
     try {
-      const res = await api.post<RegisterResponse>('/api/auth/register', { name, email, password, role });
+      const res = await api.post('/api/auth/register', { name, email, password, role });
       
       // Set the access token and user data
       setApiAccessToken(res.data.accessToken);

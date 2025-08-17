@@ -9,10 +9,16 @@ jest.mock('@/lib/api', () => ({
   },
 }))
 
+jest.mock('@/lib/toast', () => ({
+  toastError: jest.fn(),
+}))
+
 // Mock the auth context
 jest.mock('@/context/AuthContext', () => ({
   useAuthContext: () => ({
-    login: jest.fn(),
+    login: jest.fn(async () => true),
+    setUser: jest.fn(),
+    setAccessToken: jest.fn(),
     loading: false,
   }),
 }))
@@ -79,7 +85,7 @@ describe('useLoginViewModel', () => {
   })
 
   it('should handle login error', async () => {
-    const mockError = new Error('Invalid credentials')
+    const mockError = { response: { data: { message: 'Invalid credentials' } } }
     ;(authAPI.login as jest.Mock).mockRejectedValue(mockError)
 
     const { result } = renderHook(() => useLoginViewModel())
