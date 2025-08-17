@@ -1,0 +1,12 @@
+# Redirects for Next.js on Cloudflare Pages
+
+# API routes should be proxied to backend
+/api/* https://api.verbfy.com/api/:splat 200
+
+# Handle Next.js routing
+# Serve files from the root if they exist
+/*    /index.html   200
+
+# Fallback for client-side routing
+# This should come last
+/*    /index.html   404
