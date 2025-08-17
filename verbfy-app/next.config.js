@@ -3,6 +3,10 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   
+  // Enable static export for Cloudflare Pages
+  output: 'export',
+  trailingSlash: true,
+  
   // Security headers
   async headers() {
     return [
@@ -19,24 +23,11 @@ const nextConfig = {
           },
           {
             key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin',
+            value: 'strict-origin-when-cross-origin',
           },
           {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()',
-          },
-        ],
-      },
-      {
-        source: '/api/(.*)',
-        headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
           },
         ],
       },
@@ -48,7 +39,7 @@ const nextConfig = {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
 
-  // Image optimization
+  // Image optimization (disabled for static export)
   images: {
     domains: [
       'localhost',
@@ -60,7 +51,7 @@ const nextConfig = {
       'picsum.photos',
       'i.pravatar.cc'
     ],
-    formats: ['image/webp', 'image/avif'],
+    unoptimized: true, // Required for static export
   },
 
   // Webpack configuration

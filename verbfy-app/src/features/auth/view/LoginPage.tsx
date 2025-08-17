@@ -7,10 +7,16 @@ import BrandLogo from '@/components/shared/BrandLogo';
 import { useI18n } from '@/lib/i18n';
 
 export default function LoginPage() {
-  const { login, loading, error } = useLoginViewModel();
+  const { 
+    email, 
+    setEmail, 
+    password, 
+    setPassword, 
+    loading, 
+    error, 
+    handleLogin 
+  } = useLoginViewModel();
   const { t, locale, setLocale } = useI18n();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
@@ -18,7 +24,7 @@ export default function LoginPage() {
     e.preventDefault();
     if (!email || !password) return;
     
-    await login(email, password);
+    await handleLogin();
   };
 
   const handleSocialLogin = (provider: 'google' | 'outlook' | 'apple') => {

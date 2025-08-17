@@ -26,7 +26,7 @@ export default function ResetPasswordPage() {
       setMessage(res.data?.message || 'Password has been reset');
     } catch (e: any) {
       setStatus('done');
-      setMessage(e?.response?.data?.message || 'Password has been reset');
+      setMessage(e?.response?.data?.message || 'Reset failed. Please try again.');
     }
   };
 
