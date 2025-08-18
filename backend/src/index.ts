@@ -90,6 +90,13 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
+// Relax CSP specifically for OAuth callback pages to avoid inline/CSP issues from providers
+app.use('/api/auth/oauth', (req, res, next) => {
+  try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self'; object-src 'none'");
+  next();
+});
+
 // Structured logging (pretty print only in development, not in tests)
 app.use(pinoHttp({
   transport: process.env.NODE_ENV === 'development' ? {

@@ -165,7 +165,16 @@ export const oauthCallback = async (req: Request, res: Response) => {
     return res.send(html);
   } catch (err) {
     console.error('OAuth callback error:', err);
-    return res.status(500).send('<script>window.close()</script>');
+    try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
+    res.set('Content-Type', 'text/html');
+    const payload = { type: 'oauth-error', message: 'OAuth callback failed' };
+    const html = `<!DOCTYPE html>
+      <html><head><meta charset="utf-8"/></head>
+      <body>
+        <div id="payload" data-json='${JSON.stringify(payload).replace(/'/g, '&#39;')}'></div>
+        <script src="/api/auth/oauth/relay.js"></script>
+      </body></html>`;
+    return res.status(500).send(html);
   }
 };
 
