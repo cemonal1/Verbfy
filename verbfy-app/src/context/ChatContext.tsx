@@ -119,14 +119,15 @@ export function ChatProvider({ children }: ChatProviderProps) {
   // Initialize Socket.IO connection
   useEffect(() => {
     if (isAuthenticated && user) {
-      const socket = io(
-        process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000',
-        {
-          auth: {
-            token: tokenStorage.getToken() || undefined
-          }
+      const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
+      const socket = io(base, {
+        path: '/socket.io/',
+        transports: ['websocket', 'polling'],
+        withCredentials: true,
+        auth: {
+          token: tokenStorage.getToken() || undefined
         }
-      );
+      });
 
       socketRef.current = socket;
 
@@ -176,7 +177,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
 
-      const response = await api.get('/api/chat/conversations');
+      const response = await api.get('/chat/conversations');
       
       if (response.data.success) {
         dispatch({ type: 'SET_CONVERSATIONS', payload: response.data.data });
@@ -202,7 +203,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
 
-      const response = await api.get(`/api/chat/conversations/${conversationId}/messages?page=${page}&limit=50`);
+      const response = await api.get(`/chat/conversations/${conversationId}/messages?page=${page}&limit=50`);
       
       if (response.data.success) {
         if (page === 1) {
@@ -232,7 +233,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     try {
       dispatch({ type: 'SET_ERROR', payload: null });
 
-      const response = await api.post('/api/chat/messages', data);
+      const response = await api.post('/chat/messages', data);
       
       if (response.data.success) {
         const message = response.data.data;
@@ -272,7 +273,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     }
 
     try {
-      await api.patch(`/api/chat/conversations/${conversationId}/read`);
+      await api.patch(`/chat/conversations/${conversationId}/read`);
     } catch (error: any) {
       console.error('Error marking messages as read:', error);
     }
@@ -323,7 +324,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     }
 
     try {
-      const response = await api.get('/api/chat/unread-count');
+      const response = await api.get('/chat/unread-count');
       
       if (response.data.success) {
         dispatch({ type: 'SET_UNREAD_COUNT', payload: response.data.data.unreadCount });
