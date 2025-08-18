@@ -163,14 +163,31 @@ const extraOrigins = (process.env.CORS_EXTRA_ORIGINS || '').split(',').map(s => 
 const allowedOrigins = [defaultOrigin, ...extraOrigins];
 app.use(cors({
   origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Log rejected origins for debugging
+    console.warn(`CORS rejected origin: ${origin}`);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-csrf-token', 'X-CSRF-Token'],
-  exposedHeaders: ['set-cookie', 'X-CSRF-Token']
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'x-csrf-token', 
+    'X-CSRF-Token',
+    'Idempotency-Key',
+    'idempotency-key',
+    'Accept',
+    'Origin',
+    'User-Agent',
+    'Cache-Control'
+  ],
+  exposedHeaders: ['set-cookie', 'X-CSRF-Token'],
+  preflightContinue: false,
+  optionsSuccessStatus: 200
 }));
 
 // Body parsing middleware
