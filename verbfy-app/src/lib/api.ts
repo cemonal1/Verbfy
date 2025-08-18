@@ -23,7 +23,9 @@ try {
     baseURL: (() => {
       const raw = process.env.NEXT_PUBLIC_API_BASE_URL || '';
       const trimmed = raw.replace(/\/$/, '');
-      return `${trimmed}/api` || '/api';
+      // If no env is provided (Cloudflare Pages), default to production API domain
+      if (!trimmed) return 'https://api.verbfy.com/api';
+      return `${trimmed}/api`;
     })(),
     timeout: 30000,
     withCredentials: true,
