@@ -11,9 +11,9 @@ export default function ResetPasswordPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'done'>('idle');
   const [message, setMessage] = useState('');
 
-  const token = typeof queryToken === 'string' ? queryToken : 'test-token';
+  const token = typeof queryToken === 'string' ? queryToken : undefined;
 
-  const canSubmit = password.length >= 8 && password === confirm && typeof token === 'string';
+  const canSubmit = password.length >= 8 && password === confirm && typeof token === 'string' && token.length > 0;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
