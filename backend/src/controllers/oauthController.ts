@@ -153,20 +153,16 @@ export const oauthCallback = async (req: Request, res: Response) => {
       token: accessToken,
       user: { id: user._id, _id: user._id, name: user.name, email: user.email, role: user.role },
     };
-    const script = `
-      (function(){
-        try {
-          if (window.opener) {
-            window.opener.postMessage(${JSON.stringify(payload)}, '*');
-          }
-        } catch(e) {}
-        window.close();
-      })();
-    `;
-    // Allow inline script only for this response to postMessage & close
+    // Serve minimal HTML and load an external same-origin JS to satisfy CSP 'script-src \"self\"'
+    try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
     res.set('Content-Type', 'text/html');
-    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self'; object-src 'none'");
-    return res.send(`<html><body><script>${script}</script></body></html>`);
+    const html = `<!DOCTYPE html>
+      <html><head><meta charset="utf-8"/></head>
+      <body>
+        <div id="payload" data-json='${JSON.stringify(payload).replace(/'/g, '&#39;')}'></div>
+        <script src="/api/auth/oauth/relay.js"></script>
+      </body></html>`;
+    return res.send(html);
   } catch (err) {
     console.error('OAuth callback error:', err);
     return res.status(500).send('<script>window.close()</script>');
