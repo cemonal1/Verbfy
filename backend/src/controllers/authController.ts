@@ -8,11 +8,13 @@ import crypto from 'crypto';
 
 // Helper: set refresh token cookie
 const setRefreshTokenCookie = (res: Response, token: string) => {
+  const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
   res.cookie('refreshToken', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'none',
     path: '/api/auth',
+    domain: cookieDomain,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 };
@@ -21,8 +23,9 @@ const setAccessTokenCookie = (res: Response, token: string) => {
   res.cookie('accessToken', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'none',
     path: '/',
+    domain: cookieDomain,
     maxAge: 60 * 60 * 1000, // 1 hour
   });
 };
