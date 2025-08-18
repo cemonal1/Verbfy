@@ -150,8 +150,16 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // CORS middleware
+// Allow both apex and www domains in production
+const defaultOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+const extraOrigins = (process.env.CORS_EXTRA_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+const allowedOrigins = [defaultOrigin, ...extraOrigins];
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-csrf-token', 'X-CSRF-Token'],
