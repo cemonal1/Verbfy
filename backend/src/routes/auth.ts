@@ -8,19 +8,9 @@ import fs from 'fs';
 
 const router = Router();
 
-router.post('/register', register);
-router.post('/login', login);
-router.post('/refresh-token', refreshToken);
-router.post('/refresh', refreshToken); // alias for clients expecting /refresh
-router.post('/logout', logout);
-router.get('/me', me);
-router.get('/profile', me);
-router.get('/teachers', getTeachers);
-// OAuth providers
-router.get('/oauth/:provider', oauthInit);
-router.get('/oauth/:provider/callback', oauthCallback);
-
 // Serve a tiny same-origin JS file used by the OAuth callback page to avoid inline scripts
+// IMPORTANT: This must be declared BEFORE the parameterized "/oauth/:provider" route,
+// otherwise "/oauth/relay.js" would match as provider="relay.js" and return 501.
 router.get('/oauth/relay.js', (req, res) => {
   try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
   res.set('Content-Type', 'application/javascript; charset=utf-8');
@@ -38,6 +28,18 @@ router.get('/oauth/relay.js', (req, res) => {
   })();`;
   res.send(js);
 });
+
+router.post('/register', register);
+router.post('/login', login);
+router.post('/refresh-token', refreshToken);
+router.post('/refresh', refreshToken); // alias for clients expecting /refresh
+router.post('/logout', logout);
+router.get('/me', me);
+router.get('/profile', me);
+router.get('/teachers', getTeachers);
+// OAuth providers
+router.get('/oauth/:provider', oauthInit);
+router.get('/oauth/:provider/callback', oauthCallback);
 
 // Email verification
 router.post('/verify-email/request', authLimiter, requestEmailVerification);
