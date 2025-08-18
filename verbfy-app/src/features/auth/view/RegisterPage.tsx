@@ -44,7 +44,7 @@ export default function RegisterPage() {
     setError(null);
     
     try {
-      const res = await api.post('/api/auth/register', { name, email, password, role });
+      const res = await api.post('/auth/register', { name, email, password, role });
       
       // Set the access token and user data
       setApiAccessToken(res.data.accessToken);
@@ -75,7 +75,7 @@ export default function RegisterPage() {
   };
 
   const handleSocialLogin = (provider: 'google' | 'outlook' | 'apple') => {
-    const base = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com';
     const w = 520, h = 600;
     const y = window.top?.outerHeight ? Math.max(0, (window.top!.outerHeight - h) / 2) : 100;
     const x = window.top?.outerWidth ? Math.max(0, (window.top!.outerWidth - w) / 2) : 100;
