@@ -4,11 +4,13 @@ import { signAccessToken, signRefreshToken } from '../utils/jwt';
 
 // Local helper: set refresh cookie (copy from authController)
 const setRefreshTokenCookie = (res: Response, token: string) => {
+  const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
   res.cookie('refreshToken', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'none',
     path: '/api/auth',
+    domain: cookieDomain,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 };
@@ -134,11 +136,13 @@ export const oauthCallback = async (req: Request, res: Response) => {
     const accessToken = signAccessToken({ id: user._id, name: user.name, email: user.email, role: user.role });
     const refreshToken = signRefreshToken({ id: user._id, version: user.refreshTokenVersion });
     setRefreshTokenCookie(res, refreshToken);
+    const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'none',
       path: '/',
+      domain: cookieDomain,
       maxAge: 60 * 60 * 1000,
     });
 
@@ -159,7 +163,9 @@ export const oauthCallback = async (req: Request, res: Response) => {
         window.close();
       })();
     `;
+    // Allow inline script only for this response to postMessage & close
     res.set('Content-Type', 'text/html');
+    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self'; object-src 'none'");
     return res.send(`<html><body><script>${script}</script></body></html>`);
   } catch (err) {
     console.error('OAuth callback error:', err);
