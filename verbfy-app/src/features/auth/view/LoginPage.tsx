@@ -28,7 +28,8 @@ export default function LoginPage() {
   };
 
   const handleSocialLogin = (provider: 'google' | 'outlook' | 'apple') => {
-    const base = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+    // Default to production API if env not present (Cloudflare Pages static deploys)
+    const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
     const w = 520, h = 600;
     const y = window.top?.outerHeight ? Math.max(0, (window.top!.outerHeight - h) / 2) : 100;
     const x = window.top?.outerWidth ? Math.max(0, (window.top!.outerWidth - w) / 2) : 100;
