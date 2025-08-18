@@ -20,6 +20,7 @@ const setRefreshTokenCookie = (res: Response, token: string) => {
 };
 
 const setAccessTokenCookie = (res: Response, token: string) => {
+  const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
   res.cookie('accessToken', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
