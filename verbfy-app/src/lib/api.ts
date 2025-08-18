@@ -16,8 +16,15 @@ import { tokenStorage } from '../utils/secureStorage';
 // Create axios instance with fallback for test environment
 let api: any;
 try {
+  // Build base URL so that all calls hit /api/*
+  // If NEXT_PUBLIC_API_BASE_URL is not set (Cloudflare Pages), use same-origin and rely on _redirects
+  // Otherwise allow pointing directly to backend like https://api.verbfy.com
   api = (axios as any).create?.({
-    baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000',
+    baseURL: (() => {
+      const raw = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+      const trimmed = raw.replace(/\/$/, '');
+      return `${trimmed}/api` || '/api';
+    })(),
     timeout: 30000,
     withCredentials: true,
     headers: { 'Content-Type': 'application/json' },
