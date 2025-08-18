@@ -256,8 +256,11 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     if (!isAuthenticated || !user) return;
 
     // Connect to Socket.IO server
-    const socketUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-    socketRef.current = io(socketUrl, {
+    const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
+    socketRef.current = io(base, {
+      path: '/socket.io/',
+      transports: ['websocket', 'polling'],
+      withCredentials: true,
       auth: {
         token: tokenStorage.getToken() || undefined
       }
