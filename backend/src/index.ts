@@ -149,7 +149,13 @@ connectDB();
 
 // Rate limiting middleware (exclude health check). Relax limits in tests to avoid flakiness
 if (process.env.NODE_ENV !== 'test') {
-  app.use('/api/auth', authLimiter); // Stricter rate limiting for auth endpoints
+  // Exempt OAuth dance from strict auth limiter to avoid 429 during redirects
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/auth/oauth')) return next();
+    if (req.path.startsWith('/api/auth')) return authLimiter(req, res, next);
+    return next();
+  });
+
   app.use((req, res, next) => {
     if (req.path === '/api/health') return next();
     return apiLimiter(req, res, next);
