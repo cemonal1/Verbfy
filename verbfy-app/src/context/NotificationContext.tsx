@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
 import { tokenStorage } from '../utils/secureStorage';
 import api from '../lib/api';
+import { authAPI } from '../lib/api';
 import { useAuth } from './AuthContext';
 import {
   Notification,
@@ -128,7 +129,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         }
       });
 
-      const response = await api.get(`/api/notifications?${params.toString()}`);
+      const response = await api.get(`/notifications?${params.toString()}`);
       
       if (response.data.success) {
         dispatch({
@@ -152,7 +153,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
 
     try {
-      const response = await api.patch(`/api/notifications/${id}/read`);
+      const response = await api.patch(`/notifications/${id}/read`);
       
       if (response.data.success) {
         dispatch({
@@ -175,7 +176,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
 
     try {
-      const response = await api.patch('/api/notifications/read-all');
+      const response = await api.patch('/notifications/read-all');
       
       if (response.data.success) {
         dispatch({ type: 'MARK_ALL_AS_READ' });
@@ -196,7 +197,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
 
     try {
-      const response = await api.delete(`/api/notifications/${id}`);
+      const response = await api.delete(`/notifications/${id}`);
       
       if (response.data.success) {
         dispatch({ type: 'DELETE_NOTIFICATION', payload: id });
@@ -238,7 +239,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
 
     try {
-      const response = await api.get('/api/notifications/unread-count');
+      const response = await api.get('/notifications/unread-count');
       
       if (response.data.success) {
         dispatch({
@@ -255,18 +256,24 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
-    // Connect to Socket.IO server
-    const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
-    socketRef.current = io(base, {
-      path: '/socket.io/',
-      transports: ['websocket', 'polling'],
-      withCredentials: true,
-      auth: {
-        token: tokenStorage.getToken() || undefined
+    const connect = async () => {
+      let tok = tokenStorage.getToken();
+      if (!tok) {
+        try {
+          const r = await authAPI.refreshToken();
+          const access = r?.data?.accessToken;
+          if (access) { tokenStorage.setToken(access); tok = access; }
+        } catch (_) {}
       }
-    });
-
-    const socket = socketRef.current;
+      const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
+      socketRef.current = io(base, {
+        path: '/socket.io/',
+        transports: ['websocket', 'polling'],
+        withCredentials: true,
+        auth: { token: tok || undefined }
+      });
+      const socket = socketRef.current!;
+      let shownError = false;
 
     // Listen for new notifications
     socket.on('notification:new', (data: { notification: Notification }) => {
@@ -292,12 +299,22 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     // Join user's notification room
     socket.emit('joinNotificationRoom', user._id);
 
-    return () => {
-      socket.off('notification:new');
-      socket.off('notification:updated');
-      socket.off('notification:deleted');
-      socket.disconnect();
+      socket.on('connect_error', () => {
+        if (!shownError) {
+          shownError = true;
+          console.error('Notification socket connect_error');
+        }
+      });
+
+      return () => {
+        socket.off('notification:new');
+        socket.off('notification:updated');
+        socket.off('notification:deleted');
+        socket.disconnect();
+      };
     };
+
+    return void connect();
   }, [isAuthenticated, user]);
 
   // Initial load - only when user is authenticated
