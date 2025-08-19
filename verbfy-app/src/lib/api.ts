@@ -194,7 +194,7 @@ export const reservationAPI = {
 
   // Create reservation
   createReservation: (data: any) => {
-    return api.post('/api/reservations', data);
+    return api.post('/reservations', data);
   },
 
   // Update reservation
@@ -216,7 +216,7 @@ export const availabilityAPI = {
 
   // Set availability
   setAvailability: (data: any) => {
-    return api.post('/api/availability', data);
+    return api.post('/availability', data);
   },
 
   // Update availability
@@ -233,7 +233,7 @@ export const availabilityAPI = {
 export const notificationAPI = {
   // Get notifications
   getNotifications: () => {
-    return api.get('/api/notifications');
+    return api.get('/notifications');
   },
 
   // Mark notification as read
@@ -243,14 +243,14 @@ export const notificationAPI = {
 
   // Mark all notifications as read
   markAllAsRead: () => {
-    return api.patch('/api/notifications/read-all');
+    return api.patch('/notifications/read-all');
   },
 };
 
 export const messagesAPI = {
   // Get conversations
   getConversations: () => {
-    return api.get('/api/messages/conversations');
+    return api.get('/messages/conversations');
   },
 
   // Get messages for conversation
@@ -265,7 +265,7 @@ export const messagesAPI = {
 
   // Create conversation
   createConversation: (data: { participantId: string; initialMessage?: string }) => {
-    return api.post('/api/messages/conversations', data);
+    return api.post('/messages/conversations', data);
   },
 
   // Mark messages as read
@@ -277,17 +277,17 @@ export const messagesAPI = {
 export const analyticsAPI = {
   // Get teacher analytics
   getTeacherAnalytics: () => {
-    return api.get('/api/analytics/teacher');
+    return api.get('/analytics/teacher');
   },
 
   // Get student analytics
   getStudentAnalytics: () => {
-    return api.get('/api/analytics/student');
+    return api.get('/analytics/student');
   },
 
   // Get admin analytics
   getAdminAnalytics: () => {
-    return api.get('/api/analytics/admin');
+    return api.get('/analytics/admin');
   },
 
   // Get earnings report
@@ -309,22 +309,22 @@ export const analyticsAPI = {
 export const paymentAPI = {
   // Create checkout session
   createCheckoutSession: (data: { productId: string; couponCode?: string }) => {
-    return api.post('/api/payments/create-session', data);
+    return api.post('/payments/create-session', data);
   },
 
   // Get payment history
   getPaymentHistory: (params?: any) => {
-    return api.get('/api/payments/history', { params });
+    return api.get('/payments/history', { params });
   },
 
   // Get available products
   getProducts: (params?: any) => {
-    return api.get('/api/payments/products', { params });
+    return api.get('/payments/products', { params });
   },
 
   // Get payment statistics
   getPaymentStats: () => {
-    return api.get('/api/payments/stats');
+    return api.get('/payments/stats');
   },
 
   // Refund payment (admin only)
@@ -336,22 +336,22 @@ export const paymentAPI = {
 export const adminAPI = {
   // Overview & Analytics
   getOverview: () => {
-    return api.get('/api/admin/overview');
+    return api.get('/admin/overview');
   },
 
   // Get admin stats (legacy)
   getStats: () => {
-    return api.get('/api/admin/stats');
+    return api.get('/admin/stats');
   },
 
   // Get recent activities (legacy)
   getActivities: () => {
-    return api.get('/api/admin/activities');
+    return api.get('/admin/activities');
   },
 
   // User Management
   getUsers: (params?: any) => {
-    return api.get('/api/admin/users', { params });
+    return api.get('/admin/users', { params });
   },
 
   getUserById: (id: string) => {
@@ -372,7 +372,7 @@ export const adminAPI = {
 
   // Material Moderation
   getMaterials: (params?: any) => {
-    return api.get('/api/admin/materials', { params });
+    return api.get('/admin/materials', { params });
   },
 
   approveMaterial: (id: string, data: { approved: boolean; reason?: string }) => {
@@ -385,7 +385,7 @@ export const adminAPI = {
 
   // Payment Management
   getPayments: (params?: any) => {
-    return api.get('/api/admin/payments', { params });
+    return api.get('/admin/payments', { params });
   },
 
   refundPayment: (id: string, data: { reason?: string }) => {
@@ -394,7 +394,7 @@ export const adminAPI = {
 
   // Logs & Activity
   getLogs: (params?: any) => {
-    return api.get('/api/admin/logs', { params });
+    return api.get('/admin/logs', { params });
   },
 };
 
@@ -648,28 +648,28 @@ export const cefrTestsAPI = {
 
   // Get placement recommendation
   getPlacementRecommendation: async (): Promise<PlacementRecommendation> => {
-    const response = await api.get('/api/cefr-tests/placement/recommendation');
+    const response = await api.get('/cefr-tests/placement/recommendation');
     return response.data;
   },
 
   // Seed 50Q Global Placement (admin only)
   seedGlobalPlacement: async () => {
-    const response = await api.post('/api/cefr-tests/seed/global-placement');
+    const response = await api.post('/cefr-tests/seed/global-placement');
     return response.data;
   },
   // Seed Kids A1–B1 (admin only)
   seedKidsA1B1: async () => {
-    const response = await api.post('/api/cefr-tests/seed/kids-a1-b1');
+    const response = await api.post('/cefr-tests/seed/kids-a1-b1');
     return response.data;
   },
   // Seed Adults A1–B2 (admin only)
   seedAdultsA1B2: async () => {
-    const response = await api.post('/api/cefr-tests/seed/adults-a1-b2');
+    const response = await api.post('/cefr-tests/seed/adults-a1-b2');
     return response.data;
   },
   // Seed Advanced B1–C2 (admin only)
   seedAdvancedB1C2: async () => {
-    const response = await api.post('/api/cefr-tests/seed/advanced-b1-c2');
+    const response = await api.post('/cefr-tests/seed/advanced-b1-c2');
     return response.data;
   },
 };
@@ -772,10 +772,10 @@ export const achievementsAPI = {
 // Games API
 export const gamesAPI = {
   list: async (params?: any) => {
-    return api.get('/api/games', { params });
+    return api.get('/games', { params });
   },
   create: async (data: { title: string; description?: string; category?: string; level?: string; thumbnailUrl?: string; gameUrl: string }) => {
-    return api.post('/api/games', data);
+    return api.post('/games', data);
   },
   delete: async (id: string) => {
     return api.delete(`/api/games/${id}`);
