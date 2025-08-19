@@ -1,6 +1,6 @@
 import type { AppProps } from 'next/app';
 import { AuthProvider } from '@/context/AuthContext';
-import { ToastProvider, setToastContext } from '@/components/common/Toast';
+import { ToastProvider } from '@/components/common/Toast';
 import { ChatProvider } from '@/context/ChatContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { AdminProvider } from '@/context/AdminContext';

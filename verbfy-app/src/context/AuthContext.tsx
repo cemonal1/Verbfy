@@ -74,8 +74,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Load user on mount
   useEffect(() => {
+    // On public auth pages, skip the eager /auth/me call to avoid noisy 401s
+    const publicAuthPages = ['/login', '/register', '/forgot-password', '/reset-password'];
+    if (publicAuthPages.includes(router.pathname)) {
+      setIsLoading(false);
+      return;
+    }
     loadUser();
-  }, []);
+  }, [router.pathname]);
 
   // Load user from token
   const loadUser = async () => {
