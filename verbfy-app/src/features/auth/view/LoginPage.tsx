@@ -37,6 +37,11 @@ export default function LoginPage() {
     const handler = (event: MessageEvent) => {
       const data: any = event.data || {};
       if (data?.type === 'oauth-success' && data?.token) {
+        try {
+          // Persist token for Socket.IO auth
+          const { tokenStorage } = require('@/utils/secureStorage');
+          tokenStorage.setToken(data.token);
+        } catch (_) {}
         window.location.href = '/dashboard';
       }
     };
