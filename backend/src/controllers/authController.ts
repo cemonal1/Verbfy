@@ -31,13 +31,17 @@ const setAccessTokenCookie = (res: Response, token: string) => {
   });
 };
 
-// Helper: extract user from token
+// Helper: extract user from token (Authorization header or accessToken cookie)
 const getUserFromToken = (req: Request) => {
+  let token: string | undefined;
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
   }
-  const token = authHeader.substring(7);
+  if (!token && (req as any).cookies) {
+    token = (req as any).cookies.accessToken as string | undefined;
+  }
+  if (!token) return null;
   try {
     return verifyToken(token) as { id: string; name: string; email: string; role: string };
   } catch {
