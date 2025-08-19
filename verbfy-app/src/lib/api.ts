@@ -189,7 +189,7 @@ export const reservationAPI = {
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    return api.get(`/api/reservations?${params.toString()}`);
+    return api.get(`/reservations?${params.toString()}`);
   },
 
   // Create reservation
@@ -199,19 +199,19 @@ export const reservationAPI = {
 
   // Update reservation
   updateReservation: (id: string, data: any) => {
-    return api.put(`/api/reservations/${id}`, data);
+    return api.put(`/reservations/${id}`, data);
   },
 
   // Delete reservation
   deleteReservation: (id: string) => {
-    return api.delete(`/api/reservations/${id}`);
+    return api.delete(`/reservations/${id}`);
   },
 };
 
 export const availabilityAPI = {
   // Get availability
   getAvailability: (teacherId: string) => {
-    return api.get(`/api/availability/${teacherId}`);
+    return api.get(`/availability/${teacherId}`);
   },
 
   // Set availability
@@ -221,12 +221,12 @@ export const availabilityAPI = {
 
   // Update availability
   updateAvailability: (id: string, data: any) => {
-    return api.put(`/api/availability/${id}`, data);
+    return api.put(`/availability/${id}`, data);
   },
 
   // Delete availability
   deleteAvailability: (id: string) => {
-    return api.delete(`/api/availability/${id}`);
+    return api.delete(`/availability/${id}`);
   },
 };
 
@@ -238,7 +238,7 @@ export const notificationAPI = {
 
   // Mark notification as read
   markAsRead: (id: string) => {
-    return api.patch(`/api/notifications/${id}/read`);
+    return api.patch(`/notifications/${id}/read`);
   },
 
   // Mark all notifications as read
@@ -255,12 +255,12 @@ export const messagesAPI = {
 
   // Get messages for conversation
   getMessages: (conversationId: string) => {
-    return api.get(`/api/messages/conversations/${conversationId}`);
+    return api.get(`/messages/conversations/${conversationId}`);
   },
 
   // Send message
   sendMessage: (conversationId: string, data: { content: string; type?: string }) => {
-    return api.post(`/api/messages/conversations/${conversationId}`, data);
+    return api.post(`/messages/conversations/${conversationId}`, data);
   },
 
   // Create conversation
@@ -270,7 +270,7 @@ export const messagesAPI = {
 
   // Mark messages as read
   markAsRead: (conversationId: string) => {
-    return api.patch(`/api/messages/conversations/${conversationId}/read`);
+    return api.patch(`/messages/conversations/${conversationId}/read`);
   },
 };
 
@@ -295,14 +295,14 @@ export const analyticsAPI = {
     const params = new URLSearchParams({ period });
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
-    return api.get(`/api/analytics/earnings?${params.toString()}`);
+    return api.get(`/analytics/earnings?${params.toString()}`);
   },
 
   // Get progress report
   getProgressReport: (skill?: string, period = 'month') => {
     const params = new URLSearchParams({ period });
     if (skill) params.append('skill', skill);
-    return api.get(`/api/analytics/progress?${params.toString()}`);
+    return api.get(`/analytics/progress?${params.toString()}`);
   },
 };
 
@@ -329,7 +329,7 @@ export const paymentAPI = {
 
   // Refund payment (admin only)
   refundPayment: (paymentId: string, data: { reason?: string }) => {
-    return api.post(`/api/payments/${paymentId}/refund`, data);
+    return api.post(`/payments/${paymentId}/refund`, data);
   },
 };
 
@@ -355,19 +355,19 @@ export const adminAPI = {
   },
 
   getUserById: (id: string) => {
-    return api.get(`/api/admin/users/${id}`);
+    return api.get(`/admin/users/${id}`);
   },
 
   updateUserRole: (id: string, role: string) => {
-    return api.patch(`/api/admin/users/${id}/role`, { role });
+    return api.patch(`/admin/users/${id}/role`, { role });
   },
 
   updateUserStatus: (userId: string, status: string) => {
-    return api.patch(`/api/admin/users/${userId}/status`, { status });
+    return api.patch(`/admin/users/${userId}/status`, { status });
   },
 
   deleteUser: (id: string) => {
-    return api.delete(`/api/admin/users/${id}`);
+    return api.delete(`/admin/users/${id}`);
   },
 
   // Material Moderation
@@ -376,11 +376,11 @@ export const adminAPI = {
   },
 
   approveMaterial: (id: string, data: { approved: boolean; reason?: string }) => {
-    return api.patch(`/api/admin/materials/${id}/approve`, data);
+    return api.patch(`/admin/materials/${id}/approve`, data);
   },
 
   deleteMaterial: (id: string) => {
-    return api.delete(`/api/admin/materials/${id}`);
+    return api.delete(`/admin/materials/${id}`);
   },
 
   // Payment Management
@@ -389,7 +389,7 @@ export const adminAPI = {
   },
 
   refundPayment: (id: string, data: { reason?: string }) => {
-    return api.patch(`/api/admin/payments/${id}/refund`, data);
+    return api.patch(`/admin/payments/${id}/refund`, data);
   },
 
   // Logs & Activity
@@ -612,37 +612,37 @@ export const cefrTestsAPI = {
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null) params.append(key, value.toString());
     });
-    const response = await api.get(`/api/cefr-tests?${params.toString()}`);
+    const response = await api.get(`/cefr-tests?${params.toString()}`);
     return response.data;
   },
 
   // Get test by ID
   getTest: async (testId: string): Promise<CEFRTest> => {
-    const response = await api.get(`/api/cefr-tests/${testId}`);
+    const response = await api.get(`/cefr-tests/${testId}`);
     return response.data;
   },
 
   // Start test
   startTest: async (testId: string): Promise<StartTestResponse> => {
-    const response = await api.post(`/api/cefr-tests/${testId}/start`);
+    const response = await api.post(`/cefr-tests/${testId}/start`);
     return response.data;
   },
 
   // Submit test
   submitTest: async (attemptId: string, data: SubmitTestRequest): Promise<SubmitTestResponse> => {
-    const response = await api.post(`/api/cefr-tests/attempt/${attemptId}/submit`, data);
+    const response = await api.post(`/cefr-tests/attempt/${attemptId}/submit`, data);
     return response.data;
   },
 
   // Get test attempt details (may not be available on all backends)
   getTestAttempt: async (attemptId: string): Promise<TestAttempt> => {
-    const response = await api.get(`/api/cefr-tests/attempt/${attemptId}`);
+    const response = await api.get(`/cefr-tests/attempt/${attemptId}`);
     return response.data;
   },
 
   // Get test statistics
   getTestStats: async (testId: string): Promise<TestStats> => {
-    const response = await api.get(`/api/cefr-tests/${testId}/stats`);
+    const response = await api.get(`/cefr-tests/${testId}/stats`);
     return response.data;
   },
 
@@ -778,7 +778,7 @@ export const gamesAPI = {
     return api.post('/games', data);
   },
   delete: async (id: string) => {
-    return api.delete(`/api/games/${id}`);
+    return api.delete(`/games/${id}`);
   },
 };
 
