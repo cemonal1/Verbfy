@@ -70,8 +70,8 @@ function StudentDashboardPage() {
         
         // Fetch bookings and upcoming reservations in parallel
         const [bookingsResponse, upcomingResponse] = await Promise.all([
-          api.get('/api/reservations/student'),
-          api.get('/api/reservations/upcoming')
+          api.get('/reservations/student'),
+          api.get('/reservations/upcoming')
         ]);
 
         setBookings(bookingsResponse.data.bookings || []);
