@@ -256,7 +256,10 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
-    const connect = async () => {
+    let isActive = true;
+    let localSocket: Socket | null = null;
+
+    (async () => {
       let tok = tokenStorage.getToken();
       if (!tok) {
         try {
@@ -265,39 +268,49 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
           if (access) { tokenStorage.setToken(access); tok = access; }
         } catch (_) {}
       }
+
       const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
-      socketRef.current = io(base, {
+      const createdSocket = io(base, {
         path: '/socket.io/',
         transports: ['websocket', 'polling'],
         withCredentials: true,
         auth: { token: tok || undefined }
       });
-      const socket = socketRef.current!;
+
+      localSocket = createdSocket;
+
+      if (!isActive) {
+        createdSocket.disconnect();
+        return;
+      }
+
+      socketRef.current = createdSocket;
+      const socket = createdSocket;
       let shownError = false;
 
-    // Listen for new notifications
-    socket.on('notification:new', (data: { notification: Notification }) => {
-      addNotification(data.notification);
-    });
-
-    // Listen for notification updates
-    socket.on('notification:updated', (data: { notification: Notification }) => {
-      dispatch({
-        type: 'UPDATE_NOTIFICATION',
-        payload: data.notification
+      // Listen for new notifications
+      socket.on('notification:new', (data: { notification: Notification }) => {
+        addNotification(data.notification);
       });
-    });
 
-    // Listen for notification deletions
-    socket.on('notification:deleted', (data: { id: string }) => {
-      dispatch({
-        type: 'DELETE_NOTIFICATION',
-        payload: data.id
+      // Listen for notification updates
+      socket.on('notification:updated', (data: { notification: Notification }) => {
+        dispatch({
+          type: 'UPDATE_NOTIFICATION',
+          payload: data.notification
+        });
       });
-    });
 
-    // Join user's notification room
-    socket.emit('joinNotificationRoom', user._id);
+      // Listen for notification deletions
+      socket.on('notification:deleted', (data: { id: string }) => {
+        dispatch({
+          type: 'DELETE_NOTIFICATION',
+          payload: data.id
+        });
+      });
+
+      // Join user's notification room
+      socket.emit('joinNotificationRoom', user._id);
 
       socket.on('connect_error', () => {
         if (!shownError) {
@@ -305,16 +318,19 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
           console.error('Notification socket connect_error');
         }
       });
+    })();
 
-      return () => {
+    return () => {
+      isActive = false;
+      const socket = socketRef.current || localSocket;
+      if (socket) {
         socket.off('notification:new');
         socket.off('notification:updated');
         socket.off('notification:deleted');
         socket.disconnect();
-      };
+      }
+      socketRef.current = null;
     };
-
-    return void connect();
   }, [isAuthenticated, user]);
 
   // Initial load - only when user is authenticated
