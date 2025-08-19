@@ -20,14 +20,26 @@ export default function DashboardLayout({
   allowedRoles = ['student', 'teacher', 'admin'],
   title = 'Dashboard'
 }: DashboardLayoutProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const { t, locale, setLocale } = useI18n();
   const { success } = useToast();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
 
-  // Check if user has access
+  // While auth is loading, render a lightweight loader instead of Access Denied
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user has access after loading
   if (!user || !allowedRoles.includes(user.role)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">

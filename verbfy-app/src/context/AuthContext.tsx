@@ -72,15 +72,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Check if user is authenticated
   const isAuthenticated = !!user;
 
-  // Load user on mount
+  // Load user on mount and when route changes
   useEffect(() => {
-    // On public auth pages, skip the eager /auth/me call to avoid noisy 401s
     const publicAuthPages = ['/login', '/register', '/forgot-password', '/reset-password'];
     if (publicAuthPages.includes(router.pathname)) {
       setIsLoading(false);
       return;
     }
     loadUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.pathname]);
 
   // Load user from token
