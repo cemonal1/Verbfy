@@ -156,7 +156,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       });
 
       socket.on('connect_error', (error: any) => {
-        console.error('Socket connection error:', error);
+        console.error('Socket connection error:', error?.message || error);
         showError('Failed to connect to chat server');
       });
 
