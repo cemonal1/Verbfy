@@ -116,10 +116,17 @@ try {
 }
 app.use('/uploads', express.static(uploadsRoot));
 
-// Initialize Socket.IO with auth
+// Initialize Socket.IO with CORS allowing multiple origins
+const socketDefaultOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+const socketExtraOrigins = (process.env.CORS_EXTRA_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+const socketAllowedOrigins = [socketDefaultOrigin, ...socketExtraOrigins];
+
 const io = new SocketIOServer(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: socketAllowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -127,7 +134,18 @@ const io = new SocketIOServer(server, {
 
 io.use((socket, next) => {
   try {
-    const token = (socket.handshake.auth && (socket.handshake.auth as any).token) as string | undefined;
+    let token = (socket.handshake.auth && (socket.handshake.auth as any).token) as string | undefined;
+    // Fallback to accessToken cookie if no auth token provided by client
+    if (!token && typeof socket.handshake.headers?.cookie === 'string') {
+      const cookieHeader = socket.handshake.headers.cookie as string;
+      const parts = cookieHeader.split(';').map(p => p.trim());
+      for (const part of parts) {
+        if (part.startsWith('accessToken=')) {
+          token = decodeURIComponent(part.substring('accessToken='.length));
+          break;
+        }
+      }
+    }
     if (!token) return next(new Error('Unauthorized'));
     const { verifyToken } = require('./utils/jwt');
     const payload = verifyToken(token);
