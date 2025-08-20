@@ -15,13 +15,23 @@ export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
   if (!token && (req as any).cookies) {
     token = (req as any).cookies.accessToken;
   }
-  if (!token) return res.status(401).json({ success: false, message: 'No token, authorization denied' });
+  
+  console.log('Auth middleware - Token found:', token ? 'Yes' : 'No');
+  console.log('Auth middleware - Request path:', req.path);
+  console.log('Auth middleware - Request method:', req.method);
+  
+  if (!token) {
+    console.log('Auth middleware - No token provided');
+    return res.status(401).json({ success: false, message: 'No token, authorization denied' });
+  }
   
   try {
     const decoded = verifyToken(token);
+    console.log('Auth middleware - Token decoded successfully:', decoded);
     req.user = decoded as any;
     next();
   } catch (err) {
+    console.error('Auth middleware - Token verification failed:', err);
     res.status(401).json({ success: false, message: 'Token is not valid' });
   }
 };
