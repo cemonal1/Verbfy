@@ -153,14 +153,27 @@ export const oauthCallback = async (req: Request, res: Response) => {
       token: accessToken,
       user: { id: user._id, _id: user._id, name: user.name, email: user.email, role: user.role },
     };
-    // Serve minimal HTML and load an external same-origin JS to satisfy CSP 'script-src \"self\"'
+    
+    // Serve minimal HTML with better CSP handling
     try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
     res.set('Content-Type', 'text/html');
+    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';");
+    
     const html = `<!DOCTYPE html>
       <html><head><meta charset="utf-8"/></head>
       <body>
-        <div id="payload" data-json='${JSON.stringify(payload).replace(/'/g, '&#39;')}'></div>
-        <script src="/api/auth/oauth/relay.js"></script>
+        <script>
+          try {
+            const payload = ${JSON.stringify(payload)};
+            if (window.opener) {
+              window.opener.postMessage(payload, '${origin}');
+            }
+            window.close();
+          } catch (e) {
+            console.error('OAuth callback error:', e);
+            window.close();
+          }
+        </script>
       </body></html>`;
     return res.send(html);
   } catch (err) {

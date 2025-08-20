@@ -271,6 +271,19 @@ app.use('/api/games', gameRoutes);
 // Socket.IO event handling
 io.on('connection', (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
+  
+  // Get user from socket
+  const user = (socket as any).user;
+  if (user?.id) {
+    socket.join(`user_${user.id}`);
+    console.log(`👤 User ${user.id} joined notification room`);
+  }
+
+  // Handle notification room joining
+  socket.on('joinNotificationRoom', (userId: string) => {
+    socket.join(`user_${userId}`);
+    console.log(`🔔 User ${userId} joined notification room`);
+  });
 
   // Join a conversation room
   socket.on('joinRoom', (conversationId: string) => {

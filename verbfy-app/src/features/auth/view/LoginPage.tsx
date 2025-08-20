@@ -33,19 +33,51 @@ export default function LoginPage() {
     const w = 520, h = 600;
     const y = window.top?.outerHeight ? Math.max(0, (window.top!.outerHeight - h) / 2) : 100;
     const x = window.top?.outerWidth ? Math.max(0, (window.top!.outerWidth - w) / 2) : 100;
-    window.open(`${base}/api/auth/oauth/${provider}`, 'oauthLogin', `width=${w},height=${h},left=${x},top=${y}`);
+    
+    const popup = window.open(
+      `${base}/api/auth/oauth/${provider}`, 
+      'oauthLogin', 
+      `width=${w},height=${h},left=${x},top=${y},scrollbars=yes,resizable=yes`
+    );
+    
     const handler = (event: MessageEvent) => {
+      // Verify origin for security
+      const expectedOrigin = new URL(base).origin;
+      if (event.origin !== expectedOrigin) {
+        console.warn('OAuth message from unexpected origin:', event.origin);
+        return;
+      }
+      
       const data: any = event.data || {};
-      if (data?.type === 'oauth-success' && data?.token) {
+      console.log('OAuth message received:', data);
+      
+      if (data?.type === 'oauth-success' && data?.token && data?.user) {
         try {
           // Persist token for Socket.IO auth
           const { tokenStorage } = require('@/utils/secureStorage');
           tokenStorage.setToken(data.token);
+          tokenStorage.setUser(data.user);
         } catch (_) {}
+        
+        // Close popup and redirect
+        if (popup) popup.close();
         window.location.href = '/dashboard';
+      } else if (data?.type === 'oauth-error') {
+        console.error('OAuth error:', data.message);
+        if (popup) popup.close();
+        alert('OAuth authentication failed. Please try again.');
       }
     };
-    window.addEventListener('message', handler, { once: true });
+    
+    window.addEventListener('message', handler, { once: false });
+    
+    // Cleanup handler if popup is closed manually
+    const checkClosed = setInterval(() => {
+      if (popup?.closed) {
+        clearInterval(checkClosed);
+        window.removeEventListener('message', handler);
+      }
+    }, 1000);
   };
 
   return (

@@ -11,6 +11,9 @@ router.post('/reserve', auth, requireRole('student'), idempotencyMiddleware, res
 // Get student's bookings
 router.get('/student', auth, requireRole('student'), reservationController.getStudentBookings);
 
+// Get student reservations (for dashboard - different format)
+router.get('/student/reservations', auth, requireRole('student'), reservationController.getStudentReservations);
+
 // Get teacher's bookings
 router.get('/teacher', auth, requireRole('teacher'), reservationController.getTeacherBookings);
 

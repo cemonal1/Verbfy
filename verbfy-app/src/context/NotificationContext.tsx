@@ -265,16 +265,27 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         try {
           const r = await authAPI.refreshToken();
           const access = r?.data?.accessToken;
-          if (access) { tokenStorage.setToken(access); tok = access; }
-        } catch (_) {}
+          if (access) { 
+            tokenStorage.setToken(access); 
+            tok = access; 
+          }
+        } catch (_) {
+          console.warn('Could not refresh token for socket connection');
+          return;
+        }
       }
 
       const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
+      
       const createdSocket = io(base, {
         path: '/socket.io/',
         transports: ['websocket', 'polling'],
         withCredentials: true,
-        auth: { token: tok || undefined }
+        auth: { token: tok || undefined },
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
       });
 
       localSocket = createdSocket;
@@ -287,6 +298,23 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       socketRef.current = createdSocket;
       const socket = createdSocket;
       let shownError = false;
+
+      socket.on('connect', () => {
+        console.log('🔌 Socket connected successfully');
+        // Join user's notification room
+        socket.emit('joinNotificationRoom', user._id);
+      });
+
+      socket.on('connect_error', (error) => {
+        if (!shownError) {
+          shownError = true;
+          console.error('🔌 Socket connection error:', error);
+        }
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('🔌 Socket disconnected:', reason);
+      });
 
       // Listen for new notifications
       socket.on('notification:new', (data: { notification: Notification }) => {
@@ -308,22 +336,15 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
           payload: data.id
         });
       });
-
-      // Join user's notification room
-      socket.emit('joinNotificationRoom', user._id);
-
-      socket.on('connect_error', () => {
-        if (!shownError) {
-          shownError = true;
-          console.error('Notification socket connect_error');
-        }
-      });
     })();
 
     return () => {
       isActive = false;
       const socket = socketRef.current || localSocket;
       if (socket) {
+        socket.off('connect');
+        socket.off('connect_error');
+        socket.off('disconnect');
         socket.off('notification:new');
         socket.off('notification:updated');
         socket.off('notification:deleted');
