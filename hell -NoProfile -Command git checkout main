@@ -1,0 +1,5 @@
+[33m597a14e[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Merge pull request #9 from cemonal1/fix/cors-origin-headers
+[33me063c9a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfix/cors-origin-headers[m[33m, [m[1;31morigin/fix/cors-origin-headers[m[33m)[m fix(auth/me): also accept accessToken from cookie to support cookie-only auth flows
+[33m218a2ca[m Merge pull request #8 from cemonal1/fix/cors-origin-headers
+[33ma55148b[m fix(socket): allow cookie-based token fallback; widen Socket.IO CORS origins to FRONTEND_URL + CORS_EXTRA_ORIGINS
+[33m03adede[m[33m ([m[1;32mmain[m[33m)[m Merge branch 'fix/cors-origin-headers' into main
