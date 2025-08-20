@@ -56,7 +56,7 @@ export const me = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: 'Invalid token' });
     }
     
-    const user = await User.findById(userData.id).select('_id name email role');
+    const user = await User.findById(userData.id).select('-password -refreshTokenVersion');
     if (!user) {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
@@ -64,13 +64,29 @@ export const me = async (req: Request, res: Response) => {
     res.json({ 
       success: true,
       user: { 
+        _id: user._id,
         id: user._id, 
         name: user.name, 
         email: user.email, 
-        role: user.role 
+        role: user.role,
+        isApproved: user.isApproved,
+        approvalStatus: user.approvalStatus,
+        cefrLevel: user.cefrLevel,
+        overallProgress: user.overallProgress,
+        currentStreak: user.currentStreak,
+        longestStreak: user.longestStreak,
+        totalStudyTime: user.totalStudyTime,
+        achievements: user.achievements,
+        subscriptionStatus: user.subscriptionStatus,
+        subscriptionType: user.subscriptionType,
+        subscriptionExpiry: user.subscriptionExpiry,
+        lessonTokens: user.lessonTokens,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
       } 
     });
   } catch (err) {
+    console.error('Auth me error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

@@ -87,17 +87,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loadUser = async () => {
     try {
       const token = tokenStorage.getToken();
+      console.log('Loading user with token:', token ? 'Token exists' : 'No token');
+      
       // Even if token is missing (cookie-only auth), try to fetch current user
       const response = await authAPI.getCurrentUser();
-      if (response.data.success) {
+      console.log('Auth response:', response);
+      
+      if (response.data && response.data.success) {
         const userData = response.data.user;
         const userWithId = {
           ...userData,
           id: userData._id
         } as User;
+        console.log('Setting user:', userWithId);
         setUser(userWithId);
         tokenStorage.setUser(userWithId);
       } else {
+        console.log('Auth response not successful:', response);
         if (!token) {
           setUser(null);
         } else {
@@ -105,6 +111,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
     } catch (error) {
+      console.error('Auth error:', error);
       // If cookies are absent or invalid, clear any residual storage
       tokenStorage.clear();
       setUser(null);
