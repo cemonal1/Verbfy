@@ -149,7 +149,7 @@ export default function LandingPage({ featuredTeachers, featuredMaterials, prici
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <BrandLogo size={56} />
+            <BrandLogo size={56} withTitle={false} />
 
             {/* Navigation Links */}
             <div className="hidden md:flex items-center space-x-8">
@@ -748,7 +748,7 @@ export default function LandingPage({ featuredTeachers, featuredMaterials, prici
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10">
             <div>
               <div className="flex items-center space-x-2 mb-6">
-              <BrandLogo size={24} />
+              <BrandLogo size={24} withTitle={false} />
               </div>
               <p className="text-gray-400 leading-relaxed">
                 Empowering learners worldwide to master English through innovative technology and expert instruction.

@@ -6,7 +6,6 @@ import helmet from 'helmet';
 import { createServer } from 'http';
 import path from 'path';
 import fs from 'fs';
-import * as Sentry from '@sentry/node';
 import { Server as SocketIOServer } from 'socket.io';
 import { connectDB } from './config/db';
 import { validateEnvironment } from './config/env';
@@ -39,8 +38,15 @@ import organizationRoutes from './routes/organization';
 import rolesRoutes from './routes/roles';
 import gameRoutes from './routes/gameRoutes';
 
-// Load environment variables
+// Load environment variables and initialize Sentry
 dotenv.config();
+
+// Initialize Sentry with CommonJS require
+try {
+  require('./instrument.js');
+} catch (error: any) {
+  console.warn('⚠️ Sentry initialization failed:', error?.message || 'Unknown error');
+}
 
 // Validate environment variables before starting the application
 try {
@@ -59,11 +65,14 @@ app.set('trust proxy', 1);
 
 // Sentry init (non-blocking if DSN missing)
 try {
+  const Sentry = require('@sentry/node');
   Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0.0 });
   // Support both v7 (Handlers) and guard types
-  const reqHandler = (Sentry as any).Handlers?.requestHandler?.();
+  const reqHandler = Sentry.Handlers?.requestHandler?.();
   if (reqHandler) app.use(reqHandler);
-} catch (_) {}
+} catch (error: any) {
+  console.warn('⚠️ Sentry request handler not available:', error?.message || 'Unknown error');
+}
 
 // Security middleware
 const isDev = process.env.NODE_ENV !== 'production';
@@ -268,6 +277,13 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/roles', rolesRoutes);
 app.use('/api/games', gameRoutes);
 
+// ========================================
+// TEST SENTRY ENDPOINT (BURAYA!)
+// ========================================
+app.get('/api/test-sentry', (_req, res) => {
+  throw new Error('Test Sentry Error - Backend is working!');
+});
+
 // Socket.IO event handling
 io.on('connection', (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
@@ -321,11 +337,16 @@ io.on('connection', (socket) => {
 // 404 handler for undefined routes
 app.use('*', notFoundHandler);
 
-// Global error handler (must be last)
+// Sentry error handler (must be before global error handler)
 try {
-  const errHandler = (Sentry as any).Handlers?.errorHandler?.();
+  const Sentry = require('@sentry/node');
+  const errHandler = Sentry.Handlers?.errorHandler?.();
   if (errHandler) app.use(errHandler);
-} catch (_) {}
+} catch (error: any) {
+  console.warn('⚠️ Sentry error handler not available:', error?.message || 'Unknown error');
+}
+
+// Global error handler (must be last)
 app.use(errorHandler);
 
 // Start server
