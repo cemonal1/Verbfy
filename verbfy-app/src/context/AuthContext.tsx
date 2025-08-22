@@ -74,7 +74,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Load user on mount and when route changes
   useEffect(() => {
-    const publicAuthPages = ['/login', '/register', '/forgot-password', '/reset-password'];
+    const publicAuthPages = ['/login', '/register', '/forgot-password', '/reset-password', '/landing'];
     if (publicAuthPages.includes(router.pathname)) {
       setIsLoading(false);
       return;
@@ -98,24 +98,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const userWithId = {
           ...userData,
           id: userData._id
-        } as User;
-        console.log('Setting user:', userWithId);
+        };
+        
         setUser(userWithId);
         tokenStorage.setUser(userWithId);
+        setIsLoading(false);
       } else {
-        console.log('Auth response not successful:', response);
-        if (!token) {
-          setUser(null);
-        } else {
-          tokenStorage.clear();
+        // Only logout if we're not on a public page
+        const publicPages = ['/landing', '/', '/login', '/register'];
+        if (!publicPages.includes(router.pathname)) {
+          console.log('User not authenticated, redirecting to login');
+          router.push('/login');
         }
+        setIsLoading(false);
       }
     } catch (error) {
-      console.error('Auth error:', error);
-      // If cookies are absent or invalid, clear any residual storage
-      tokenStorage.clear();
-      setUser(null);
-    } finally {
+      console.error('Error loading user:', error);
+      // Only logout if we're not on a public page
+      const publicPages = ['/landing', '/', '/login', '/register'];
+      if (!publicPages.includes(router.pathname)) {
+        console.log('Error loading user, redirecting to login');
+        router.push('/login');
+      }
       setIsLoading(false);
     }
   };

@@ -3,5 +3,8 @@
 # Proxy API requests to backend (force rewrite)
 /api/* https://api.verbfy.com/api/:splat 200!
 
+# Legacy route
+/lessons   /verbfy-lessons   301
+
 # SPA fallback – send everything else to index.html
 /* /index.html 200

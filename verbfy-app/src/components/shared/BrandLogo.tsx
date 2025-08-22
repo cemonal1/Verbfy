@@ -12,19 +12,20 @@ interface BrandLogoProps {
 
 export default function BrandLogo({
   size = 40,
-  withTitle = true,
+  withTitle = false, // Default to false - no text
   href = '/',
   className = '',
   titleClassName = 'text-2xl font-extrabold text-gray-900 dark:text-white'
 }: BrandLogoProps) {
   return (
-    <Link href={href} className={`flex items-center space-x-2 ${className}`} aria-label="Verbfy Home">
+    <Link href={href} className={`flex items-center justify-center ${className}`} aria-label="Verbfy Home">
       <Image
         src="/logo.png"
         alt="Verbfy logo"
         width={size}
         height={size}
         priority
+        className="mx-auto" // Center the logo
       />
       {withTitle && <span className={titleClassName}>Verbfy</span>}
     </Link>

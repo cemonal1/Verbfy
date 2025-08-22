@@ -149,7 +149,7 @@ export default function RegisterPage() {
         {/* Logo and Brand */}
         <div className="text-center">
           <div className="flex justify-center mb-4 sm:mb-6">
-            <BrandLogo size={88} />
+            <BrandLogo size={88} withTitle={false} />
           </div>
           <p className="text-xs text-blue-600 font-semibold mb-1">Verbing Up Your Language Skills!</p>
           <p className="text-gray-600 text-base sm:text-lg">{t('auth.register.tagline','Join the learning revolution')}</p>

@@ -148,16 +148,19 @@ export const oauthCallback = async (req: Request, res: Response) => {
 
     // Send data back to the opener window and close popup
     const origin = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+    const extraOrigins = (process.env.CORS_EXTRA_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+    const allowedOrigins = [origin, ...extraOrigins].filter(Boolean);
+    
     const payload = {
       type: 'oauth-success',
       token: accessToken,
       user: { id: user._id, _id: user._id, name: user.name, email: user.email, role: user.role },
     };
     
-    // Serve minimal HTML with better CSP handling
+    // Serve minimal HTML with better CSP handling and origin validation
     try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
     res.set('Content-Type', 'text/html');
-    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';");
+    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'self';");
     
     const html = `<!DOCTYPE html>
       <html><head><meta charset="utf-8"/></head>
@@ -165,8 +168,15 @@ export const oauthCallback = async (req: Request, res: Response) => {
         <script>
           try {
             const payload = ${JSON.stringify(payload)};
+            const allowedOrigins = ${JSON.stringify(allowedOrigins)};
             if (window.opener) {
-              window.opener.postMessage(payload, '${origin}');
+              // Validate origin before sending message
+              const targetOrigin = window.opener.location.origin;
+              if (allowedOrigins.includes(targetOrigin)) {
+                window.opener.postMessage(payload, targetOrigin);
+              } else {
+                console.warn('OAuth callback: Invalid target origin:', targetOrigin);
+              }
             }
             window.close();
           } catch (e) {

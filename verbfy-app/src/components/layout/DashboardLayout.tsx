@@ -1,4 +1,4 @@
-import React, { useState, ReactNode } from 'react';
+import React, { useState, ReactNode, useEffect } from 'react';
 import Link from 'next/link';
 import BrandLogo from '@/components/shared/BrandLogo';
 import { useRouter } from 'next/router';
@@ -26,6 +26,37 @@ export default function DashboardLayout({
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
+
+  // Prevent browser back button from going to login page
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Allow page refresh but prevent navigation away
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    const handlePopState = (e: PopStateEvent) => {
+      // If user tries to go back and we're on a protected page, prevent it
+      if (user && !isLoading) {
+        e.preventDefault();
+        // Push current route to history to prevent back navigation
+        window.history.pushState(null, '', router.asPath);
+      }
+    };
+
+    if (user && !isLoading) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      window.addEventListener('popstate', handlePopState);
+      
+      // Push current route to history to prevent back navigation
+      window.history.pushState(null, '', router.asPath);
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [user, isLoading, router.asPath]);
 
   // While auth is loading, render a lightweight loader instead of Access Denied
   if (isLoading) {
@@ -241,22 +272,22 @@ export default function DashboardLayout({
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
+          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden transition-opacity duration-300"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-xl border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
-          <BrandLogo size={44} withTitle />
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <BrandLogo size={44} withTitle={false} />
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -265,16 +296,16 @@ export default function DashboardLayout({
         </div>
 
         {/* Navigation */}
-        <nav className="mt-4 px-3">
+        <nav className="flex-1 mt-4 px-3 overflow-y-auto">
           <div className="space-y-1">
             {navigationItems.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
                 className={`
-                  group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
+                  group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200
                   ${item.current
-                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 shadow-sm'
                     : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
                   }
                 `}
@@ -288,7 +319,7 @@ export default function DashboardLayout({
         </nav>
 
         {/* User info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <div className="flex items-center space-x-3">
             <div className="flex-shrink-0">
               <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
@@ -307,7 +338,7 @@ export default function DashboardLayout({
             </div>
             <button
               onClick={handleLogout}
-              className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
               title="Logout"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -319,14 +350,14 @@ export default function DashboardLayout({
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64 min-h-screen">
+      <div className="lg:pl-64 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Top bar */}
         <div className="sticky top-0 z-30 bg-white/80 backdrop-blur dark:bg-gray-800/80 shadow-sm border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between h-14 px-4 sm:px-6 lg:px-8">
             {/* Mobile menu button */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               aria-label="Open sidebar"
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -347,7 +378,7 @@ export default function DashboardLayout({
               {/* Language toggle */}
               <button
                 onClick={() => setLocale(locale === 'en' ? 'tr' : 'en')}
-                className="px-2 py-1 text-xs rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="px-2 py-1 text-xs rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 aria-label="Toggle language"
                 title={locale === 'en' ? 'Türkçe' : 'English'}
               >
@@ -355,7 +386,7 @@ export default function DashboardLayout({
               </button>
               <NotificationBadge 
                 onClick={() => setNotificationPanelOpen(true)}
-                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
               />
             </div>
           </div>
@@ -363,7 +394,7 @@ export default function DashboardLayout({
 
         {/* Page content */}
         <main className="flex-1">
-          <div className="pt-4 pb-6 sm:py-6">
+          <div className="py-6 sm:py-8 lg:py-10">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               {children}
             </div>
