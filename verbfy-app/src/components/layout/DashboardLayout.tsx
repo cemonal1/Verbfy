@@ -4,6 +4,7 @@ import BrandLogo from '@/components/shared/BrandLogo';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../common/Toast';
+import { ToastProvider } from '../common/Toast';
 import NotificationBadge from '../notification/NotificationBadge';
 import { NotificationProvider } from '@/context/NotificationContext';
 import NotificationPanel from '../notification/NotificationPanel';
@@ -275,8 +276,9 @@ export default function DashboardLayout({
 
   return (
     <div className="h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
-      <NotificationProvider>
-      {/* Mobile sidebar overlay */}
+      <ToastProvider>
+        <NotificationProvider>
+        {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
           className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden transition-opacity duration-300"
@@ -411,7 +413,8 @@ export default function DashboardLayout({
         isOpen={notificationPanelOpen}
         onClose={() => setNotificationPanelOpen(false)}
       />
-      </NotificationProvider>
+        </NotificationProvider>
+      </ToastProvider>
     </div>
   );
 } 
