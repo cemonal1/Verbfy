@@ -89,7 +89,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const token = tokenStorage.getToken();
       console.log('Loading user with token:', token ? 'Token exists' : 'No token');
       
-      // Even if token is missing (cookie-only auth), try to fetch current user
+      // If no token, don't try to fetch user
+      if (!token) {
+        const publicPages = ['/landing', '/', '/login', '/register'];
+        if (!publicPages.includes(router.pathname)) {
+          console.log('No token found, redirecting to login');
+          router.push('/login');
+        }
+        setIsLoading(false);
+        return;
+      }
+      
+      // Try to fetch current user with token
       const response = await authAPI.getCurrentUser();
       console.log('Auth response:', response);
       
@@ -104,17 +115,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
         tokenStorage.setUser(userWithId);
         setIsLoading(false);
       } else {
-        // Only logout if we're not on a public page
+        // Token is invalid, clear it and redirect
+        console.log('Invalid token, clearing and redirecting to login');
+        tokenStorage.clear();
+        setUser(null);
+        
         const publicPages = ['/landing', '/', '/login', '/register'];
         if (!publicPages.includes(router.pathname)) {
-          console.log('User not authenticated, redirecting to login');
           router.push('/login');
         }
         setIsLoading(false);
       }
     } catch (error) {
       console.error('Error loading user:', error);
-      // Only logout if we're not on a public page
+      // Clear invalid token and redirect
+      tokenStorage.clear();
+      setUser(null);
+      
       const publicPages = ['/landing', '/', '/login', '/register'];
       if (!publicPages.includes(router.pathname)) {
         console.log('Error loading user, redirecting to login');
