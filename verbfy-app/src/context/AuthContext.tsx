@@ -105,11 +105,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('Auth response:', response);
       console.log('Response structure:', response);
       console.log('Response.data:', response.data);
-      console.log('Response.data.success:', response.data.success);
-      console.log('Response.data.user:', response.data.user);
+      console.log('Response.data.success:', response.data?.success);
+      console.log('Response.data.user:', response.data?.user);
       
-      if (response.data && response.data.success) {
-        const userData = response.data.user;
+      // Check if response has the expected structure
+      if (response && response.success) {
+        const userData = response.user;
         const userWithId = {
           ...userData,
           id: userData._id
@@ -123,10 +124,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Token is invalid, clear it and redirect
         console.log('Invalid token, clearing and redirecting to login');
         console.log('Response validation failed:', {
-          hasData: !!response.data,
-          hasSuccess: !!response.data?.success,
-          successValue: response.data?.success,
-          userData: response.data?.user
+          hasResponse: !!response,
+          hasSuccess: !!response?.success,
+          successValue: response?.success,
+          userData: response?.user
         });
         tokenStorage.clear();
         setUser(null);
