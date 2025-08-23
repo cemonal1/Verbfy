@@ -96,6 +96,9 @@ export const validateEnvironment = (): void => {
     }
   }
 
+  // LiveKit Cloud configuration validation
+  validateLiveKitConfig();
+
   console.log('✅ Environment validation passed');
 };
 
@@ -133,6 +136,29 @@ const validateFrontendURL = (): void => {
     } catch {
       throw new Error('FRONTEND_URL must be a valid URL');
     }
+  }
+};
+
+/**
+ * Validate LiveKit configuration
+ */
+const validateLiveKitConfig = (): void => {
+  const hasCloudConfig = process.env.LIVEKIT_CLOUD_API_KEY && 
+                        process.env.LIVEKIT_CLOUD_API_SECRET && 
+                        process.env.LIVEKIT_CLOUD_URL;
+  
+  const hasSelfHostedConfig = process.env.LIVEKIT_SELF_API_KEY && 
+                             process.env.LIVEKIT_SELF_API_SECRET && 
+                             process.env.LIVEKIT_SELF_URL;
+
+  if (!hasCloudConfig && !hasSelfHostedConfig) {
+    console.warn('⚠️  LiveKit configuration missing:');
+    console.warn('   - For LiveKit Cloud: LIVEKIT_CLOUD_API_KEY, LIVEKIT_CLOUD_API_SECRET, LIVEKIT_CLOUD_URL');
+    console.warn('   - For Self-hosted: LIVEKIT_SELF_API_KEY, LIVEKIT_SELF_API_SECRET, LIVEKIT_SELF_URL');
+  } else if (hasCloudConfig) {
+    console.log('✅ LiveKit Cloud configuration found');
+  } else if (hasSelfHostedConfig) {
+    console.log('✅ LiveKit Self-hosted configuration found');
   }
 };
 
