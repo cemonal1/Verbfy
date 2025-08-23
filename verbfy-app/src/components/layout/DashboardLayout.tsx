@@ -284,74 +284,76 @@ export default function DashboardLayout({
         />
       )}
 
-      {/* Sidebar - optimized width */}
-      <div className={`
-        fixed inset-y-0 left-0 z-50 w-56 bg-white dark:bg-gray-800 shadow-xl border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <BrandLogo size={44} withTitle={false} />
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+             {/* Sidebar - optimized width */}
+       <div className={`
+         fixed inset-y-0 left-0 z-50 w-56 bg-white dark:bg-gray-800 shadow-xl border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0
+         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+       `}>
+         <div className="flex flex-col h-full">
+           {/* Logo */}
+           <div className="flex-shrink-0 flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+             <BrandLogo size={44} withTitle={false} />
+             <button
+               onClick={() => setSidebarOpen(false)}
+               className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+             >
+               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+               </svg>
+             </button>
+           </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          {navigationItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`
-                flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200
-                ${item.current
-                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
-                }
-              `}
-            >
-              <span className="mr-3 text-lg" aria-hidden>{item.icon}</span>
-              <span>{item.name}</span>
-            </Link>
-          ))}
-        </nav>
+           {/* Navigation - scrollable */}
+           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+             {navigationItems.map((item) => (
+               <Link
+                 key={item.href}
+                 href={item.href}
+                 className={`
+                   flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200
+                   ${item.current
+                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+                   }
+                 `}
+               >
+                 <span className="mr-3 text-lg" aria-hidden>{item.icon}</span>
+                 <span>{item.name}</span>
+               </Link>
+             ))}
+           </nav>
 
-        {/* User info */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-          <div className="flex items-center space-x-3">
-            <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                  {user.name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                {user.name}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                {user.role}
-              </p>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-              title="Logout"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
+           {/* User info */}
+           <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+             <div className="flex items-center space-x-3">
+               <div className="flex-shrink-0">
+                 <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                   <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                     {user.name.charAt(0).toUpperCase()}
+                   </span>
+                 </div>
+               </div>
+               <div className="flex-1 min-w-0">
+                 <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                   {user.name}
+                 </p>
+                 <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                   {user.role}
+                 </p>
+               </div>
+               <button
+                 onClick={handleLogout}
+                 className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                 title="Logout"
+               >
+                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                 </svg>
+               </button>
+             </div>
+           </div>
+         </div>
+       </div>
 
       {/* Main content */}
       <div className="lg:pl-56 h-full bg-gray-50 dark:bg-gray-900 grid grid-rows-[auto,1fr]">
