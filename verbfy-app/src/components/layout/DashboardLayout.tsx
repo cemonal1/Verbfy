@@ -357,7 +357,7 @@ export default function DashboardLayout({
       <div className="lg:pl-56 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Top bar - reduced height and padding */}
         <div className="sticky top-0 z-30 bg-white/80 backdrop-blur dark:bg-gray-800/80 shadow-sm border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between h-12 px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-12 px-4 sm:px-6">
             {/* Mobile menu button */}
             <button
               onClick={() => setSidebarOpen(true)}
