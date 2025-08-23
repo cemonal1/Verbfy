@@ -144,27 +144,19 @@ const validateLiveKitConfig = (): void => {
   const cloudApiSecret = process.env.LIVEKIT_CLOUD_API_SECRET;
   const cloudUrl = process.env.LIVEKIT_CLOUD_URL;
   
-  const selfApiKey = process.env.LIVEKIT_SELF_API_KEY;
-  const selfApiSecret = process.env.LIVEKIT_SELF_API_SECRET;
-  const selfUrl = process.env.LIVEKIT_SELF_URL;
-
-  // Check if either Cloud or Self-hosted is configured
+  // Check if LiveKit Cloud is configured
   const hasCloudConfig = cloudApiKey && cloudApiSecret && cloudUrl;
-  const hasSelfConfig = selfApiKey && selfApiSecret && selfUrl;
 
-  if (!hasCloudConfig && !hasSelfConfig) {
-    console.warn('⚠️ Missing LiveKit configuration: Either Cloud or Self-hosted must be configured');
-    console.warn('   - For Cloud: LIVEKIT_CLOUD_API_KEY, LIVEKIT_CLOUD_API_SECRET, LIVEKIT_CLOUD_URL');
-    console.warn('   - For Self-hosted: LIVEKIT_SELF_API_KEY, LIVEKIT_SELF_API_SECRET, LIVEKIT_SELF_URL');
-  } else if (hasCloudConfig) {
+  if (!hasCloudConfig) {
+    console.warn('⚠️ Missing LiveKit Cloud configuration:');
+    console.warn('   - LIVEKIT_CLOUD_API_KEY');
+    console.warn('   - LIVEKIT_CLOUD_API_SECRET');
+    console.warn('   - LIVEKIT_CLOUD_URL');
+    console.warn('   Video conferencing feature will be disabled');
+  } else {
     console.log('✅ LiveKit Cloud configuration found');
     if (!cloudUrl.startsWith('wss://')) {
       console.warn('⚠️ LIVEKIT_CLOUD_URL should start with wss:// for secure WebSocket connection');
-    }
-  } else if (hasSelfConfig) {
-    console.log('✅ LiveKit Self-hosted configuration found');
-    if (!selfUrl.startsWith('wss://')) {
-      console.warn('⚠️ LIVEKIT_SELF_URL should start with wss:// for secure WebSocket connection');
     }
   }
 };
