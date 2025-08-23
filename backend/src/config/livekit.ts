@@ -33,24 +33,18 @@ class LiveKitConfiguration {
 
   private validateConfig() {
     const missingCloudVars: string[] = [];
-    const missingSelfVars: string[] = [];
 
-    // Check cloud config
+    // Check cloud config only
     if (!this.cloudConfig.apiKey) missingCloudVars.push('LIVEKIT_CLOUD_API_KEY');
     if (!this.cloudConfig.apiSecret) missingCloudVars.push('LIVEKIT_CLOUD_API_SECRET');
     if (!this.cloudConfig.url) missingCloudVars.push('LIVEKIT_CLOUD_URL');
 
-    // Check self-hosted config
-    if (!this.selfHostedConfig.apiKey) missingSelfVars.push('LIVEKIT_SELF_API_KEY');
-    if (!this.selfHostedConfig.apiSecret) missingSelfVars.push('LIVEKIT_SELF_API_SECRET');
-    if (!this.selfHostedConfig.url) missingSelfVars.push('LIVEKIT_SELF_URL');
-
     // Log warnings for missing variables
     if (missingCloudVars.length > 0) {
       console.warn('⚠️ Missing LiveKit Cloud configuration:', missingCloudVars.join(', '));
-    }
-    if (missingSelfVars.length > 0) {
-      console.warn('⚠️ Missing LiveKit Self-hosted configuration:', missingSelfVars.join(', '));
+      console.warn('   Video conferencing feature will be disabled');
+    } else {
+      console.log('✅ LiveKit Cloud configuration found');
     }
   }
 
