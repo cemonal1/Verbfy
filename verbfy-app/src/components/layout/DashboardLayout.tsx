@@ -359,7 +359,7 @@ export default function DashboardLayout({
       <div className="lg:pl-56 h-full bg-gray-50 dark:bg-gray-900 grid grid-rows-[auto,1fr]">
         {/* Top bar */}
         <div className="z-30 bg-white/80 backdrop-blur dark:bg-gray-800/80 shadow-sm border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between h-12 px-4 sm:px-6">
+          <div className="flex items-center justify-between h-20 px-4 sm:px-6 lg:px-8">
             {/* Mobile menu button */}
             <button
               onClick={() => setSidebarOpen(true)}
@@ -371,12 +371,12 @@ export default function DashboardLayout({
               </svg>
             </button>
 
-            {/* Page title - reduced size */}
+            {/* Page title - larger size and better alignment */}
             <div className="flex-1 lg:flex-none">
-              <h1 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
                 {title}
               </h1>
-              <p className="hidden sm:block text-[10px] text-gray-500 dark:text-gray-400 -mt-0.5">Verbing Up Your Language Skills!</p>
+              <p className="hidden sm:block text-sm text-gray-500 dark:text-gray-400 mt-1">Verbing Up Your Language Skills!</p>
             </div>
 
             {/* Right side actions */}
@@ -400,7 +400,7 @@ export default function DashboardLayout({
 
         {/* Page content */}
         <main className="overflow-y-auto min-h-0 overscroll-contain">
-          <div className="px-4 sm:px-6 lg:px-8 py-4">
+          <div className="px-4 sm:px-6 lg:px-8 py-2">
             {children}
           </div>
         </main>
