@@ -24,8 +24,8 @@ try {
       const raw = process.env.NEXT_PUBLIC_API_BASE_URL || '';
       const trimmed = raw.replace(/\/$/, '');
       // If no env is provided (Cloudflare Pages), default to production API domain
-      if (!trimmed) return 'https://api.verbfy.com/api';
-      return `${trimmed}/api`;
+      if (!trimmed) return 'https://api.verbfy.com';
+      return trimmed;
     })(),
     timeout: 30000,
     withCredentials: true,
@@ -91,17 +91,17 @@ export const materialsAPI = {
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.append(key, (value as any).toString());
     });
-    return api.get(`/materials?${params.toString()}`).then((r: any) => r.data);
+    return api.get(`/api/materials?${params.toString()}`).then((r: any) => r.data);
   },
 
   // Get material by ID
   getMaterial: (id: string) => {
-    return api.get(`/materials/${id}`).then((r: any) => r.data);
+    return api.get(`/api/materials/${id}`).then((r: any) => r.data);
   },
 
   // Upload material
   uploadMaterial: (formData: FormData) => {
-    return api.post('/materials/upload', formData, {
+    return api.post('/api/materials/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -110,75 +110,75 @@ export const materialsAPI = {
 
   // Update material
   updateMaterial: (id: string, data: any) => {
-    return api.put(`/materials/${id}`, data).then((r: any) => r.data);
+    return api.put(`/api/materials/${id}`, data).then((r: any) => r.data);
   },
 
   // Delete material
   deleteMaterial: (id: string) => {
-    return api.delete(`/materials/${id}`).then((r: any) => r.data);
+    return api.delete(`/api/materials/${id}`).then((r: any) => r.data);
   },
 
   // Preview material
   previewMaterial: (id: string) => {
-    return api.get(`/materials/${id}/preview`).then((r: any) => r.data);
+    return api.get(`/api/materials/${id}/preview`).then((r: any) => r.data);
   },
 
   // Download material
   downloadMaterial: (id: string) => {
-    return api.get(`/materials/${id}/download`, { responseType: 'blob' }).then((r: any) => r.data);
+    return api.get(`/api/materials/${id}/download`, { responseType: 'blob' }).then((r: any) => r.data);
   },
 };
 
 export const authAPI = {
   // Login
   login: (credentials: { email: string; password: string }) => {
-    return api.post('/auth/login', credentials).then((r: any) => r.data);
+    return api.post('/api/auth/login', credentials).then((r: any) => r.data);
   },
 
   // Register
   register: (userData: { name: string; email: string; password: string; role: string }) => {
-    return api.post('/auth/register', userData).then((r: any) => r.data);
+    return api.post('/api/auth/register', userData).then((r: any) => r.data);
   },
 
   // Logout
   logout: () => {
-    return api.post('/auth/logout').then((r: any) => r.data);
+    return api.post('/api/auth/logout').then((r: any) => r.data);
   },
 
   // Get current user
   getCurrentUser: () => {
-    return api.get('/auth/me').then((r: any) => r.data);
+    return api.get('/api/auth/me').then((r: any) => r.data);
   },
 
   // Refresh token
   refreshToken: () => {
-    return api.post('/auth/refresh').then((r: any) => r.data);
+    return api.post('/api/auth/refresh').then((r: any) => r.data);
   },
 };
 
 export const userAPI = {
   // Get user profile
   getProfile: () => {
-    return api.get('/users/profile').then((r: any) => r.data);
+    return api.get('/api/users/profile').then((r: any) => r.data);
   },
 
   // Update user profile
   updateProfile: (data: any) => {
-    return api.put('/users/profile', data).then((r: any) => r.data);
+    return api.put('/api/users/profile', data).then((r: any) => r.data);
   },
 
   // Upload avatar
   uploadAvatar: (file: File) => {
     const form = new FormData();
     form.append('avatar', file);
-    return api.post('/users/profile/avatar', form, {
+    return api.post('/api/users/profile/avatar', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then((r: any) => r.data);
   },
 
   // Get S3 presigned upload URL
   getPresignedUploadUrl: (key: string, contentType: string) => {
-    return api.get(`/users/uploads/presign`, { params: { key, contentType } }).then((r: any) => r.data);
+    return api.get(`/api/users/uploads/presign`, { params: { key, contentType } }).then((r: any) => r.data);
   },
 };
 
@@ -211,66 +211,66 @@ export const reservationAPI = {
 export const availabilityAPI = {
   // Get availability
   getAvailability: (teacherId: string) => {
-    return api.get(`/availability/${teacherId}`);
+    return api.get(`/api/availability/${teacherId}`);
   },
 
   // Set availability
   setAvailability: (data: any) => {
-    return api.post('/availability', data);
+    return api.post('/api/availability', data);
   },
 
   // Update availability
   updateAvailability: (id: string, data: any) => {
-    return api.put(`/availability/${id}`, data);
+    return api.put(`/api/availability/${id}`, data);
   },
 
   // Delete availability
   deleteAvailability: (id: string) => {
-    return api.delete(`/availability/${id}`);
+    return api.delete(`/api/availability/${id}`);
   },
 };
 
 export const notificationAPI = {
   // Get notifications
   getNotifications: () => {
-    return api.get('/notifications');
+    return api.get('/api/notifications');
   },
 
   // Mark notification as read
   markAsRead: (id: string) => {
-    return api.patch(`/notifications/${id}/read`);
+    return api.patch(`/api/notifications/${id}/read`);
   },
 
   // Mark all notifications as read
   markAllAsRead: () => {
-    return api.patch('/notifications/read-all');
+    return api.patch('/api/notifications/read-all');
   },
 };
 
 export const messagesAPI = {
   // Get conversations
   getConversations: () => {
-    return api.get('/messages/conversations');
+    return api.get('/api/messages/conversations');
   },
 
   // Get messages for conversation
   getMessages: (conversationId: string) => {
-    return api.get(`/messages/conversations/${conversationId}`);
+    return api.get(`/api/messages/conversations/${conversationId}`);
   },
 
   // Send message
   sendMessage: (conversationId: string, data: { content: string; type?: string }) => {
-    return api.post(`/messages/conversations/${conversationId}`, data);
+    return api.post(`/api/messages/conversations/${conversationId}`, data);
   },
 
   // Create conversation
   createConversation: (data: { participantId: string; initialMessage?: string }) => {
-    return api.post('/messages/conversations', data);
+    return api.post('/api/messages/conversations', data);
   },
 
   // Mark messages as read
   markAsRead: (conversationId: string) => {
-    return api.patch(`/messages/conversations/${conversationId}/read`);
+    return api.patch(`/api/messages/conversations/${conversationId}/read`);
   },
 };
 
@@ -408,49 +408,49 @@ export const verbfyTalkAPI = {
     if (filters?.page) params.append('page', filters.page.toString());
     if (filters?.limit) params.append('limit', filters.limit.toString());
 
-    const response = await api.get(`/verbfy-talk?${params.toString()}`);
+    const response = await api.get(`/api/verbfy-talk?${params.toString()}`);
     return response.data;
   },
 
   // Get user's rooms
   getUserRooms: async (page = 1, limit = 10): Promise<RoomsResponse> => {
-    const response = await api.get(`/verbfy-talk/my-rooms?page=${page}&limit=${limit}`);
+    const response = await api.get(`/api/verbfy-talk/my-rooms?page=${page}&limit=${limit}`);
     return response.data;
   },
 
   // Create a new room
   createRoom: async (roomData: CreateRoomData): Promise<RoomResponse> => {
-    const response = await api.post('/verbfy-talk', roomData);
+    const response = await api.post('/api/verbfy-talk', roomData);
     return response.data;
   },
 
   // Get room details
   getRoomDetails: async (roomId: string): Promise<RoomResponse> => {
-    const response = await api.get(`/verbfy-talk/${roomId}`);
+    const response = await api.get(`/api/verbfy-talk/${roomId}`);
     return response.data;
   },
 
   // Join a room
   joinRoom: async (roomId: string, joinData?: JoinRoomData): Promise<RoomResponse> => {
-    const response = await api.post(`/verbfy-talk/${roomId}/join`, joinData || {});
+    const response = await api.post(`/api/verbfy-talk/${roomId}/join`, joinData || {});
     return response.data;
   },
 
   // Leave a room
   leaveRoom: async (roomId: string): Promise<{ success: boolean; message: string }> => {
-    const response = await api.post(`/verbfy-talk/${roomId}/leave`);
+    const response = await api.post(`/api/verbfy-talk/${roomId}/leave`);
     return response.data;
   },
 
   // Update room
   updateRoom: async (roomId: string, roomData: Partial<CreateRoomData>): Promise<RoomResponse> => {
-    const response = await api.put(`/verbfy-talk/${roomId}`, roomData);
+    const response = await api.put(`/api/verbfy-talk/${roomId}`, roomData);
     return response.data;
   },
 
   // Delete room
   deleteRoom: async (roomId: string): Promise<{ success: boolean; message: string }> => {
-    const response = await api.delete(`/verbfy-talk/${roomId}`);
+    const response = await api.delete(`/api/verbfy-talk/${roomId}`);
     return response.data;
   }
 };
@@ -469,31 +469,31 @@ export const freeMaterialsAPI = {
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.featured) params.append('featured', filters.featured.toString());
 
-    const response = await api.get(`/free-materials?${params.toString()}`);
+    const response = await api.get(`/api/free-materials?${params.toString()}`);
     return response.data;
   },
 
   // Get featured materials
   getFeaturedMaterials: async (): Promise<{ success: boolean; data: FreeMaterial[] }> => {
-    const response = await api.get('/free-materials/featured');
+    const response = await api.get('/api/free-materials/featured');
     return response.data;
   },
 
   // Get material categories
   getCategories: async (): Promise<{ success: boolean; data: string[] }> => {
-    const response = await api.get('/free-materials/categories');
+    const response = await api.get('/api/free-materials/categories');
     return response.data;
   },
 
   // Get material levels
   getLevels: async (): Promise<{ success: boolean; data: string[] }> => {
-    const response = await api.get('/free-materials/levels');
+    const response = await api.get('/api/free-materials/levels');
     return response.data;
   },
 
   // Get material by ID
   getMaterial: async (id: string): Promise<{ success: boolean; data: FreeMaterial }> => {
-    const response = await api.get(`/free-materials/${id}`);
+    const response = await api.get(`/api/free-materials/${id}`);
     return response.data;
   },
 
@@ -612,37 +612,37 @@ export const cefrTestsAPI = {
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null) params.append(key, value.toString());
     });
-    const response = await api.get(`/cefr-tests?${params.toString()}`);
+    const response = await api.get(`/api/cefr-tests?${params.toString()}`);
     return response.data;
   },
 
   // Get test by ID
   getTest: async (testId: string): Promise<CEFRTest> => {
-    const response = await api.get(`/cefr-tests/${testId}`);
+    const response = await api.get(`/api/cefr-tests/${testId}`);
     return response.data;
   },
 
   // Start test
   startTest: async (testId: string): Promise<StartTestResponse> => {
-    const response = await api.post(`/cefr-tests/${testId}/start`);
+    const response = await api.post(`/api/cefr-tests/${testId}/start`);
     return response.data;
   },
 
   // Submit test
   submitTest: async (attemptId: string, data: SubmitTestRequest): Promise<SubmitTestResponse> => {
-    const response = await api.post(`/cefr-tests/attempt/${attemptId}/submit`, data);
+    const response = await api.post(`/api/cefr-tests/attempt/${attemptId}/submit`, data);
     return response.data;
   },
 
   // Get test attempt details (may not be available on all backends)
   getTestAttempt: async (attemptId: string): Promise<TestAttempt> => {
-    const response = await api.get(`/cefr-tests/attempt/${attemptId}`);
+    const response = await api.get(`/api/cefr-tests/attempt/${attemptId}`);
     return response.data;
   },
 
   // Get test statistics
   getTestStats: async (testId: string): Promise<TestStats> => {
-    const response = await api.get(`/cefr-tests/${testId}/stats`);
+    const response = await api.get(`/api/cefr-tests/${testId}/stats`);
     return response.data;
   },
 

@@ -48,11 +48,11 @@ export default function AdminDashboard() {
       setLoadingStats(true);
       
       // Fetch admin statistics
-      const statsResponse = await api.get('/api/admin/stats');
+      const statsResponse = await api.get('/admin/stats');
       setStats(statsResponse.data);
       
       // Fetch recent activities
-      const activitiesResponse = await api.get('/api/admin/activities');
+      const activitiesResponse = await api.get('/admin/activities');
       setRecentActivities(activitiesResponse.data.activities || []);
       
     } catch (error) {
