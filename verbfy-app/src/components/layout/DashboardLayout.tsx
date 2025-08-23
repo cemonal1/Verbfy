@@ -284,9 +284,9 @@ export default function DashboardLayout({
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - optimized width */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-xl border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        fixed inset-y-0 left-0 z-50 w-56 bg-white dark:bg-gray-800 shadow-xl border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         {/* Logo */}
@@ -303,26 +303,23 @@ export default function DashboardLayout({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 mt-4 px-3 overflow-y-auto">
-          <div className="space-y-1">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`
-                  group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200
-                  ${item.current
-                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 shadow-sm'
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
-                  }
-                `}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <span className="mr-3 text-lg" aria-hidden>{item.icon}</span>
-                <span>{item.name}</span>
-              </Link>
-            ))}
-          </div>
+        <nav className="flex-1 px-4 py-6 space-y-2">
+          {navigationItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`
+                flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200
+                ${item.current
+                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+                }
+              `}
+            >
+              <span className="mr-3 text-lg" aria-hidden>{item.icon}</span>
+              <span>{item.name}</span>
+            </Link>
+          ))}
         </nav>
 
         {/* User info */}
@@ -356,8 +353,8 @@ export default function DashboardLayout({
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="lg:pl-64 min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Main content - adjusted left padding */}
+      <div className="lg:pl-56 min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Top bar - reduced height and padding */}
         <div className="sticky top-0 z-30 bg-white/80 backdrop-blur dark:bg-gray-800/80 shadow-sm border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between h-12 px-4 sm:px-6 lg:px-8">
