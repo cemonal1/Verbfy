@@ -44,7 +44,7 @@ const StudentReservePage: React.FC = () => {
   const loadTeachers = async () => {
     setLoadingTeachers(true);
     try {
-      const response = await api.get('/api/users/teachers');
+      const response = await api.get('/users/teachers');
       setTeachers(response.data);
     } catch (error) {
       console.error('Error loading teachers:', error);
