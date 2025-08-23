@@ -137,8 +137,11 @@ const io = new SocketIOServer(server, {
   cors: {
     origin: socketAllowedOrigins,
     methods: ['GET', 'POST'],
-    credentials: true
-  }
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
 });
 
 io.use((socket, next) => {
