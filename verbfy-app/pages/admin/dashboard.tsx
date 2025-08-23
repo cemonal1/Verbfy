@@ -3,6 +3,7 @@ import { useAuthContext } from '@/context/AuthContext';
 import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import api from '@/lib/api';
+import TeacherApprovalSection from '@/components/admin/TeacherApprovalSection';
 
 interface AdminStats {
   totalUsers: number;
@@ -48,11 +49,11 @@ export default function AdminDashboard() {
       setLoadingStats(true);
       
       // Fetch admin statistics
-      const statsResponse = await api.get('/admin/stats');
+      const statsResponse = await api.get('/api/admin/stats');
       setStats(statsResponse.data);
       
       // Fetch recent activities
-      const activitiesResponse = await api.get('/admin/activities');
+      const activitiesResponse = await api.get('/api/admin/activities');
       setRecentActivities(activitiesResponse.data.activities || []);
       
     } catch (error) {
@@ -192,6 +193,17 @@ export default function AdminDashboard() {
           </div>
         )}
 
+      </div>
+
+      {/* Teacher Approval Section */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-8">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white">Teacher Approval Requests</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Review and approve new teacher applications</p>
+        </div>
+        <div className="p-6">
+          <TeacherApprovalSection />
+        </div>
       </div>
 
       {/* Recent Activities */}
