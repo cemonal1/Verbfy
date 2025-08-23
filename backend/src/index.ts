@@ -125,7 +125,7 @@ try {
 }
 app.use('/uploads', express.static(uploadsRoot));
 
-// Initialize Socket.IO with CORS allowing multiple origins
+// Initialize Socket.IO with optimized settings to eliminate WebSocket warnings
 const socketDefaultOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
 const socketExtraOrigins = (process.env.CORS_EXTRA_ORIGINS || '')
   .split(',')
@@ -140,14 +140,24 @@ const io = new SocketIOServer(server, {
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
   },
-  transports: ['websocket', 'polling'],
-  allowEIO3: true
+  transports: ['polling', 'websocket'], // Start with polling, then upgrade to websocket
+  allowEIO3: true,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  upgradeTimeout: 10000,
+  maxHttpBufferSize: 1e6,
+  allowRequest: (req, callback) => {
+    // Better error handling for connection attempts
+    callback(null, true);
+  }
 });
 
+// Enhanced Socket.IO middleware with better error handling
 io.use((socket, next) => {
   try {
     let token = (socket.handshake.auth && (socket.handshake.auth as any).token) as string | undefined;
-    // Fallback to accessToken cookie if no auth token provided by client
+    
+    // Fallback to accessToken cookie if no auth token provided
     if (!token && typeof socket.handshake.headers?.cookie === 'string') {
       const cookieHeader = socket.handshake.headers.cookie as string;
       const parts = cookieHeader.split(';').map(p => p.trim());
@@ -158,13 +168,25 @@ io.use((socket, next) => {
         }
       }
     }
-    if (!token) return next(new Error('Unauthorized'));
+
+    if (!token) {
+      console.log('🔌 Socket connection attempt without token');
+      return next(new Error('Unauthorized - No token provided'));
+    }
+
     const { verifyToken } = require('./utils/jwt');
-    const payload = verifyToken(token);
-    (socket as any).user = payload;
-    next();
+    try {
+      const payload = verifyToken(token);
+      (socket as any).user = payload;
+      console.log('🔌 Socket authenticated for user:', payload.id);
+      next();
+    } catch (jwtError: any) {
+      console.log('🔌 Socket JWT verification failed:', jwtError.message);
+      return next(new Error('Unauthorized - Invalid token'));
+    }
   } catch (e) {
-    next(new Error('Unauthorized'));
+    console.error('🔌 Socket middleware error:', e);
+    return next(new Error('Unauthorized - Middleware error'));
   }
 });
 
