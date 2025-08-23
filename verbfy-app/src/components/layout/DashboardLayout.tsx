@@ -41,6 +41,9 @@ export default function DashboardLayout({
         e.preventDefault();
         // Push current route to history to prevent back navigation
         window.history.pushState(null, '', router.asPath);
+        
+        // Show warning toast
+        success('Back button is disabled for security');
       }
     };
 
@@ -50,13 +53,17 @@ export default function DashboardLayout({
       
       // Push current route to history to prevent back navigation
       window.history.pushState(null, '', router.asPath);
+      
+      // Add more history entries to make back navigation harder
+      window.history.pushState(null, '', router.asPath);
+      window.history.pushState(null, '', router.asPath);
     }
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [user, isLoading, router.asPath]);
+  }, [user, isLoading, router.asPath, success]);
 
   // While auth is loading, render a lightweight loader instead of Access Denied
   if (isLoading) {
