@@ -103,6 +103,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Try to fetch current user with token
       const response = await authAPI.getCurrentUser();
       console.log('Auth response:', response);
+      console.log('Response structure:', response);
+      console.log('Response.data:', response.data);
+      console.log('Response.data.success:', response.data.success);
+      console.log('Response.data.user:', response.data.user);
       
       if (response.data && response.data.success) {
         const userData = response.data.user;
@@ -111,12 +115,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
           id: userData._id
         };
         
+        console.log('Setting user:', userWithId);
         setUser(userWithId);
         tokenStorage.setUser(userWithId);
         setIsLoading(false);
       } else {
         // Token is invalid, clear it and redirect
         console.log('Invalid token, clearing and redirecting to login');
+        console.log('Response validation failed:', {
+          hasData: !!response.data,
+          hasSuccess: !!response.data?.success,
+          successValue: response.data?.success,
+          userData: response.data?.user
+        });
         tokenStorage.clear();
         setUser(null);
         
