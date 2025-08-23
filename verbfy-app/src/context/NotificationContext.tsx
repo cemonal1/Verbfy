@@ -279,13 +279,16 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       
       const createdSocket = io(base, {
         path: '/socket.io/',
-        transports: ['websocket', 'polling'],
+        transports: ['polling', 'websocket'], // polling first, then websocket
         withCredentials: true,
         auth: { token: tok || undefined },
-        autoConnect: true,
+        autoConnect: false, // Don't auto-connect, wait for explicit connect
         reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
+        forceNew: true
       });
 
       localSocket = createdSocket;
@@ -294,6 +297,9 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         createdSocket.disconnect();
         return;
       }
+
+      // Explicitly connect after setup
+      createdSocket.connect();
 
       socketRef.current = createdSocket;
       const socket = createdSocket;
@@ -306,14 +312,36 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       });
 
       socket.on('connect_error', (error) => {
-        if (!shownError) {
-          shownError = true;
-          console.error('🔌 Socket connection error:', error);
+        console.error('🔌 Socket connection error:', error);
+        // Try to reconnect with different transport
+        try {
+          const currentTransports = (socket.io as any).opts?.transports;
+          if (Array.isArray(currentTransports) && currentTransports.includes('websocket')) {
+            console.log('🔄 Trying polling transport...');
+            (socket.io as any).opts.transports = ['polling'];
+            socket.connect();
+          }
+        } catch (e) {
+          console.warn('Could not change transport:', e);
         }
       });
 
       socket.on('disconnect', (reason) => {
         console.log('🔌 Socket disconnected:', reason);
+        if (reason === 'io server disconnect') {
+          // Server disconnected, try to reconnect
+          socket.connect();
+        }
+      });
+
+      socket.on('reconnect', (attemptNumber) => {
+        console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
+        // Rejoin notification room after reconnect
+        socket.emit('joinNotificationRoom', user._id);
+      });
+
+      socket.on('reconnect_error', (error) => {
+        console.error('🔄 Socket reconnection error:', error);
       });
 
       // Listen for new notifications
