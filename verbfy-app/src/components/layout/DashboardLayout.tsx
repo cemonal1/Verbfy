@@ -274,7 +274,7 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
       <NotificationProvider>
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
@@ -353,10 +353,10 @@ export default function DashboardLayout({
         </div>
       </div>
 
-      {/* Main content - adjusted left padding */}
-      <div className="lg:pl-56 min-h-screen bg-gray-50 dark:bg-gray-900">
-        {/* Top bar - reduced height and padding */}
-        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur dark:bg-gray-800/80 shadow-sm border-b border-gray-200 dark:border-gray-700">
+      {/* Main content */}
+      <div className="lg:pl-56 h-full bg-gray-50 dark:bg-gray-900 grid grid-rows-[auto,1fr]">
+        {/* Top bar */}
+        <div className="z-30 bg-white/80 backdrop-blur dark:bg-gray-800/80 shadow-sm border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between h-12 px-4 sm:px-6">
             {/* Mobile menu button */}
             <button
@@ -396,9 +396,9 @@ export default function DashboardLayout({
           </div>
         </div>
 
-        {/* Page content - minimal padding */}
-        <main className="flex-1">
-          <div className="px-4 sm:px-6 lg:px-8">
+        {/* Page content */}
+        <main className="overflow-y-auto min-h-0 overscroll-contain">
+          <div className="px-4 sm:px-6 lg:px-8 py-4">
             {children}
           </div>
         </main>
