@@ -358,9 +358,9 @@ export default function DashboardLayout({
 
       {/* Main content */}
       <div className="lg:pl-64 min-h-screen bg-gray-50 dark:bg-gray-900">
-        {/* Top bar */}
+        {/* Top bar - reduced height and padding */}
         <div className="sticky top-0 z-30 bg-white/80 backdrop-blur dark:bg-gray-800/80 shadow-sm border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between h-14 px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-12 px-4 sm:px-6 lg:px-8">
             {/* Mobile menu button */}
             <button
               onClick={() => setSidebarOpen(true)}
@@ -372,12 +372,12 @@ export default function DashboardLayout({
               </svg>
             </button>
 
-            {/* Page title */}
+            {/* Page title - reduced size */}
             <div className="flex-1 lg:flex-none">
-              <h1 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+              <h1 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
                 {title}
               </h1>
-              <p className="hidden sm:block text-[11px] text-gray-500 dark:text-gray-400 -mt-0.5">Verbing Up Your Language Skills!</p>
+              <p className="hidden sm:block text-[10px] text-gray-500 dark:text-gray-400 -mt-0.5">Verbing Up Your Language Skills!</p>
             </div>
 
             {/* Right side actions */}
@@ -399,9 +399,9 @@ export default function DashboardLayout({
           </div>
         </div>
 
-        {/* Page content */}
+        {/* Page content - reduced top padding */}
         <main className="flex-1">
-          <div className="py-6 sm:py-8 lg:py-10">
+          <div className="py-4 sm:py-6 lg:py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               {children}
             </div>
