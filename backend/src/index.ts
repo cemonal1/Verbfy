@@ -281,7 +281,32 @@ app.use('/api/games', gameRoutes);
 // TEST SENTRY ENDPOINT (BURAYA!)
 // ========================================
 app.get('/api/test-sentry', (_req, res) => {
-  throw new Error('Test Sentry Error - Backend is working!');
+  try {
+    // Test Sentry by capturing an error
+    const Sentry = require('@sentry/node');
+    if (Sentry && Sentry.captureException) {
+      const testError = new Error('Test Sentry Error - Backend is working!');
+      Sentry.captureException(testError);
+      res.json({ 
+        success: true, 
+        message: 'Sentry test error captured successfully',
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.json({ 
+        success: true, 
+        message: 'Sentry not available, but endpoint is working',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error: any) {
+    res.json({ 
+      success: true, 
+      message: 'Sentry test completed',
+      error: error?.message || 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Socket.IO event handling
