@@ -140,23 +140,23 @@ const validateFrontendURL = (): void => {
 };
 
 const validateLiveKitConfig = (): void => {
-  const cloudApiKey = process.env.LIVEKIT_CLOUD_API_KEY;
-  const cloudApiSecret = process.env.LIVEKIT_CLOUD_API_SECRET;
-  const cloudUrl = process.env.LIVEKIT_CLOUD_URL;
+  const cloudApiKey = process.env.LIVEKIT_CLOUD_API_KEY || process.env.LIVEKIT_API_KEY;
+  const cloudApiSecret = process.env.LIVEKIT_CLOUD_API_SECRET || process.env.LIVEKIT_API_SECRET;
+  const cloudUrl = process.env.LIVEKIT_CLOUD_URL || process.env.LIVEKIT_URL;
   
   // Check if LiveKit Cloud is configured
   const hasCloudConfig = cloudApiKey && cloudApiSecret && cloudUrl;
 
   if (!hasCloudConfig) {
     console.warn('⚠️ Missing LiveKit Cloud configuration:');
-    console.warn('   - LIVEKIT_CLOUD_API_KEY');
-    console.warn('   - LIVEKIT_CLOUD_API_SECRET');
-    console.warn('   - LIVEKIT_CLOUD_URL');
+    console.warn('   - LIVEKIT_CLOUD_API_KEY or LIVEKIT_API_KEY');
+    console.warn('   - LIVEKIT_CLOUD_API_SECRET or LIVEKIT_API_SECRET');
+    console.warn('   - LIVEKIT_CLOUD_URL or LIVEKIT_URL');
     console.warn('   Video conferencing feature will be disabled');
   } else {
     console.log('✅ LiveKit Cloud configuration found');
     if (!cloudUrl.startsWith('wss://')) {
-      console.warn('⚠️ LIVEKIT_CLOUD_URL should start with wss:// for secure WebSocket connection');
+      console.warn('⚠️ LiveKit URL should start with wss:// for secure WebSocket connection');
     }
   }
 };
