@@ -244,7 +244,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         }
       });
 
-      const response = await api.get(`/notifications?${params.toString()}`);
+      const response = await api.get(`/api/notifications?${params.toString()}`);
       
       if (response.data.success) {
         dispatch({
@@ -268,7 +268,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
 
     try {
-      const response = await api.patch(`/notifications/${id}/read`);
+      const response = await api.patch(`/api/notifications/${id}/read`);
       
       if (response.data.success) {
         dispatch({
@@ -312,7 +312,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
 
     try {
-      const response = await api.delete(`/notifications/${id}`);
+      const response = await api.delete(`/api/notifications/${id}`);
       
       if (response.data.success) {
         dispatch({ type: 'DELETE_NOTIFICATION', payload: id });
