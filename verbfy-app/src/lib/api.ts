@@ -39,10 +39,7 @@ try {
     timeout: 30000,
     withCredentials: true,
     headers: { 
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With'
+      'Content-Type': 'application/json'
     },
   });
 } catch {
@@ -203,22 +200,22 @@ export const reservationAPI = {
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    return api.get(`/reservations?${params.toString()}`);
+    return api.get(`/api/reservations?${params.toString()}`);
   },
 
   // Create reservation
   createReservation: (data: any) => {
-    return api.post('/reservations', data);
+    return api.post('/api/reservations', data);
   },
 
   // Update reservation
   updateReservation: (id: string, data: any) => {
-    return api.put(`/reservations/${id}`, data);
+    return api.put(`/api/reservations/${id}`, data);
   },
 
   // Delete reservation
   deleteReservation: (id: string) => {
-    return api.delete(`/reservations/${id}`);
+    return api.delete(`/api/reservations/${id}`);
   },
 };
 
@@ -291,17 +288,17 @@ export const messagesAPI = {
 export const analyticsAPI = {
   // Get teacher analytics
   getTeacherAnalytics: () => {
-    return api.get('/analytics/teacher');
+    return api.get('/api/analytics/teacher');
   },
 
   // Get student analytics
   getStudentAnalytics: () => {
-    return api.get('/analytics/student');
+    return api.get('/api/analytics/student');
   },
 
   // Get admin analytics
   getAdminAnalytics: () => {
-    return api.get('/analytics/admin');
+    return api.get('/api/analytics/admin');
   },
 
   // Get earnings report
@@ -309,106 +306,106 @@ export const analyticsAPI = {
     const params = new URLSearchParams({ period });
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
-    return api.get(`/analytics/earnings?${params.toString()}`);
+    return api.get(`/api/analytics/earnings?${params.toString()}`);
   },
 
   // Get progress report
   getProgressReport: (skill?: string, period = 'month') => {
     const params = new URLSearchParams({ period });
     if (skill) params.append('skill', skill);
-    return api.get(`/analytics/progress?${params.toString()}`);
+    return api.get(`/api/analytics/progress?${params.toString()}`);
   },
 };
 
 export const paymentAPI = {
   // Create checkout session
   createCheckoutSession: (data: { productId: string; couponCode?: string }) => {
-    return api.post('/payments/create-session', data);
+    return api.post('/api/payments/create-session', data);
   },
 
   // Get payment history
   getPaymentHistory: (params?: any) => {
-    return api.get('/payments/history', { params });
+    return api.get('/api/payments/history', { params });
   },
 
   // Get available products
   getProducts: (params?: any) => {
-    return api.get('/payments/products', { params });
+    return api.get('/api/payments/products', { params });
   },
 
   // Get payment statistics
   getPaymentStats: () => {
-    return api.get('/payments/stats');
+    return api.get('/api/payments/stats');
   },
 
   // Refund payment (admin only)
   refundPayment: (paymentId: string, data: { reason?: string }) => {
-    return api.post(`/payments/${paymentId}/refund`, data);
+    return api.post(`/api/payments/${paymentId}/refund`, data);
   },
 };
 
 export const adminAPI = {
   // Overview & Analytics
   getOverview: () => {
-    return api.get('/admin/overview');
+    return api.get('/api/admin/overview');
   },
 
   // Get admin stats (legacy)
   getStats: () => {
-    return api.get('/admin/stats');
+    return api.get('/api/admin/stats');
   },
 
   // Get recent activities (legacy)
   getActivities: () => {
-    return api.get('/admin/activities');
+    return api.get('/api/admin/activities');
   },
 
   // User Management
   getUsers: (params?: any) => {
-    return api.get('/admin/users', { params });
+    return api.get('/api/admin/users', { params });
   },
 
   getUserById: (id: string) => {
-    return api.get(`/admin/users/${id}`);
+    return api.get(`/api/admin/users/${id}`);
   },
 
   updateUserRole: (id: string, role: string) => {
-    return api.patch(`/admin/users/${id}/role`, { role });
+    return api.patch(`/api/admin/users/${id}/role`, { role });
   },
 
   updateUserStatus: (userId: string, status: string) => {
-    return api.patch(`/admin/users/${userId}/status`, { status });
+    return api.patch(`/api/admin/users/${userId}/status`, { status });
   },
 
   deleteUser: (id: string) => {
-    return api.delete(`/admin/users/${id}`);
+    return api.delete(`/api/admin/users/${id}`);
   },
 
   // Material Moderation
   getMaterials: (params?: any) => {
-    return api.get('/admin/materials', { params });
+    return api.get('/api/admin/materials', { params });
   },
 
   approveMaterial: (id: string, data: { approved: boolean; reason?: string }) => {
-    return api.patch(`/admin/materials/${id}/approve`, data);
+    return api.patch(`/api/admin/materials/${id}/approve`, data);
   },
 
   deleteMaterial: (id: string) => {
-    return api.delete(`/admin/materials/${id}`);
+    return api.delete(`/api/admin/materials/${id}`);
   },
 
   // Payment Management
   getPayments: (params?: any) => {
-    return api.get('/admin/payments', { params });
+    return api.get('/api/admin/payments', { params });
   },
 
   refundPayment: (id: string, data: { reason?: string }) => {
-    return api.patch(`/admin/payments/${id}/refund`, data);
+    return api.patch(`/api/admin/payments/${id}/refund`, data);
   },
 
   // Logs & Activity
   getLogs: (params?: any) => {
-    return api.get('/admin/logs', { params });
+    return api.get('/api/admin/logs', { params });
   },
 };
 
@@ -522,7 +519,7 @@ export const freeMaterialsAPI = {
     if (materialData.isFeatured) formData.append('isFeatured', materialData.isFeatured.toString());
     formData.append('file', materialData.file);
 
-    const response = await api.post('/free-materials', formData, {
+    const response = await api.post('/api/free-materials', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -532,25 +529,25 @@ export const freeMaterialsAPI = {
 
   // Rate material
   rateMaterial: async (id: string, rating: number): Promise<{ success: boolean; message: string }> => {
-    const response = await api.post(`/free-materials/${id}/rate`, { rating });
+    const response = await api.post(`/api/free-materials/${id}/rate`, { rating });
     return response.data;
   },
 
   // Update material
   updateMaterial: async (id: string, materialData: Partial<UploadMaterialData>): Promise<{ success: boolean; data: FreeMaterial }> => {
-    const response = await api.put(`/free-materials/${id}`, materialData);
+    const response = await api.put(`/api/free-materials/${id}`, materialData);
     return response.data;
   },
 
   // Delete material
   deleteMaterial: async (id: string): Promise<{ success: boolean; message: string }> => {
-    const response = await api.delete(`/free-materials/${id}`);
+    const response = await api.delete(`/api/free-materials/${id}`);
     return response.data;
   },
 
   // Download material
   downloadMaterial: async (id: string): Promise<Blob> => {
-    const response = await api.get(`/free-materials/${id}/download`, {
+    const response = await api.get(`/api/free-materials/${id}/download`, {
       responseType: 'blob'
     });
     return response.data;
@@ -565,55 +562,55 @@ export const verbfyLessonsAPI = {
     Object.entries(filters || {}).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    const response = await api.get(`/verbfy-lessons?${params.toString()}`);
+    const response = await api.get(`/api/verbfy-lessons?${params.toString()}`);
     return response.data;
   },
 
   // Get lesson by ID
   getLesson: async (id: string): Promise<any> => {
-    const response = await api.get(`/verbfy-lessons/${id}`);
+    const response = await api.get(`/api/verbfy-lessons/${id}`);
     return response.data;
   },
 
   // Create lesson (admin/teacher only)
   createLesson: async (data: any): Promise<any> => {
-    const response = await api.post('/verbfy-lessons', data);
+    const response = await api.post('/api/verbfy-lessons', data);
     return response.data;
   },
 
   // Update lesson (admin/teacher only)
   updateLesson: async (id: string, data: any): Promise<any> => {
-    const response = await api.put(`/verbfy-lessons/${id}`, data);
+    const response = await api.put(`/api/verbfy-lessons/${id}`, data);
     return response.data;
   },
 
   // Delete lesson (admin/teacher only)
   deleteLesson: async (id: string): Promise<any> => {
-    const response = await api.delete(`/verbfy-lessons/${id}`);
+    const response = await api.delete(`/api/verbfy-lessons/${id}`);
     return response.data;
   },
 
   // Start lesson attempt
   startLesson: async (lessonId: string): Promise<any> => {
-    const response = await api.post(`/verbfy-lessons/${lessonId}/start`);
+    const response = await api.post(`/api/verbfy-lessons/${lessonId}/start`);
     return response.data;
   },
 
   // Submit lesson attempt
   submitLesson: async (attemptId: string, data: any): Promise<any> => {
-    const response = await api.post(`/verbfy-lessons/attempt/${attemptId}/submit`, data);
+    const response = await api.post(`/api/verbfy-lessons/attempt/${attemptId}/submit`, data);
     return response.data;
   },
 
   // Get lesson categories
   getCategories: async (): Promise<any> => {
-    const response = await api.get('/verbfy-lessons/categories');
+    const response = await api.get('/api/verbfy-lessons/categories');
     return response.data;
   },
 
   // Get lesson statistics
   getStats: async (lessonId: string): Promise<any> => {
-    const response = await api.get(`/verbfy-lessons/${lessonId}/stats`);
+    const response = await api.get(`/api/verbfy-lessons/${lessonId}/stats`);
     return response.data;
   },
 };
@@ -662,29 +659,28 @@ export const cefrTestsAPI = {
 
   // Get placement recommendation
   getPlacementRecommendation: async (): Promise<PlacementRecommendation> => {
-    const response = await api.get('/cefr-tests/placement/recommendation');
+    const response = await api.get('/api/cefr-tests/placement/recommendation');
     return response.data;
   },
 
   // Seed 50Q Global Placement (admin only)
   seedGlobalPlacement: async () => {
-    const response = await api.post('/cefr-tests/seed/global-placement');
+    const response = await api.post('/api/cefr-tests/seed/global-placement');
     return response.data;
   },
   // Seed Kids A1–B1 (admin only)
   seedKidsA1B1: async () => {
-    const response = await api.post('/cefr-tests/seed/kids-a1-b1');
+    const response = await api.post('/api/cefr-tests/seed/kids-a1-b1');
     return response.data;
   },
   // Seed Adults A1–B2 (admin only)
   seedAdultsA1B2: async () => {
-    const response = await api.post('/cefr-tests/seed/adults-a1-b2');
+    const response = await api.post('/api/cefr-tests/seed/adults-a1-b2');
     return response.data;
   },
   // Seed Advanced B1–C2 (admin only)
   seedAdvancedB1C2: async () => {
-    const response = await api.post('/cefr-tests/seed/advanced-b1-c2');
-    return response.data;
+    return api.post('/api/cefr-tests/seed/advanced-b1-c2');
   },
 };
 
@@ -692,61 +688,61 @@ export const cefrTestsAPI = {
 export const personalizedCurriculumAPI = {
   // Create curriculum
   createCurriculum: async (data: CreateCurriculumRequest): Promise<{ curriculum: PersonalizedCurriculum }> => {
-    const response = await api.post('/personalized-curriculum', data);
+    const response = await api.post('/api/personalized-curriculum', data);
     return response.data;
   },
 
   // Get user's curriculum
   getCurriculum: async (): Promise<PersonalizedCurriculum> => {
-    const response = await api.get('/personalized-curriculum');
+    const response = await api.get('/api/personalized-curriculum');
     return response.data;
   },
 
   // Update curriculum progress
   updateProgress: async (data: UpdateProgressRequest): Promise<{ message: string }> => {
-    const response = await api.put('/personalized-curriculum/progress', data);
+    const response = await api.put('/api/personalized-curriculum/progress', data);
     return response.data;
   },
 
   // Update study schedule
   updateStudySchedule: async (data: UpdateStudyScheduleRequest): Promise<{ message: string }> => {
-    const response = await api.put('/personalized-curriculum/schedule', data);
+    const response = await api.put('/api/personalized-curriculum/schedule', data);
     return response.data;
   },
 
   // Get curriculum analytics
   getAnalytics: async (): Promise<{ analytics: CurriculumAnalytics }> => {
-    const response = await api.get('/personalized-curriculum/analytics');
+    const response = await api.get('/api/personalized-curriculum/analytics');
     return response.data;
   },
 
   // Get recommendations
   getRecommendations: async (): Promise<{ recommendations: CurriculumRecommendation[] }> => {
-    const response = await api.get('/personalized-curriculum/recommendations');
+    const response = await api.get('/api/personalized-curriculum/recommendations');
     return response.data;
   },
 
   // Complete recommendation
   completeRecommendation: async (recommendationId: string): Promise<{ message: string }> => {
-    const response = await api.post(`/personalized-curriculum/recommendations/${recommendationId}/complete`);
+    const response = await api.post(`/api/personalized-curriculum/recommendations/${recommendationId}/complete`);
     return response.data;
   },
 
   // Get study schedule
   getStudySchedule: async (): Promise<any> => {
-    const response = await api.get('/personalized-curriculum/schedule');
+    const response = await api.get('/api/personalized-curriculum/schedule');
     return response.data;
   },
 
   // Add study session
   addStudySession: async (data: any): Promise<any> => {
-    const response = await api.post('/personalized-curriculum/schedule/sessions', data);
+    const response = await api.post('/api/personalized-curriculum/schedule/sessions', data);
     return response.data;
   },
 
   // Complete study session
   completeStudySession: async (sessionId: number): Promise<any> => {
-    const response = await api.post(`/personalized-curriculum/schedule/sessions/${sessionId}/complete`);
+    const response = await api.post(`/api/personalized-curriculum/schedule/sessions/${sessionId}/complete`);
     return response.data;
   },
 };
@@ -760,25 +756,25 @@ export const setApiAccessToken = (token: string) => {
 export const achievementsAPI = {
   // Get user achievements
   getAchievements: async (): Promise<any> => {
-    const response = await api.get('/achievements');
+    const response = await api.get('/api/achievements');
     return response.data;
   },
 
   // Get achievement progress
   getProgress: async (achievementId: number): Promise<any> => {
-    const response = await api.get(`/achievements/${achievementId}/progress`);
+    const response = await api.get(`/api/achievements/${achievementId}/progress`);
     return response.data;
   },
 
   // Get leaderboard
   getLeaderboard: async (): Promise<any> => {
-    const response = await api.get('/achievements/leaderboard');
+    const response = await api.get('/api/achievements/leaderboard');
     return response.data;
   },
 
   // Unlock achievement
   unlockAchievement: async (achievementId: number): Promise<any> => {
-    const response = await api.post(`/achievements/${achievementId}/unlock`);
+    const response = await api.post(`/api/achievements/${achievementId}/unlock`);
     return response.data;
   },
 };
@@ -786,13 +782,13 @@ export const achievementsAPI = {
 // Games API
 export const gamesAPI = {
   list: async (params?: any) => {
-    return api.get('/games', { params });
+    return api.get('/api/games', { params });
   },
   create: async (data: { title: string; description?: string; category?: string; level?: string; thumbnailUrl?: string; gameUrl: string }) => {
-    return api.post('/games', data);
+    return api.post('/api/games', data);
   },
   delete: async (id: string) => {
-    return api.delete(`/games/${id}`);
+    return api.delete(`/api/games/${id}`);
   },
 };
 
@@ -800,49 +796,49 @@ export const gamesAPI = {
 export const studyGroupsAPI = {
   // Get user's study groups
   getMyGroups: async (): Promise<any> => {
-    const response = await api.get('/study-groups/my');
+    const response = await api.get('/api/study-groups/my');
     return response.data;
   },
 
   // Get discoverable groups
   getDiscoverGroups: async (filters?: any): Promise<any> => {
-    const response = await api.get('/study-groups/discover', { params: filters });
+    const response = await api.get('/api/study-groups/discover', { params: filters });
     return response.data;
   },
 
   // Create study group
   createGroup: async (data: any): Promise<any> => {
-    const response = await api.post('/study-groups', data);
+    const response = await api.post('/api/study-groups', data);
     return response.data;
   },
 
   // Join study group
   joinGroup: async (groupId: number, password?: string): Promise<any> => {
-    const response = await api.post(`/study-groups/${groupId}/join`, { password });
+    const response = await api.post(`/api/study-groups/${groupId}/join`, { password });
     return response.data;
   },
 
   // Leave study group
   leaveGroup: async (groupId: number): Promise<any> => {
-    const response = await api.post(`/study-groups/${groupId}/leave`);
+    const response = await api.post(`/api/study-groups/${groupId}/leave`);
     return response.data;
   },
 
   // Get group details
   getGroupDetails: async (groupId: number): Promise<any> => {
-    const response = await api.get(`/study-groups/${groupId}`);
+    const response = await api.get(`/api/study-groups/${groupId}`);
     return response.data;
   },
 
   // Send message to group
   sendMessage: async (groupId: number, message: string): Promise<any> => {
-    const response = await api.post(`/study-groups/${groupId}/messages`, { message });
+    const response = await api.post(`/api/study-groups/${groupId}/messages`, { message });
     return response.data;
   },
 
   // Get group messages
   getMessages: async (groupId: number): Promise<any> => {
-    const response = await api.get(`/study-groups/${groupId}/messages`);
+    const response = await api.get(`/api/study-groups/${groupId}/messages`);
     return response.data;
   },
 };
@@ -851,13 +847,13 @@ export const studyGroupsAPI = {
 export const aiLearningAPI = {
   // Create AI learning session
   createSession: async (data: CreateAISessionData): Promise<{ session: AILearningSession }> => {
-    const response = await api.post('/ai-learning/sessions', data);
+    const response = await api.post('/api/ai-learning/sessions', data);
     return response.data;
   },
 
   // Get AI response
   getAIResponse: async (data: AIResponseData): Promise<AIResponse> => {
-    const response = await api.post('/ai-learning/response', data);
+    const response = await api.post('/api/ai-learning/response', data);
     return response.data;
   },
 
@@ -867,19 +863,19 @@ export const aiLearningAPI = {
     Object.entries(filters || {}).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    const response = await api.get(`/ai-learning/sessions?${params.toString()}`);
+    const response = await api.get(`/api/ai-learning/sessions?${params.toString()}`);
     return response.data;
   },
 
   // Update session progress
   updateSessionProgress: async (sessionId: string, data: SessionProgressData): Promise<{ message: string }> => {
-    const response = await api.put(`/ai-learning/sessions/${sessionId}/progress`, data);
+    const response = await api.put(`/api/ai-learning/sessions/${sessionId}/progress`, data);
     return response.data;
   },
 
   // Generate recommendations
   generateRecommendations: async (data: GenerateRecommendationsData): Promise<{ recommendations: Recommendation[] }> => {
-    const response = await api.post('/ai-learning/recommendations', data);
+    const response = await api.post('/api/ai-learning/recommendations', data);
     return response.data;
   },
 
@@ -889,7 +885,7 @@ export const aiLearningAPI = {
     Object.entries(filters || {}).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    const response = await api.get(`/ai-learning/sessions/analytics?${params.toString()}`);
+    const response = await api.get(`/api/ai-learning/sessions/analytics?${params.toString()}`);
     return response.data;
   },
 };
@@ -898,7 +894,7 @@ export const aiLearningAPI = {
 export const adaptiveLearningAPI = {
   // Create adaptive path
   createPath: async (data: CreateAdaptivePathData): Promise<AdaptivePathResponse> => {
-    const response = await api.post('/adaptive-learning/paths', data);
+    const response = await api.post('/api/adaptive-learning/paths', data);
     return response.data;
   },
 
@@ -908,31 +904,31 @@ export const adaptiveLearningAPI = {
     Object.entries(filters || {}).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    const response = await api.get(`/adaptive-learning/paths?${params.toString()}`);
+    const response = await api.get(`/api/adaptive-learning/paths?${params.toString()}`);
     return response.data;
   },
 
   // Get adaptive path by ID
   getPath: async (pathId: string): Promise<AdaptivePathResponse> => {
-    const response = await api.get(`/adaptive-learning/paths/${pathId}`);
+    const response = await api.get(`/api/adaptive-learning/paths/${pathId}`);
     return response.data;
   },
 
   // Update module progress
   updateModuleProgress: async (data: UpdateModuleProgressData): Promise<{ message: string }> => {
-    const response = await api.put('/adaptive-learning/paths/progress', data);
+    const response = await api.put('/api/adaptive-learning/paths/progress', data);
     return response.data;
   },
 
   // Get adaptive recommendations
   getRecommendations: async (pathId: string): Promise<{ recommendations: AdaptiveRecommendation[] }> => {
-    const response = await api.get(`/adaptive-learning/paths/${pathId}/recommendations`);
+    const response = await api.get(`/api/adaptive-learning/paths/${pathId}/recommendations`);
     return response.data;
   },
 
   // Get path analytics
   getPathAnalytics: async (pathId: string): Promise<{ analytics: AdaptivePathAnalytics }> => {
-    const response = await api.get(`/adaptive-learning/paths/${pathId}/analytics`);
+    const response = await api.get(`/api/adaptive-learning/paths/${pathId}/analytics`);
     return response.data;
   },
 };
@@ -941,7 +937,7 @@ export const adaptiveLearningAPI = {
 export const teacherAnalyticsAPI = {
   // Generate analytics
   generateAnalytics: async (data: GenerateAnalyticsData): Promise<TeacherAnalyticsResponse> => {
-    const response = await api.post('/teacher-analytics/generate', data);
+    const response = await api.post('/api/teacher-analytics/generate', data);
     return response.data;
   },
 
@@ -951,7 +947,7 @@ export const teacherAnalyticsAPI = {
     Object.entries(filters || {}).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    const response = await api.get(`/teacher-analytics?${params.toString()}`);
+    const response = await api.get(`/api/teacher-analytics?${params.toString()}`);
     return response.data;
   },
 
@@ -961,7 +957,7 @@ export const teacherAnalyticsAPI = {
     Object.entries(filters || {}).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    const response = await api.get(`/teacher-analytics/student-performance?${params.toString()}`);
+    const response = await api.get(`/api/teacher-analytics/student-performance?${params.toString()}`);
     return response.data;
   },
 
@@ -971,7 +967,7 @@ export const teacherAnalyticsAPI = {
     Object.entries(filters || {}).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    const response = await api.get(`/teacher-analytics/lesson-analytics?${params.toString()}`);
+    const response = await api.get(`/api/teacher-analytics/lesson-analytics?${params.toString()}`);
     return response.data;
   },
 
@@ -981,7 +977,7 @@ export const teacherAnalyticsAPI = {
     Object.entries(filters || {}).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    const response = await api.get(`/teacher-analytics/engagement?${params.toString()}`);
+    const response = await api.get(`/api/teacher-analytics/engagement?${params.toString()}`);
     return response.data;
   },
 };
@@ -990,17 +986,17 @@ export const teacherAnalyticsAPI = {
 export const aiFeaturesAPI = {
   // AI Tutoring Sessions
   startTutoringSession: async (data: { sessionType: string; cefrLevel: string }): Promise<AITutoringSession> => {
-    const response = await api.post('/ai-features/tutoring/sessions', data);
+    const response = await api.post('/api/ai-features/tutoring/sessions', data);
     return response.data;
   },
 
   sendTutoringMessage: async (sessionId: string, data: { content: string; messageType: string }): Promise<{ message: AITutoringMessage; session?: AITutoringSession }> => {
-    const response = await api.post(`/ai-features/tutoring/sessions/${sessionId}/messages`, data);
+    const response = await api.post(`/api/ai-features/tutoring/sessions/${sessionId}/messages`, data);
     return response.data;
   },
 
   endTutoringSession: async (sessionId: string): Promise<AITutoringSession> => {
-    const response = await api.put(`/ai-features/tutoring/sessions/${sessionId}/end`);
+    const response = await api.put(`/api/ai-features/tutoring/sessions/${sessionId}/end`);
     return response.data;
   },
 
@@ -1009,18 +1005,18 @@ export const aiFeaturesAPI = {
     Object.entries(filters || {}).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    const response = await api.get(`/ai-features/tutoring/sessions?${params.toString()}`);
+    const response = await api.get(`/api/ai-features/tutoring/sessions?${params.toString()}`);
     return response.data;
   },
 
   getTutoringSession: async (sessionId: string): Promise<AITutoringSession> => {
-    const response = await api.get(`/ai-features/tutoring/sessions/${sessionId}`);
+    const response = await api.get(`/api/ai-features/tutoring/sessions/${sessionId}`);
     return response.data;
   },
 
   // AI Content Generation
   generateContent: async (data: AIContentGenerationRequest): Promise<AIContentGenerationResponse> => {
-    const response = await api.post('/ai-features/content/generate', data);
+    const response = await api.post('/api/ai-features/content/generate', data);
     return response.data;
   },
 
@@ -1029,27 +1025,27 @@ export const aiFeaturesAPI = {
     Object.entries(filters || {}).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    const response = await api.get(`/ai-features/content?${params.toString()}`);
+    const response = await api.get(`/api/ai-features/content?${params.toString()}`);
     return response.data;
   },
 
   getContent: async (contentId: string): Promise<AIContentGeneration> => {
-    const response = await api.get(`/ai-features/content/${contentId}`);
+    const response = await api.get(`/api/ai-features/content/${contentId}`);
     return response.data;
   },
 
   reviewContent: async (contentId: string, data: { status: string; notes?: string }): Promise<{ message: string }> => {
-    const response = await api.put(`/ai-features/content/${contentId}/review`, data);
+    const response = await api.put(`/api/ai-features/content/${contentId}/review`, data);
     return response.data;
   },
 
   updateContent: async (contentId: string, data: Partial<AIContentGeneration>): Promise<AIContentGeneration> => {
-    const response = await api.put(`/ai-features/content/${contentId}`, data);
+    const response = await api.put(`/api/ai-features/content/${contentId}`, data);
     return response.data;
   },
 
   deleteContent: async (contentId: string): Promise<{ message: string }> => {
-    const response = await api.delete(`/ai-features/content/${contentId}`);
+    const response = await api.delete(`/api/ai-features/content/${contentId}`);
     return response.data;
   },
 
@@ -1059,7 +1055,7 @@ export const aiFeaturesAPI = {
     Object.entries(filters || {}).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    const response = await api.get(`/ai-features/analytics?${params.toString()}`);
+    const response = await api.get(`/api/ai-features/analytics?${params.toString()}`);
     return response.data;
   },
 
@@ -1068,29 +1064,29 @@ export const aiFeaturesAPI = {
     Object.entries(filters || {}).forEach(([key, value]) => {
       if (value) params.append(key, value.toString());
     });
-    const response = await api.get(`/ai-features/user-progress?${params.toString()}`);
+    const response = await api.get(`/api/ai-features/user-progress?${params.toString()}`);
     return response.data;
   },
 
   // AI Recommendations
   getRecommendations: async (): Promise<{ recommendations: AIRecommendation[] }> => {
-    const response = await api.get('/ai-features/recommendations');
+    const response = await api.get('/api/ai-features/recommendations');
     return response.data;
   },
 
   completeRecommendation: async (recommendationId: string): Promise<{ message: string }> => {
-    const response = await api.post(`/ai-features/recommendations/${recommendationId}/complete`);
+    const response = await api.post(`/api/ai-features/recommendations/${recommendationId}/complete`);
     return response.data;
   },
 
   // AI Model Management
   getModelInfo: async (): Promise<{ model: string; version: string; status: string }> => {
-    const response = await api.get('/ai-features/model-info');
+    const response = await api.get('/api/ai-features/model-info');
     return response.data;
   },
 
   updateModelSettings: async (data: { model: string; settings: any }): Promise<{ message: string }> => {
-    const response = await api.put('/ai-features/model-settings', data);
+    const response = await api.put('/api/ai-features/model-settings', data);
     return response.data;
   },
 };
