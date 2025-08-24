@@ -23,13 +23,27 @@ try {
     baseURL: (() => {
       const raw = process.env.NEXT_PUBLIC_API_BASE_URL || '';
       const trimmed = raw.replace(/\/$/, '');
-      // If no env is provided (Cloudflare Pages), default to production API domain
+      
+      // Check if we're in production (verbfy.com domain)
+      if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        if (hostname === 'verbfy.com' || hostname === 'www.verbfy.com') {
+          return 'https://api.verbfy.com';
+        }
+      }
+      
+      // If no env is provided, default to production API domain
       if (!trimmed) return 'https://api.verbfy.com';
       return trimmed;
     })(),
     timeout: 30000,
     withCredentials: true,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With'
+    },
   });
 } catch {
   api = undefined;
