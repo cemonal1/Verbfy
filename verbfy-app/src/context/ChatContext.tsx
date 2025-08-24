@@ -177,7 +177,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
 
-      const response = await api.get('/chat/conversations');
+      const response = await api.get('/api/chat/conversations');
       
       if (response.data.success) {
         dispatch({ type: 'SET_CONVERSATIONS', payload: response.data.data });
@@ -233,7 +233,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     try {
       dispatch({ type: 'SET_ERROR', payload: null });
 
-      const response = await api.post('/chat/messages', data);
+      const response = await api.post('/api/chat/messages', data);
       
       if (response.data.success) {
         const message = response.data.data;
@@ -273,7 +273,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     }
 
     try {
-      await api.patch(`/chat/conversations/${conversationId}/read`);
+      await api.patch(`/api/chat/conversations/${conversationId}/read`);
     } catch (error: any) {
       console.error('Error marking messages as read:', error);
     }
@@ -324,7 +324,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     }
 
     try {
-      const response = await api.get('/chat/unread-count');
+      const response = await api.get('/api/chat/unread-count');
       
       if (response.data.success) {
         dispatch({ type: 'SET_UNREAD_COUNT', payload: response.data.data.unreadCount });

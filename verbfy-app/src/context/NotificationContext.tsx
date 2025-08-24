@@ -291,7 +291,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
 
     try {
-      const response = await api.patch('/notifications/read-all');
+      const response = await api.patch('/api/notifications/read-all');
       
       if (response.data.success) {
         dispatch({ type: 'MARK_ALL_AS_READ' });
@@ -354,7 +354,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
 
     try {
-      const response = await api.get('/notifications/unread-count');
+      const response = await api.get('/api/notifications/unread-count');
       
       if (response.data.success) {
         dispatch({
