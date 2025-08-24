@@ -158,7 +158,7 @@ export const authAPI = {
 
   // Get current user
   getCurrentUser: () => {
-    return api.get('/api/auth/me').then((r: any) => r.data);
+    return api.get('/api/auth/me');
   },
 
   // Refresh token
@@ -550,6 +550,37 @@ export const freeMaterialsAPI = {
     const response = await api.get(`/api/free-materials/${id}/download`, {
       responseType: 'blob'
     });
+    return response.data;
+  }
+};
+
+// Student Lessons API
+export const lessonAPI = {
+  // Get student's lessons
+  getStudentLessons: async (filters?: any): Promise<any> => {
+    const params = new URLSearchParams();
+    Object.entries(filters || {}).forEach(([key, value]) => {
+      if (value && value !== 'all') params.append(key, value.toString());
+    });
+    const response = await api.get(`/api/lessons/student?${params.toString()}`);
+    return response.data;
+  },
+
+  // Get lesson details
+  getLesson: async (id: string): Promise<any> => {
+    const response = await api.get(`/api/lessons/${id}`);
+    return response.data;
+  },
+
+  // Join lesson
+  joinLesson: async (lessonId: string): Promise<any> => {
+    const response = await api.post(`/api/lessons/${lessonId}/join`);
+    return response.data;
+  },
+
+  // Leave lesson
+  leaveLesson: async (lessonId: string): Promise<any> => {
+    const response = await api.post(`/api/lessons/${lessonId}/leave`);
     return response.data;
   }
 };
