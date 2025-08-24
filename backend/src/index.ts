@@ -131,7 +131,17 @@ const socketExtraOrigins = (process.env.CORS_EXTRA_ORIGINS || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
-const socketAllowedOrigins = [socketDefaultOrigin, ...socketExtraOrigins];
+// Add production domains explicitly for Socket.IO
+const socketProductionOrigins = [
+  'https://verbfy.com',
+  'https://www.verbfy.com',
+  'https://api.verbfy.com'
+];
+const socketAllowedOrigins = [
+  socketDefaultOrigin, 
+  ...socketExtraOrigins,
+  ...(process.env.NODE_ENV === 'production' ? socketProductionOrigins : [])
+];
 
 const io = new SocketIOServer(server, {
   cors: {
@@ -218,15 +228,34 @@ if (process.env.NODE_ENV !== 'test') {
 // Allow both apex and www domains in production
 const defaultOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
 const extraOrigins = (process.env.CORS_EXTRA_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-const allowedOrigins = [defaultOrigin, ...extraOrigins];
+// Add production domains explicitly
+const productionOrigins = [
+  'https://verbfy.com',
+  'https://www.verbfy.com',
+  'https://api.verbfy.com'
+];
+const allowedOrigins = [
+  defaultOrigin, 
+  ...extraOrigins,
+  ...(process.env.NODE_ENV === 'production' ? productionOrigins : [])
+];
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (!origin) {
+      console.log('🔓 CORS: Allowing request with no origin');
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      console.log(`✅ CORS: Allowing origin: ${origin}`);
+      return callback(null, true);
+    }
+    
     // Log rejected origins for debugging
-    console.warn(`CORS rejected origin: ${origin}`);
-    return callback(new Error('Not allowed by CORS'));
+    console.warn(`❌ CORS rejected origin: ${origin}`);
+    console.log(`📋 Allowed origins: ${allowedOrigins.join(', ')}`);
+    return callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
