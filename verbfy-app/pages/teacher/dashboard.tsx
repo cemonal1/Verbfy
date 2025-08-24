@@ -86,10 +86,10 @@ function TeacherDashboardPage() {
         
         // Fetch bookings, upcoming reservations, and notifications in parallel
         const [bookingsResponse, upcomingResponse, notificationsResponse, unreadCountResponse] = await Promise.all([
-          api.get('/reservations/teacher'),
-          api.get('/reservations/upcoming'),
-          api.get('/notifications?limit=5'),
-          api.get('/notifications/unread-count')
+                  api.get('/api/reservations/teacher'),
+        api.get('/api/reservations/upcoming'),
+        api.get('/api/notifications?limit=5'),
+        api.get('/api/notifications/unread-count')
         ]);
 
         setBookings(bookingsResponse.data.bookings || []);
