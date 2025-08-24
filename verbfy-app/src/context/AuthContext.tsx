@@ -109,8 +109,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('Response.data.user:', response.data?.user);
       
       // Check if response has the expected structure
-      if (response && response.success) {
-        const userData = response.user;
+      if (response && response.data && response.data.success) {
+        const userData = response.data.user;
         const userWithId = {
           ...userData,
           id: userData._id
@@ -125,9 +125,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('Invalid token, clearing and redirecting to login');
         console.log('Response validation failed:', {
           hasResponse: !!response,
-          hasSuccess: !!response?.success,
-          successValue: response?.success,
-          userData: response?.user
+          hasData: !!response?.data,
+          hasSuccess: !!response?.data?.success,
+          successValue: response?.data?.success,
+          userData: response?.data?.user
         });
         tokenStorage.clear();
         setUser(null);
@@ -158,8 +159,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true);
       const response = await authAPI.login({ email, password });
-      if (response.data.success) {
-        const { accessToken, user: userData, token } = response.data;
+      if (response.success) {
+        const { accessToken, user: userData, token } = response;
         const userWithId = { ...userData, id: userData._id } as User;
         const provided = accessToken || token;
         if (provided) tokenStorage.setToken(provided);
@@ -180,11 +181,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true);
       const response = await authAPI.register(userData);
-      if (response.data.success) {
-        const { accessToken, user: newUser, token } = response.data;
+      if (response.success) {
+        const { accessToken, user: newUser, token } = response;
         const userWithId = { ...newUser, id: newUser._id } as User;
-        const provided = accessToken || token;
-        if (provided) tokenStorage.setToken(provided);
         tokenStorage.setUser(userWithId);
         setUser(userWithId);
         return true;
