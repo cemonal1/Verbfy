@@ -61,6 +61,13 @@ export default function VerbfyTalkRoomPage() {
   // WebRTC Audio Functions
   const initializeAudio = async () => {
     try {
+      console.log('🎤 Requesting microphone permission...');
+      
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Microphone access not supported in this browser');
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -69,6 +76,7 @@ export default function VerbfyTalkRoomPage() {
         }
       });
       
+      console.log('✅ Microphone permission granted');
       localStreamRef.current = stream;
       
       // Create audio context for level monitoring
@@ -91,8 +99,24 @@ export default function VerbfyTalkRoomPage() {
       updateAudioLevel();
       
       console.log('🎤 Audio initialized successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Failed to initialize audio:', error);
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to access microphone';
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Microphone permission denied. Please allow microphone access and try again.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'No microphone found. Please connect a microphone and try again.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = 'Microphone access not supported in this browser.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = 'Microphone is already in use by another application.';
+      }
+      
+      // Show error to user
+      alert(errorMessage);
+      throw error;
     }
   };
 
@@ -282,33 +306,60 @@ export default function VerbfyTalkRoomPage() {
                 <SpeakerWaveIcon className="w-5 h-5" />
                 Voice Chat Controls
               </h3>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={toggleMute}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                    isMuted 
-                      ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                      : 'bg-green-100 text-green-700 hover:bg-green-200'
-                  }`}
-                >
-                  <MicrophoneIcon className={`w-5 h-5 ${isMuted ? 'text-red-600' : 'text-green-600'}`} />
-                  {isMuted ? 'Unmute' : 'Mute'}
-                </button>
-                
-                {/* Audio Level Indicator */}
-                <div className="flex items-center gap-2">
-                  <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full transition-all duration-100 ${
-                        isSpeaking ? 'bg-green-500' : 'bg-blue-500'
-                      }`}
-                      style={{ width: `${Math.min(audioLevel * 2, 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-sm text-gray-600">
-                    {isSpeaking ? 'Speaking' : 'Silent'}
-                  </span>
+              
+              {/* Microphone Permission Status */}
+              {!localStreamRef.current ? (
+                <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-yellow-800 text-sm mb-2">
+                    🔒 Microphone access required for voice chat
+                  </p>
+                  <button
+                    onClick={initializeAudio}
+                    className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    🎤 Enable Microphone
+                  </button>
                 </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={toggleMute}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      isMuted 
+                        ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                        : 'bg-green-100 text-green-700 hover:bg-green-200'
+                    }`}
+                  >
+                    <MicrophoneIcon className={`w-5 h-5 ${isMuted ? 'text-red-600' : 'text-green-600'}`} />
+                    {isMuted ? 'Unmute' : 'Mute'}
+                  </button>
+                  
+                  {/* Audio Level Indicator */}
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-100 ${
+                          isSpeaking ? 'bg-green-500' : 'bg-blue-500'
+                        }`}
+                        style={{ width: `${Math.min(audioLevel * 2, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-sm text-gray-600">
+                      {isSpeaking ? 'Speaking' : 'Silent'}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Voice Chat Instructions */}
+              <div className="mt-3 text-xs text-blue-700">
+                <p>💡 <strong>Voice Chat Tips:</strong></p>
+                <ul className="list-disc list-inside mt-1 space-y-1">
+                  <li>Click "Enable Microphone" to start voice chat</li>
+                  <li>Use Mute/Unmute to control your audio</li>
+                  <li>Green indicator shows when you're speaking</li>
+                  <li>Ensure your microphone is working and not blocked by other apps</li>
+                </ul>
               </div>
             </div>
           )}
@@ -316,9 +367,13 @@ export default function VerbfyTalkRoomPage() {
           {room.participants && room.participants.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {room.participants
-                .filter((p: any) => p.isActive)
+                .filter((p: any) => p.isActive) // Only show active participants
+                .filter((p: any, index: number, arr: any[]) => 
+                  // Remove duplicates by userId
+                  arr.findIndex(participant => participant.userId._id === p.userId._id) === index
+                )
                 .map((participant: any, index: number) => (
-                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div key={`${participant.userId._id}-${index}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <div className="relative">
                       <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
                         {participant.userId?.name?.charAt(0) || 'U'}
