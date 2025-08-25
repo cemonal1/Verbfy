@@ -49,6 +49,13 @@ if (!api || !api.get || !api.post) {
   api = axios as any;
 }
 
+// Add CORS test function
+export const corsTestAPI = {
+  testCORS: () => {
+    return api.get('/api/cors-test');
+  }
+};
+
 // Request interceptor to add auth token
 if ((api as any)?.interceptors?.request) {
   api.interceptors.request.use(

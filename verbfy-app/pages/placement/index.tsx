@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import api, { cefrTestsAPI } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/context/AuthContext';
@@ -42,14 +43,11 @@ export default function PlacementPage() {
     };
     run();
     return () => { abort = true; };
-  }, []);
+  }, [user]);
 
   return (
-    <div className="min-h-screen bg-white">
-      <Head>
-        <title>{locale === 'tr' ? 'Seviye Tespit (CEFR)' : 'Placement (CEFR)'}</title>
-      </Head>
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <DashboardLayout allowedRoles={['student', 'teacher']}>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">{locale === 'tr' ? 'Seviye Tespit Sınavı' : 'Placement Test'}</h1>
         {!user && (
           <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4">
@@ -95,8 +93,8 @@ export default function PlacementPage() {
             </div>
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
 
