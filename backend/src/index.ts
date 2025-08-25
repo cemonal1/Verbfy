@@ -298,11 +298,32 @@ if (process.env.NODE_ENV === 'development') {
 // Enhanced health check endpoint
 app.get('/api/health', (_req, res) => {
   res.json({ 
-    status: 'ok', 
+    status: 'ok',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    version: process.env.npm_package_version || '1.0.0'
+    environment: process.env.NODE_ENV,
+    cors: {
+      allowedOrigins,
+      nodeEnv: process.env.NODE_ENV,
+      frontendUrl: process.env.FRONTEND_URL,
+      corsExtraOrigins: process.env.CORS_EXTRA_ORIGINS
+    }
+  });
+});
+
+// CORS test endpoint for debugging
+app.get('/api/cors-test', (req, res) => {
+  const origin = req.headers.origin;
+  console.log('🔍 CORS Test - Origin:', origin);
+  console.log('🔍 CORS Test - Allowed origins:', allowedOrigins);
+  console.log('🔍 CORS Test - Node ENV:', process.env.NODE_ENV);
+  
+  res.json({ 
+    origin, 
+    allowedOrigins,
+    nodeEnv: process.env.NODE_ENV,
+    frontendUrl: process.env.FRONTEND_URL,
+    corsExtraOrigins: process.env.CORS_EXTRA_ORIGINS,
+    timestamp: new Date().toISOString()
   });
 });
 
