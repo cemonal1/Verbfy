@@ -34,6 +34,13 @@ export default function VerbfyTalkRoomPage() {
   const [participants, setParticipants] = useState<any[]>([]);
   const [microphoneError, setMicrophoneError] = useState<{ message: string; showRetry: boolean } | null>(null);
   
+  // Chat states
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [isPushToTalk, setIsPushToTalk] = useState(false);
+  const [microphoneVolume, setMicrophoneVolume] = useState(100);
+  const [isRecording, setIsRecording] = useState(false);
+  
   // WebRTC refs
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -74,9 +81,11 @@ export default function VerbfyTalkRoomPage() {
         throw new Error('Microphone access requires a secure context (HTTPS or localhost)');
       }
 
-      // Try to get microphone permissions first
+      // Method 1: Try permissions API first
+      let permissionState = 'prompt';
       try {
         const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        permissionState = permission.state;
         console.log('🔍 Microphone permission status:', permission.state);
         
         if (permission.state === 'denied') {
@@ -86,13 +95,27 @@ export default function VerbfyTalkRoomPage() {
         console.log('⚠️ Could not check permission status, proceeding with getUserMedia');
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
+      // Method 2: Try getUserMedia with different constraints
+      let stream: MediaStream;
+      try {
+        // First try with basic audio
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: true
+        });
+      } catch (basicError) {
+        console.log('⚠️ Basic audio failed, trying with specific constraints...');
+        
+        // Try with specific audio constraints
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 44100,
+            channelCount: 1
+          }
+        });
+      }
       
       console.log('✅ Microphone permission granted');
       localStreamRef.current = stream;
@@ -115,6 +138,9 @@ export default function VerbfyTalkRoomPage() {
         requestAnimationFrame(updateAudioLevel);
       };
       updateAudioLevel();
+      
+      // Clear any previous errors
+      setMicrophoneError(null);
       
       console.log('🎤 Audio initialized successfully');
     } catch (error: any) {
@@ -153,6 +179,69 @@ export default function VerbfyTalkRoomPage() {
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsMuted(!audioTrack.enabled);
+      }
+    }
+  };
+
+  // Chat Functions
+  const sendMessage = () => {
+    if (!newMessage.trim() || !joined) return;
+    
+    const message = {
+      id: Date.now(),
+      text: newMessage.trim(),
+      sender: {
+        id: room?.participants?.find((p: any) => p.isActive)?.userId?._id || 'unknown',
+        name: room?.participants?.find((p: any) => p.isActive)?.userId?.name || 'Unknown'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    setChatMessages(prev => [...prev, message]);
+    setNewMessage('');
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // Push-to-Talk Functions
+  const startPushToTalk = () => {
+    if (localStreamRef.current && !isMuted) {
+      setIsRecording(true);
+      // Enable microphone temporarily
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = true;
+      }
+    }
+  };
+
+  const stopPushToTalk = () => {
+    if (localStreamRef.current && isPushToTalk) {
+      setIsRecording(false);
+      // Disable microphone if push-to-talk mode
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = false;
+      }
+    }
+  };
+
+  // Microphone Volume Control
+  const handleVolumeChange = (volume: number) => {
+    setMicrophoneVolume(volume);
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        // Apply volume gain to audio track
+        const gainNode = audioContextRef.current?.createGain();
+        if (gainNode) {
+          gainNode.gain.value = volume / 100;
+        }
       }
     }
   };
@@ -383,22 +472,76 @@ export default function VerbfyTalkRoomPage() {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={toggleMute}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                      isMuted 
-                        ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                        : 'bg-green-100 text-green-700 hover:bg-green-200'
-                    }`}
-                  >
-                    <MicrophoneIcon className={`w-5 h-5 ${isMuted ? 'text-red-600' : 'text-green-600'}`} />
-                    {isMuted ? 'Unmute' : 'Mute'}
-                  </button>
+                <div className="space-y-3">
+                  {/* Basic Controls */}
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={toggleMute}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                        isMuted 
+                          ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                          : 'bg-green-100 text-green-700 hover:bg-green-200'
+                      }`}
+                    >
+                      <MicrophoneIcon className={`w-5 h-5 ${isMuted ? 'text-red-600' : 'text-green-600'}`} />
+                      {isMuted ? 'Unmute' : 'Mute'}
+                    </button>
+                    
+                    {/* Push-to-Talk Toggle */}
+                    <button
+                      onClick={() => setIsPushToTalk(!isPushToTalk)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                        isPushToTalk 
+                          ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      <VideoCameraIcon className="w-5 h-5" />
+                      {isPushToTalk ? 'Push-to-Talk ON' : 'Push-to-Talk OFF'}
+                    </button>
+                  </div>
+                  
+                  {/* Push-to-Talk Button */}
+                  {isPushToTalk && (
+                    <div className="flex items-center gap-3">
+                      <button
+                        onMouseDown={startPushToTalk}
+                        onMouseUp={stopPushToTalk}
+                        onTouchStart={startPushToTalk}
+                        onTouchEnd={stopPushToTalk}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                          isRecording 
+                            ? 'bg-red-500 text-white scale-105' 
+                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                        }`}
+                      >
+                        <MicrophoneIcon className="w-5 h-5" />
+                        {isRecording ? 'Recording...' : 'Hold to Talk'}
+                      </button>
+                      <span className="text-sm text-gray-600">
+                        Hold the button while speaking
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Volume Control */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-700 min-w-[80px]">Volume:</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={microphoneVolume}
+                      onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                      className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <span className="text-sm text-gray-600 min-w-[40px]">{microphoneVolume}%</span>
+                  </div>
                   
                   {/* Audio Level Indicator */}
-                  <div className="flex items-center gap-2">
-                    <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-700 min-w-[80px]">Audio Level:</span>
+                    <div className="flex-1 w-full h-3 bg-gray-200 rounded-lg overflow-hidden">
                       <div 
                         className={`h-full transition-all duration-100 ${
                           isSpeaking ? 'bg-green-500' : 'bg-blue-500'
@@ -406,7 +549,7 @@ export default function VerbfyTalkRoomPage() {
                         style={{ width: `${Math.min(audioLevel * 2, 100)}%` }}
                       />
                     </div>
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 min-w-[60px]">
                       {isSpeaking ? 'Speaking' : 'Silent'}
                     </span>
                   </div>
@@ -419,8 +562,9 @@ export default function VerbfyTalkRoomPage() {
                 <ul className="list-disc list-inside mt-1 space-y-1">
                   <li>Click "Enable Microphone" to start voice chat</li>
                   <li>Use Mute/Unmute to control your audio</li>
+                  <li>Enable Push-to-Talk for hands-free operation</li>
+                  <li>Adjust volume slider to control microphone sensitivity</li>
                   <li>Green indicator shows when you're speaking</li>
-                  <li>Ensure your microphone is working and not blocked by other apps</li>
                 </ul>
               </div>
             </div>
@@ -467,6 +611,66 @@ export default function VerbfyTalkRoomPage() {
             <p className="text-gray-500 text-center py-8">No participants yet</p>
           )}
         </div>
+
+        {/* Chat Section */}
+        {joined && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <ChatBubbleLeftRightIcon className="w-5 h-5" />
+              Room Chat
+            </h2>
+            
+            {/* Chat Messages */}
+            <div className="h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 mb-3 bg-gray-50">
+              {chatMessages.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No messages yet. Start the conversation!</p>
+              ) : (
+                <div className="space-y-2">
+                  {chatMessages.map((message) => (
+                    <div key={message.id} className="flex items-start gap-2">
+                      <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                        {message.sender.name.charAt(0)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900">{message.sender.name}</span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(message.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <p className="text-gray-700">{message.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Chat Input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type your message..."
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!joined}
+              />
+              <button
+                onClick={sendMessage}
+                disabled={!newMessage.trim() || !joined}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Send
+              </button>
+            </div>
+            
+            <div className="mt-2 text-xs text-gray-500">
+              💡 Press Enter to send, Shift+Enter for new line
+            </div>
+          </div>
+        )}
 
         {/* Password Modal */}
         {showPasswordModal && (
