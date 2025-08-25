@@ -95,6 +95,43 @@ export default function VerbfyTalkRoomPage() {
         });
     }
 
+    // WebSocket connection monitoring
+    const checkWebSocketConnection = () => {
+      // Check if WebSocket is available and working
+      if ('WebSocket' in window) {
+        console.log('🔌 WebSocket support detected');
+        
+        // Try to establish a test connection
+        try {
+          const testSocket = new WebSocket('wss://api.verbfy.com/socket.io/');
+          
+          testSocket.onopen = () => {
+            console.log('✅ WebSocket connection test successful');
+            testSocket.close();
+          };
+          
+          testSocket.onerror = (error) => {
+            console.warn('⚠️ WebSocket connection test failed:', error);
+            console.log('🔄 Falling back to polling transport');
+          };
+          
+          // Close test socket after 5 seconds
+          setTimeout(() => {
+            if (testSocket.readyState === WebSocket.OPEN) {
+              testSocket.close();
+            }
+          }, 5000);
+        } catch (error) {
+          console.warn('⚠️ WebSocket test failed:', error);
+        }
+      } else {
+        console.warn('⚠️ WebSocket not supported, using polling fallback');
+      }
+    };
+
+    // Check WebSocket connection after a delay
+    const wsCheckTimer = setTimeout(checkWebSocketConnection, 2000);
+
     // Cleanup
     return () => {
       if (navigator.permissions) {
@@ -104,6 +141,7 @@ export default function VerbfyTalkRoomPage() {
           })
           .catch(() => {});
       }
+      clearTimeout(wsCheckTimer);
     };
   }, []);
 
@@ -522,6 +560,47 @@ export default function VerbfyTalkRoomPage() {
                     🔧 Force Permission
                   </button>
                   
+                  {/* User Interaction Trigger - Bypass Policy */}
+                  <button
+                    onClick={async () => {
+                      try {
+                        // This button requires explicit user interaction
+                        // which can help bypass permissions policy restrictions
+                        console.log('🎯 User interaction detected, attempting microphone access...');
+                        
+                        // Try to access microphone immediately after user interaction
+                        const stream = await navigator.mediaDevices.getUserMedia({ 
+                          audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                          }
+                        });
+                        
+                        // If successful, set the stream
+                        localStreamRef.current = stream;
+                        setMicrophoneError(null);
+                        
+                        // Initialize audio context
+                        audioContextRef.current = new AudioContext();
+                        const source = audioContextRef.current.createMediaStreamSource(stream);
+                        analyserRef.current = audioContextRef.current.createAnalyser();
+                        source.connect(analyserRef.current);
+                        
+                        console.log('✅ Microphone access granted via user interaction!');
+                      } catch (error) {
+                        console.error('❌ User interaction method failed:', error);
+                        setMicrophoneError({ 
+                          message: 'User interaction method failed. Please try the main Enable Microphone button.', 
+                          showRetry: true 
+                        });
+                      }
+                    }}
+                    className="ml-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    🎯 User Interaction
+                  </button>
+                  
                   {/* Additional help text */}
                   <div className="mt-2 text-xs text-yellow-700">
                     <p><strong>💡 Troubleshooting:</strong></p>
@@ -530,6 +609,11 @@ export default function VerbfyTalkRoomPage() {
                       <li>Check browser microphone permissions in settings</li>
                       <li>Ensure no other apps are using the microphone</li>
                       <li>Try refreshing the page if permission was denied</li>
+                      <li><strong>If "Permissions policy violation" error:</strong></li>
+                      <li>• Click "User Interaction" button first</li>
+                      <li>• Try "Force Permission" button</li>
+                      <li>• Check browser security settings</li>
+                      <li>• Disable any browser extensions blocking permissions</li>
                     </ul>
                   </div>
                 </div>
