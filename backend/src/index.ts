@@ -80,24 +80,13 @@ const allowedOrigins = [
   ...(process.env.NODE_ENV === 'production' ? productionOrigins : [])
 ];
 
+console.log('🔧 CORS Setup - Allowed origins:', allowedOrigins);
+console.log('🔧 CORS Setup - Node ENV:', process.env.NODE_ENV);
+console.log('🔧 CORS Setup - Frontend URL:', process.env.FRONTEND_URL);
+
+// Simple CORS configuration
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) {
-      console.log('🔓 CORS: Allowing request with no origin');
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.includes(origin)) {
-      console.log(`✅ CORS: Allowing origin: ${origin}`);
-      return callback(null, true);
-    }
-    
-    // Log rejected origins for debugging
-    console.warn(`❌ CORS rejected origin: ${origin}`);
-    console.log(`📋 Allowed origins: ${allowedOrigins.join(', ')}`);
-    return callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
-  },
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
@@ -113,10 +102,14 @@ app.use(cors({
     'User-Agent',
     'Cache-Control'
   ],
-  exposedHeaders: ['set-cookie', 'X-CSRF-Token'],
-  preflightContinue: false,
-  optionsSuccessStatus: 200
+  exposedHeaders: ['set-cookie', 'X-CSRF-Token']
 }));
+
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  console.log(`🔍 Request: ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  next();
+});
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
