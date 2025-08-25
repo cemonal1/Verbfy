@@ -135,17 +135,17 @@ export class VerbfyTalkController {
       }
 
       // Check if user was previously in room but inactive (rejoin)
-      const inactiveParticipant = room.participants.find((p: any) => 
+      const inactiveParticipantIndex = room.participants.findIndex((p: any) => 
         p.userId.toString() === userId && !p.isActive
       );
       
-      if (inactiveParticipant) {
-        // Reactivate existing participant
-        inactiveParticipant.isActive = true;
-        inactiveParticipant.joinedAt = new Date();
-        inactiveParticipant.leftAt = undefined;
+      if (inactiveParticipantIndex !== -1) {
+        // Reactivate existing participant - update the existing one instead of creating duplicate
+        room.participants[inactiveParticipantIndex].isActive = true;
+        room.participants[inactiveParticipantIndex].joinedAt = new Date();
+        room.participants[inactiveParticipantIndex].leftAt = undefined;
       } else {
-        // Add new participant
+        // Add new participant only if they don't exist at all
         room.participants.push({
           userId,
           joinedAt: new Date(),
@@ -227,11 +227,33 @@ export class VerbfyTalkController {
         return res.status(404).json({ success: false, message: 'Room not found' });
       }
 
+      // Clean up duplicate participants before sending response
+      const uniqueParticipants = room.participants.reduce((acc: any[], participant: any) => {
+        const existingIndex = acc.findIndex(p => p.userId.toString() === participant.userId.toString());
+        if (existingIndex === -1) {
+          acc.push(participant);
+        } else {
+          // If duplicate found, keep the most recent active one
+          if (participant.isActive && !acc[existingIndex].isActive) {
+            acc[existingIndex] = participant;
+          }
+        }
+        return acc;
+      }, []);
+
+      // Update room if duplicates were found
+      if (uniqueParticipants.length !== room.participants.length) {
+        room.participants = uniqueParticipants;
+        await room.save();
+        console.log(`🧹 Cleaned up duplicate participants in room ${room.name}`);
+      }
+
       res.json({
         success: true,
         data: room
       });
     } catch (error) {
+      console.error('Error getting room details:', error);
       res.status(500).json({ success: false, message: 'Failed to get room details' });
     }
   }
