@@ -345,8 +345,8 @@ export default function VerbfyTalkRoomPage() {
                     </div>
                   </div>
                 ))}
-            </div>
-          ) : (
+        </div>
+      ) : (
             <p className="text-gray-500 text-center py-8">No participants yet</p>
           )}
         </div>
@@ -379,11 +379,11 @@ export default function VerbfyTalkRoomPage() {
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                 >
                   {joining ? 'Joining...' : 'Join'}
-                </button>
+          </button>
               </div>
             </div>
-          </div>
-        )}
+        </div>
+      )}
       </div>
     </DashboardLayout>
   );
