@@ -87,69 +87,45 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loadUser = async () => {
     try {
       const token = tokenStorage.getToken();
-      console.log('Loading user with token:', token ? 'Token exists' : 'No token');
-      
-      // If no token, don't try to fetch user
       if (!token) {
-        const publicPages = ['/landing', '/', '/login', '/register'];
-        if (!publicPages.includes(router.pathname)) {
-          console.log('No token found, redirecting to login');
-          router.push('/login');
-        }
         setIsLoading(false);
         return;
       }
-      
-      // Try to fetch current user with token
+
+      console.log('Loading user with token: Token exists');
       const response = await authAPI.getCurrentUser();
+      
       console.log('Auth response:', response);
       console.log('Response structure:', response);
       console.log('Response.data:', response.data);
       console.log('Response.data.success:', response.data?.success);
       console.log('Response.data.user:', response.data?.user);
-      
-      // Check if response has the expected structure
-      if (response && response.data && response.data.success) {
-        const userData = response.data.user;
-        const userWithId = {
-          ...userData,
-          id: userData._id
-        };
-        
-        console.log('Setting user:', userWithId);
-        setUser(userWithId);
-        tokenStorage.setUser(userWithId);
-        setIsLoading(false);
+
+      if (response.data?.success && response.data?.user) {
+        setUser(response.data.user);
+        console.log('Setting user:', response.data.user);
       } else {
-        // Token is invalid, clear it and redirect
-        console.log('Invalid token, clearing and redirecting to login');
-        console.log('Response validation failed:', {
-          hasResponse: !!response,
-          hasData: !!response?.data,
-          hasSuccess: !!response?.data?.success,
-          successValue: response?.data?.success,
-          userData: response?.data?.user
-        });
+        console.warn('Unexpected auth response structure:', response);
         tokenStorage.clear();
-        setUser(null);
-        
-        const publicPages = ['/landing', '/', '/login', '/register'];
-        if (!publicPages.includes(router.pathname)) {
-          router.push('/login');
-        }
-        setIsLoading(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading user:', error);
-      // Clear invalid token and redirect
-      tokenStorage.clear();
-      setUser(null);
       
-      const publicPages = ['/landing', '/', '/login', '/register'];
-      if (!publicPages.includes(router.pathname)) {
-        console.log('Error loading user, redirecting to login');
-        router.push('/login');
+      // Handle rate limiting specifically
+      if (error.response?.status === 429) {
+        const retryAfter = error.response?.data?.retryAfter || 15;
+        console.warn(`⚠️ Rate limited while loading user. Retry after ${retryAfter} minutes.`);
+        // Don't redirect to login for rate limiting, just show message
+        return;
       }
+      
+      // For other errors, redirect to login
+      console.log('Error loading user, redirecting to login');
+      tokenStorage.clear();
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    } finally {
       setIsLoading(false);
     }
   };
