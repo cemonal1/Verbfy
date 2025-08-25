@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import Head from 'next/head';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { useAuthContext } from '@/context/AuthContext';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { cefrTestsAPI } from '@/lib/api';
 
 export default function CEFRTestResultPage() {
   const router = useRouter();
   const { attemptId } = router.query;
-  const { user } = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [showInfo, setShowInfo] = useState<boolean>(false);
@@ -36,10 +34,7 @@ export default function CEFRTestResultPage() {
   }, [attemptId]);
 
   return (
-    <div className="min-h-screen bg-white">
-      <Head>
-        <title>CEFR Result - Verbfy</title>
-      </Head>
+    <DashboardLayout title="CEFR Test Results">
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">Test Sonucu</h1>
 
@@ -164,6 +159,6 @@ export default function CEFRTestResultPage() {
           </div>
         )}
       </main>
-    </div>
+    </DashboardLayout>
   );
 }
