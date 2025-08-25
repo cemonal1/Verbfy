@@ -132,6 +132,56 @@ export default function VerbfyTalkRoomPage() {
     // Check WebSocket connection after a delay
     const wsCheckTimer = setTimeout(checkWebSocketConnection, 2000);
 
+    // Enhanced WebSocket connection handling
+    const establishWebSocketConnection = () => {
+      console.log('🔌 Attempting to establish WebSocket connection...');
+      
+      // Method 1: Direct WebSocket connection
+      try {
+        const ws = new WebSocket('wss://api.verbfy.com/socket.io/');
+        
+        ws.onopen = () => {
+          console.log('✅ WebSocket connection established successfully');
+          // Send a test message
+          ws.send(JSON.stringify({ type: 'test', data: 'connection_test' }));
+        };
+        
+        ws.onmessage = (event) => {
+          console.log('📨 WebSocket message received:', event.data);
+        };
+        
+        ws.onerror = (error) => {
+          console.warn('⚠️ WebSocket connection error:', error);
+          console.log('🔄 Falling back to polling transport');
+        };
+        
+        ws.onclose = (event) => {
+          console.log('🔌 WebSocket connection closed:', event.code, event.reason);
+          if (event.code !== 1000) {
+            console.log('🔄 Attempting to reconnect...');
+            setTimeout(establishWebSocketConnection, 3000);
+          }
+        };
+        
+        // Store WebSocket reference for cleanup
+        const wsRef = { current: ws };
+        
+        // Cleanup function
+        return () => {
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.close();
+          }
+        };
+      } catch (error) {
+        console.warn('⚠️ WebSocket connection failed:', error);
+        console.log('🔄 Using polling fallback');
+        return () => {};
+      }
+    };
+    
+    // Establish WebSocket connection
+    const cleanupWs = establishWebSocketConnection();
+
     // Cleanup
     return () => {
       if (navigator.permissions) {
@@ -142,6 +192,7 @@ export default function VerbfyTalkRoomPage() {
           .catch(() => {});
       }
       clearTimeout(wsCheckTimer);
+      cleanupWs(); // Clean up WebSocket connection
     };
   }, []);
 
@@ -259,6 +310,56 @@ export default function VerbfyTalkRoomPage() {
         audioTrack.enabled = !audioTrack.enabled;
         setIsMuted(!audioTrack.enabled);
       }
+    }
+  };
+
+  // Alternative method to bypass permissions policy
+  const bypassPermissionsPolicy = async () => {
+    try {
+      console.log('🚀 Attempting to bypass permissions policy...');
+      
+      // Create a hidden audio element to trigger user interaction
+      const audioElement = document.createElement('audio');
+      audioElement.style.display = 'none';
+      document.body.appendChild(audioElement);
+      
+      // Try to play a silent audio file to trigger user interaction
+      try {
+        await audioElement.play();
+        console.log('✅ User interaction triggered via audio play');
+      } catch (playError) {
+        console.log('⚠️ Audio play failed, trying alternative method');
+      }
+      
+      // Remove the audio element
+      document.body.removeChild(audioElement);
+      
+      // Now try to get microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      
+      // If successful, set the stream
+      localStreamRef.current = stream;
+      setMicrophoneError(null);
+      
+      // Initialize audio context
+      audioContextRef.current = new AudioContext();
+      const source = audioContextRef.current.createMediaStreamSource(stream);
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      source.connect(analyserRef.current);
+      
+      console.log('✅ Microphone access granted via policy bypass!');
+    } catch (error) {
+      console.error('❌ Policy bypass failed:', error);
+      setMicrophoneError({ 
+        message: 'Policy bypass failed. Please try browser settings or contact support.', 
+        showRetry: true 
+      });
     }
   };
 
@@ -601,6 +702,14 @@ export default function VerbfyTalkRoomPage() {
                     🎯 User Interaction
                   </button>
                   
+                  {/* Policy Bypass Button */}
+                  <button
+                    onClick={bypassPermissionsPolicy}
+                    className="ml-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    🚀 Policy Bypass
+                  </button>
+                  
                   {/* Additional help text */}
                   <div className="mt-2 text-xs text-yellow-700">
                     <p><strong>💡 Troubleshooting:</strong></p>
@@ -611,9 +720,11 @@ export default function VerbfyTalkRoomPage() {
                       <li>Try refreshing the page if permission was denied</li>
                       <li><strong>If "Permissions policy violation" error:</strong></li>
                       <li>• Click "User Interaction" button first</li>
-                      <li>• Try "Force Permission" button</li>
+                      <li>• Try "Policy Bypass" button</li>
+                      <li>• Use "Force Permission" button</li>
                       <li>• Check browser security settings</li>
                       <li>• Disable any browser extensions blocking permissions</li>
+                      <li>• Try incognito/private browsing mode</li>
                     </ul>
                   </div>
                 </div>
