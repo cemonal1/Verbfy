@@ -32,6 +32,7 @@ export default function VerbfyTalkRoomPage() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [participants, setParticipants] = useState<any[]>([]);
+  const [microphoneError, setMicrophoneError] = useState<{ message: string; showRetry: boolean } | null>(null);
   
   // WebRTC refs
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -66,6 +67,23 @@ export default function VerbfyTalkRoomPage() {
       // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Microphone access not supported in this browser');
+      }
+
+      // Check if we're in a secure context (HTTPS or localhost)
+      if (!window.isSecureContext) {
+        throw new Error('Microphone access requires a secure context (HTTPS or localhost)');
+      }
+
+      // Try to get microphone permissions first
+      try {
+        const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        console.log('🔍 Microphone permission status:', permission.state);
+        
+        if (permission.state === 'denied') {
+          throw new Error('Microphone permission permanently denied. Please enable it in browser settings.');
+        }
+      } catch (permError) {
+        console.log('⚠️ Could not check permission status, proceeding with getUserMedia');
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -104,18 +122,27 @@ export default function VerbfyTalkRoomPage() {
       
       // Provide user-friendly error messages
       let errorMessage = 'Failed to access microphone';
+      let showRetryButton = true;
+      
       if (error.name === 'NotAllowedError') {
         errorMessage = 'Microphone permission denied. Please allow microphone access and try again.';
       } else if (error.name === 'NotFoundError') {
         errorMessage = 'No microphone found. Please connect a microphone and try again.';
       } else if (error.name === 'NotSupportedError') {
         errorMessage = 'Microphone access not supported in this browser.';
+        showRetryButton = false;
       } else if (error.name === 'NotReadableError') {
         errorMessage = 'Microphone is already in use by another application.';
+      } else if (error.message.includes('secure context')) {
+        errorMessage = 'Microphone access requires HTTPS. Please use https://verbfy.com instead of http.';
+        showRetryButton = false;
+      } else if (error.message.includes('permanently denied')) {
+        errorMessage = 'Microphone access permanently blocked. Please enable it in browser settings: Chrome Settings > Privacy > Site Settings > Microphone > Allow.';
+        showRetryButton = false;
       }
       
-      // Show error to user
-      alert(errorMessage);
+      // Show error to user with better UI
+      setMicrophoneError({ message: errorMessage, showRetry: showRetryButton });
       throw error;
     }
   };
@@ -313,12 +340,47 @@ export default function VerbfyTalkRoomPage() {
                   <p className="text-yellow-800 text-sm mb-2">
                     🔒 Microphone access required for voice chat
                   </p>
+                  
+                  {/* Show error if microphone failed */}
+                  {microphoneError && (
+                    <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-red-800 text-sm mb-2">
+                        ❌ {microphoneError.message}
+                      </p>
+                      {microphoneError.showRetry && (
+                        <button
+                          onClick={() => {
+                            setMicrophoneError(null);
+                            initializeAudio();
+                          }}
+                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                        >
+                          🔄 Try Again
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  
                   <button
-                    onClick={initializeAudio}
+                    onClick={() => {
+                      setMicrophoneError(null);
+                      initializeAudio();
+                    }}
                     className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                   >
                     🎤 Enable Microphone
                   </button>
+                  
+                  {/* Additional help text */}
+                  <div className="mt-2 text-xs text-yellow-700">
+                    <p><strong>💡 Troubleshooting:</strong></p>
+                    <ul className="list-disc list-inside mt-1 space-y-1">
+                      <li>Make sure you're using HTTPS (https://verbfy.com)</li>
+                      <li>Check browser microphone permissions in settings</li>
+                      <li>Ensure no other apps are using the microphone</li>
+                      <li>Try refreshing the page if permission was denied</li>
+                    </ul>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-4">
