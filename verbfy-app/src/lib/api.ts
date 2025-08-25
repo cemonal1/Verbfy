@@ -87,6 +87,26 @@ if ((api as any)?.interceptors?.response) {
   api.interceptors.response.use(
     (response: any) => response,
     (error: any) => {
+      // Handle rate limiting
+      if (error.response?.status === 429) {
+        const retryAfter = error.response?.data?.retryAfter || 15;
+        console.warn(`⚠️ Rate limited (429). Retry after ${retryAfter} minutes.`);
+        
+        // Show user-friendly message
+        if (typeof window !== 'undefined') {
+          // Use toast if available, otherwise alert
+          try {
+            const { toast } = require('react-hot-toast');
+            toast.error(`Too many requests. Please wait ${retryAfter} minutes before trying again.`);
+          } catch {
+            alert(`Too many requests. Please wait ${retryAfter} minutes before trying again.`);
+          }
+        }
+        
+        // Don't redirect to login for rate limiting
+        return Promise.reject(error);
+      }
+      
       if (error.response?.status === 401) {
         tokenStorage.clear();
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
