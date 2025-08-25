@@ -66,6 +66,47 @@ export default function VerbfyTalkRoomPage() {
     load();
   }, [roomId]);
 
+  // Additional microphone permission handling
+  useEffect(() => {
+    // Listen for permission changes
+    const handlePermissionChange = (event: any) => {
+      if (event.target.state === 'granted') {
+        console.log('🎤 Permission granted via change event');
+        setMicrophoneError(null);
+        // Try to initialize audio again
+        initializeAudio();
+      }
+    };
+
+    // Try to get permission status and listen for changes
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'microphone' as PermissionName })
+        .then(permission => {
+          permission.addEventListener('change', handlePermissionChange);
+          
+          // If already granted, try to initialize
+          if (permission.state === 'granted') {
+            console.log('🎤 Permission already granted, initializing audio...');
+            initializeAudio();
+          }
+        })
+        .catch(err => {
+          console.log('⚠️ Could not query microphone permission:', err);
+        });
+    }
+
+    // Cleanup
+    return () => {
+      if (navigator.permissions) {
+        navigator.permissions.query({ name: 'microphone' as PermissionName })
+          .then(permission => {
+            permission.removeEventListener('change', handlePermissionChange);
+          })
+          .catch(() => {});
+      }
+    };
+  }, []);
+
   // WebRTC Audio Functions
   const initializeAudio = async () => {
     try {
@@ -458,6 +499,27 @@ export default function VerbfyTalkRoomPage() {
                     className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                   >
                     🎤 Enable Microphone
+                  </button>
+                  
+                  {/* Manual Permission Request */}
+                  <button
+                    onClick={async () => {
+                      try {
+                        // Try to request permission manually
+                        if (navigator.permissions) {
+                          const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+                          if (permission.state === 'prompt') {
+                            // Force a permission prompt
+                            await navigator.mediaDevices.getUserMedia({ audio: true });
+                          }
+                        }
+                      } catch (error) {
+                        console.log('Manual permission request failed:', error);
+                      }
+                    }}
+                    className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    🔧 Force Permission
                   </button>
                   
                   {/* Additional help text */}
