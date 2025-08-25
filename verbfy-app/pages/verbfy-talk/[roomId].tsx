@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from '@/lib/i18n';
@@ -10,7 +10,10 @@ import {
   AcademicCapIcon,
   ChatBubbleLeftRightIcon,
   CalendarIcon,
-  ClockIcon
+  ClockIcon,
+  MicrophoneIcon,
+  SpeakerWaveIcon,
+  VideoCameraIcon
 } from '@heroicons/react/24/outline';
 
 export default function VerbfyTalkRoomPage() {
@@ -23,6 +26,18 @@ export default function VerbfyTalkRoomPage() {
   const [joined, setJoined] = useState(false);
   const [joinPassword, setJoinPassword] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  
+  // WebRTC states
+  const [isMuted, setIsMuted] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [participants, setParticipants] = useState<any[]>([]);
+  
+  // WebRTC refs
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
 
   useEffect(() => {
     if (!roomId) return;
@@ -43,6 +58,54 @@ export default function VerbfyTalkRoomPage() {
     load();
   }, [roomId]);
 
+  // WebRTC Audio Functions
+  const initializeAudio = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      
+      localStreamRef.current = stream;
+      
+      // Create audio context for level monitoring
+      audioContextRef.current = new AudioContext();
+      const source = audioContextRef.current.createMediaStreamSource(stream);
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      source.connect(analyserRef.current);
+      
+      // Monitor audio levels
+      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+      const updateAudioLevel = () => {
+        if (analyserRef.current) {
+          analyserRef.current.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+          setAudioLevel(average);
+          setIsSpeaking(average > 30);
+        }
+        requestAnimationFrame(updateAudioLevel);
+      };
+      updateAudioLevel();
+      
+      console.log('🎤 Audio initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize audio:', error);
+    }
+  };
+
+  const toggleMute = () => {
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsMuted(!audioTrack.enabled);
+      }
+    }
+  };
+
   const handleJoin = async () => {
     if (!roomId) return;
     
@@ -58,6 +121,10 @@ export default function VerbfyTalkRoomPage() {
         setJoined(true);
         setJoinPassword('');
         setShowPasswordModal(false);
+        
+        // Initialize WebRTC audio after joining
+        await initializeAudio();
+        
         // Reload room data to show updated participants
         const updatedRes = await verbfyTalkAPI.getRoomDetails(roomId);
         setRoom(updatedRes.data || updatedRes);
@@ -73,11 +140,20 @@ export default function VerbfyTalkRoomPage() {
   const handleLeave = async () => {
     if (!roomId) return;
     try {
+      // Stop all audio streams
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      
+      // Close peer connections
+      peerConnectionsRef.current.forEach(connection => connection.close());
+      peerConnectionsRef.current.clear();
+      
       await verbfyTalkAPI.leaveRoom(roomId);
       setJoined(false);
-      // Reload room data
-      const res = await verbfyTalkAPI.getRoomDetails(roomId);
-      setRoom(res.data || res);
+      
+      // Navigate back to rooms list
+      router.push('/verbfy-talk');
     } catch (error: any) {
       console.error('Failed to leave room:', error);
     }
@@ -199,20 +275,73 @@ export default function VerbfyTalkRoomPage() {
             Participants ({room.participants?.filter((p: any) => p.isActive).length || 0})
           </h2>
           
+          {/* Audio Controls for joined users */}
+          {joined && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <h3 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                <SpeakerWaveIcon className="w-5 h-5" />
+                Voice Chat Controls
+              </h3>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={toggleMute}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    isMuted 
+                      ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                      : 'bg-green-100 text-green-700 hover:bg-green-200'
+                  }`}
+                >
+                  <MicrophoneIcon className={`w-5 h-5 ${isMuted ? 'text-red-600' : 'text-green-600'}`} />
+                  {isMuted ? 'Unmute' : 'Mute'}
+                </button>
+                
+                {/* Audio Level Indicator */}
+                <div className="flex items-center gap-2">
+                  <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-100 ${
+                        isSpeaking ? 'bg-green-500' : 'bg-blue-500'
+                      }`}
+                      style={{ width: `${Math.min(audioLevel * 2, 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-sm text-gray-600">
+                    {isSpeaking ? 'Speaking' : 'Silent'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {room.participants && room.participants.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {room.participants
                 .filter((p: any) => p.isActive)
                 .map((participant: any, index: number) => (
                   <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
-                      {participant.userId?.name?.charAt(0) || 'U'}
+                    <div className="relative">
+                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
+                        {participant.userId?.name?.charAt(0) || 'U'}
+                      </div>
+                      {/* Speaking indicator */}
+                      {participant.isSpeaking && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse" />
+                      )}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium text-gray-900">{participant.userId?.name || 'Unknown User'}</p>
                       <p className="text-sm text-gray-500">
                         Joined {formatDate(participant.joinedAt)}
                       </p>
+                      {/* Audio status */}
+                      <div className="flex items-center gap-2 mt-1">
+                        <MicrophoneIcon className={`w-4 h-4 ${
+                          participant.isMuted ? 'text-red-500' : 'text-green-500'
+                        }`} />
+                        <span className="text-xs text-gray-500">
+                          {participant.isMuted ? 'Muted' : 'Active'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
