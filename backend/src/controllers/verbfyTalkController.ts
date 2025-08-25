@@ -22,11 +22,20 @@ export class VerbfyTalkController {
         .skip(skip)
         .limit(Number(limit));
 
+      // Add active participant count to each room
+      const roomsWithActiveCount = rooms.map(room => {
+        const activeCount = room.participants.filter((p: any) => p.isActive).length;
+        return {
+          ...room.toObject(),
+          activeParticipantCount: activeCount
+        };
+      });
+
       const total = await VerbfyTalkRoom.countDocuments(filter);
 
       res.json({
         success: true,
-        data: rooms,
+        data: roomsWithActiveCount,
         pagination: {
           page: Number(page),
           limit: Number(limit),
@@ -99,18 +108,18 @@ export class VerbfyTalkController {
         return res.status(400).json({ success: false, message: 'Room is not active' });
       }
 
-      // Check if room is full
-      const activeParticipants = room.participants.filter((p: any) => p.isActive).length;
-      if (activeParticipants >= room.maxParticipants) {
-        return res.status(400).json({ success: false, message: 'Room is full' });
-      }
-
-      // Check if user is already in the room
+      // Check if user is already in the room and active
       const existingParticipant = room.participants.find((p: any) =>
-        p.userId.toString() === userId
+        p.userId.toString() === userId && p.isActive
       );
       if (existingParticipant) {
         return res.status(400).json({ success: false, message: 'Already in room' });
+      }
+
+      // Check if room is full (only count active participants)
+      const activeParticipants = room.participants.filter((p: any) => p.isActive).length;
+      if (activeParticipants >= room.maxParticipants) {
+        return res.status(400).json({ success: false, message: 'Room is full' });
       }
 
       // Check password for private rooms
