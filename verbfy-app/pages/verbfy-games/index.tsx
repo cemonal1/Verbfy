@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import Image from 'next/image';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from '@/lib/i18n';
 import { gamesAPI } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
@@ -105,11 +106,8 @@ export default function VerbfyGamesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      <Head>
-        <title>VerbfyGames</title>
-      </Head>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <DashboardLayout allowedRoles={['student', 'teacher', 'admin']}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">VerbfyGames</h1>
           <p className="text-gray-600 mt-2">
@@ -202,8 +200,8 @@ export default function VerbfyGamesPage() {
             </div>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
 
