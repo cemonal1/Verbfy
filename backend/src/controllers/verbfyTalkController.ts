@@ -108,15 +108,7 @@ export class VerbfyTalkController {
         return res.status(400).json({ success: false, message: 'Room is not active' });
       }
 
-      // Check if user is already in the room and active
-      const existingParticipant = room.participants.find((p: any) =>
-        p.userId.toString() === userId && p.isActive
-      );
-      if (existingParticipant) {
-        return res.status(400).json({ success: false, message: 'Already in room' });
-      }
-
-      // Check if room is full (only count active participants)
+      // Check if room is full
       const activeParticipants = room.participants.filter((p: any) => p.isActive).length;
       if (activeParticipants >= room.maxParticipants) {
         return res.status(400).json({ success: false, message: 'Room is full' });
@@ -125,7 +117,7 @@ export class VerbfyTalkController {
       // Check password for private rooms
       if (room.isPrivate && room.password) {
         if (!password) {
-          return res.status(400).json({ success: false, message: 'Password required' });
+          return res.status(400).json({ success: false, message: 'Password required for private room' });
         }
         const isValidPassword = await bcrypt.compare(password, room.password);
         if (!isValidPassword) {
@@ -133,26 +125,47 @@ export class VerbfyTalkController {
         }
       }
 
-      // Add user to room
-      room.participants.push({
-        userId,
-        joinedAt: new Date(),
-        isActive: true
-      });
+      // Check if user is already in the room (active)
+      const existingParticipant = room.participants.find((p: any) => 
+        p.userId.toString() === userId && p.isActive
+      );
+      
+      if (existingParticipant) {
+        return res.status(400).json({ success: false, message: 'Already in room' });
+      }
 
-      // Start room if it's the first participant
-      if (activeParticipants === 0) {
-        room.startedAt = new Date();
+      // Check if user was previously in room but inactive (rejoin)
+      const inactiveParticipant = room.participants.find((p: any) => 
+        p.userId.toString() === userId && !p.isActive
+      );
+      
+      if (inactiveParticipant) {
+        // Reactivate existing participant
+        inactiveParticipant.isActive = true;
+        inactiveParticipant.joinedAt = new Date();
+        inactiveParticipant.leftAt = undefined;
+      } else {
+        // Add new participant
+        room.participants.push({
+          userId,
+          joinedAt: new Date(),
+          isActive: true
+        });
       }
 
       await room.save();
 
+      const updatedRoom = await VerbfyTalkRoom.findById(roomId)
+        .populate('createdBy', 'name email avatar')
+        .populate('participants.userId', 'name email avatar');
+
       res.json({
         success: true,
-        data: room,
+        data: updatedRoom,
         message: 'Joined room successfully'
       });
     } catch (error) {
+      console.error('Error joining room:', error);
       res.status(500).json({ success: false, message: 'Failed to join room' });
     }
   }
@@ -177,13 +190,16 @@ export class VerbfyTalkController {
         return res.status(400).json({ success: false, message: 'Not in room' });
       }
 
+      // Mark participant as inactive and set leave time
       room.participants[participantIndex].isActive = false;
+      room.participants[participantIndex].leftAt = new Date();
 
       // If no active participants, end the room
       const activeParticipants = room.participants.filter((p: any) => p.isActive).length;
       if (activeParticipants === 0) {
         room.endedAt = new Date();
         room.isActive = false;
+        console.log(`🏁 Room ${room.name} (${roomId}) ended - no active participants`);
       }
 
       await room.save();
@@ -193,6 +209,7 @@ export class VerbfyTalkController {
         message: 'Left room successfully'
       });
     } catch (error) {
+      console.error('Error leaving room:', error);
       res.status(500).json({ success: false, message: 'Failed to leave room' });
     }
   }

@@ -369,7 +369,7 @@ export class PersonalizedCurriculumController {
     const totalLessons = curriculum.progress.totalLessons;
     const totalTests = curriculum.progress.totalTests;
     const completedLessons = curriculum.progress.lessonsCompleted;
-    const completedTests = curriculum.progress.totalTests;
+    const completedTests = curriculum.progress.testsCompleted;
 
     const lessonProgress = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
     const testProgress = totalTests > 0 ? (completedTests / totalTests) * 100 : 0;
