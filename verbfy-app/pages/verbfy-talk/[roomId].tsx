@@ -228,22 +228,31 @@ export default function VerbfyTalkRoomPage() {
     };
   }, []);
 
-  // WebRTC Audio Functions
+  // Enhanced microphone initialization with proper user interaction
   const initializeAudio = async () => {
     try {
       console.log('🎤 Requesting microphone permission...');
       
-      // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Microphone access not supported in this browser');
       }
-
-      // Check if we're in a secure context (HTTPS or localhost)
+      
       if (!window.isSecureContext) {
         throw new Error('Microphone access requires a secure context (HTTPS or localhost)');
       }
 
-      // Method 1: Try permissions API first
+      // Check if we're in an iframe and handle permissions policy
+      if (window !== window.top) {
+        console.log('🔧 Running in iframe, checking parent permissions...');
+        // Try to request permission from parent context
+        try {
+          await window.top?.navigator?.mediaDevices?.getUserMedia({ audio: true });
+        } catch (iframeError) {
+          console.log('⚠️ Parent context microphone access failed:', iframeError);
+        }
+      }
+
+      // Check permission status first
       let permissionState = 'prompt';
       try {
         const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
@@ -253,22 +262,25 @@ export default function VerbfyTalkRoomPage() {
         if (permission.state === 'denied') {
           throw new Error('Microphone permission permanently denied. Please enable it in browser settings.');
         }
+        
+        // Listen for permission changes
+        permission.onchange = () => {
+          console.log('🔍 Microphone permission changed to:', permission.state);
+          if (permission.state === 'granted') {
+            // Re-initialize audio when permission is granted
+            setTimeout(() => {
+              initializeAudio();
+            }, 100);
+          }
+        };
       } catch (permError) {
         console.log('⚠️ Could not check permission status, proceeding with getUserMedia');
       }
-
-      // Method 2: Try getUserMedia with different constraints
-      let stream: MediaStream;
-      try {
-        // First try with basic audio
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: true
-        });
-      } catch (basicError) {
-        console.log('⚠️ Basic audio failed, trying with specific constraints...');
-        
-        // Try with specific audio constraints
-        stream = await navigator.mediaDevices.getUserMedia({ 
+      
+      // Try multiple audio constraints for better compatibility
+      const audioConstraints = [
+        { audio: true }, // Basic audio
+        { 
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
@@ -276,19 +288,50 @@ export default function VerbfyTalkRoomPage() {
             sampleRate: 44100,
             channelCount: 1
           }
-        });
+        },
+        { 
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            sampleRate: 16000,
+            channelCount: 1
+          }
+        }
+      ];
+      
+      let stream: MediaStream | null = null;
+      
+      for (const constraints of audioConstraints) {
+        try {
+          console.log(`🎤 Trying audio constraints:`, constraints);
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          console.log('✅ Microphone permission granted with constraints:', constraints);
+          break;
+        } catch (constraintError: any) {
+          console.log(`⚠️ Constraints failed:`, constraintError);
+          if (constraintError.name === 'NotAllowedError') {
+            // Permission denied, don't try other constraints
+            throw constraintError;
+          }
+          continue;
+        }
+      }
+      
+      if (!stream) {
+        throw new Error('All audio constraint methods failed');
       }
       
       console.log('✅ Microphone permission granted');
       localStreamRef.current = stream;
       
-      // Create audio context for level monitoring
+      // Initialize audio context for volume control and audio analysis
       audioContextRef.current = new AudioContext();
       const source = audioContextRef.current.createMediaStreamSource(stream);
       analyserRef.current = audioContextRef.current.createAnalyser();
       source.connect(analyserRef.current);
       
-      // Monitor audio levels
+      // Set up audio level monitoring
       const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
       const updateAudioLevel = () => {
         if (analyserRef.current) {
@@ -301,14 +344,10 @@ export default function VerbfyTalkRoomPage() {
       };
       updateAudioLevel();
       
-      // Clear any previous errors
-      setMicrophoneError(null);
-      
+      setMicrophoneError(null); // Clear any previous errors
       console.log('🎤 Audio initialized successfully');
     } catch (error: any) {
       console.error('❌ Failed to initialize audio:', error);
-      
-      // Provide user-friendly error messages
       let errorMessage = 'Failed to access microphone';
       let showRetryButton = true;
       
@@ -327,9 +366,10 @@ export default function VerbfyTalkRoomPage() {
       } else if (error.message.includes('permanently denied')) {
         errorMessage = 'Microphone access permanently blocked. Please enable it in browser settings: Chrome Settings > Privacy > Site Settings > Microphone > Allow.';
         showRetryButton = false;
+      } else if (error.message.includes('permissions policy')) {
+        errorMessage = 'Permissions policy violation. Please try the User Interaction button or check browser settings.';
       }
       
-      // Show error to user with better UI
       setMicrophoneError({ message: errorMessage, showRetry: showRetryButton });
       throw error;
     }
