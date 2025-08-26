@@ -182,6 +182,12 @@ export default function DashboardLayout({
         current: router.pathname.startsWith('/chat')
       },
       {
+        name: t('nav.verbfyTalk','VerbfyTalk'),
+        href: '/talk',
+        icon: '🎤',
+        current: router.pathname.startsWith('/talk')
+      },
+      {
         name: t('nav.materials','Materials'),
         href: '/materials',
         icon: '📁',

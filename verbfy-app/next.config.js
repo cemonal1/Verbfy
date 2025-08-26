@@ -27,8 +27,12 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            value: 'camera=(), microphone=(self "https://www.verbfy.com"), geolocation=()',
           },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*'
+          }
         ],
       },
     ];

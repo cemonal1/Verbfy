@@ -46,6 +46,7 @@ function RoomPage() {
     videoStates,
     toggleRemoteMute,
     toggleRemoteVideo,
+    isInitialized,
   } = useWebRTC(roomId as string, peerIds, participants.map(p => p.peerId));
 
   // Chat ViewModel
@@ -123,8 +124,23 @@ function RoomPage() {
           
           <div className="flex items-center space-x-4">
             <div className="text-sm text-gray-600">
-              Status: {status}
+              Status: <span className={`font-medium ${
+                status === 'connected' ? 'text-green-600' : 
+                status === 'connecting' ? 'text-yellow-600' : 
+                status === 'error' ? 'text-red-600' : 'text-gray-600'
+              }`}>{status}</span>
             </div>
+            {error && (
+              <div className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded">
+                {error}
+              </div>
+            )}
+            <button
+              onClick={reconnect}
+              className="bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded text-sm transition-colors text-white"
+            >
+              Reconnect
+            </button>
             <button
               onClick={handleLeaveRoom}
               className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm transition-colors text-white"
@@ -147,21 +163,47 @@ function RoomPage() {
                 <div className="relative h-full">
                   <div className="absolute top-4 left-4 z-10">
                     <div className="bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                      You
+                      You {isInitialized ? '✅' : '⏳'}
                     </div>
                   </div>
-                  <video 
-                    autoPlay 
-                    muted 
-                    playsInline 
-                    className="w-full h-full object-cover"
-                    ref={el => { if (el && localStream) el.srcObject = localStream; }}
-                  />
+                  {localStream ? (
+                    <video 
+                      autoPlay 
+                      muted 
+                      playsInline 
+                      className="w-full h-full object-cover"
+                      ref={el => { if (el) el.srcObject = localStream; }}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-gray-500 mb-2">
+                          {status === 'connecting' ? '🎤 Requesting microphone access...' : 
+                           status === 'error' ? '❌ Media access failed' : 
+                           '⏳ Initializing...'}
+                        </div>
+                        {error && (
+                          <div className="text-xs text-red-500 max-w-xs">
+                            {error}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   {!isMicOn && (
                     <div className="absolute bottom-4 left-4 z-10">
                       <div className="bg-red-500 text-white p-2 rounded-full">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                  {!isCameraOn && (
+                    <div className="absolute bottom-4 right-4 z-10">
+                      <div className="bg-red-500 text-white p-2 rounded-full">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
                       </div>
                     </div>
