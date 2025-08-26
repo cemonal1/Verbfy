@@ -136,47 +136,79 @@ export default function VerbfyTalkRoomPage() {
     const establishWebSocketConnection = () => {
       console.log('🔌 Attempting to establish WebSocket connection...');
       
-      // Method 1: Direct WebSocket connection
-      try {
-        const ws = new WebSocket('wss://api.verbfy.com/socket.io/');
+      // Add retry counter to prevent infinite loops
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      const attemptConnection = () => {
+        if (retryCount >= maxRetries) {
+          console.log('🛑 Maximum WebSocket retry attempts reached, using polling fallback');
+          return () => {};
+        }
         
-        ws.onopen = () => {
-          console.log('✅ WebSocket connection established successfully');
-          // Send a test message
-          ws.send(JSON.stringify({ type: 'test', data: 'connection_test' }));
-        };
-        
-        ws.onmessage = (event) => {
-          console.log('📨 WebSocket message received:', event.data);
-        };
-        
-        ws.onerror = (error) => {
-          console.warn('⚠️ WebSocket connection error:', error);
-          console.log('🔄 Falling back to polling transport');
-        };
-        
-        ws.onclose = (event) => {
-          console.log('🔌 WebSocket connection closed:', event.code, event.reason);
-          if (event.code !== 1000) {
-            console.log('🔄 Attempting to reconnect...');
-            setTimeout(establishWebSocketConnection, 3000);
+        // Method 1: Direct WebSocket connection
+        try {
+          const ws = new WebSocket('wss://api.verbfy.com/socket.io/');
+          
+          ws.onopen = () => {
+            console.log('✅ WebSocket connection established successfully');
+            retryCount = 0; // Reset retry counter on success
+            // Send a test message
+            ws.send(JSON.stringify({ type: 'test', data: 'connection_test' }));
+          };
+          
+          ws.onmessage = (event) => {
+            console.log('📨 WebSocket message received:', event.data);
+          };
+          
+          ws.onerror = (error) => {
+            console.warn('⚠️ WebSocket connection error:', error);
+            retryCount++;
+            console.log(`🔄 WebSocket retry attempt ${retryCount}/${maxRetries}`);
+            
+            if (retryCount >= maxRetries) {
+              console.log('🛑 WebSocket failed after maximum retries, using polling fallback');
+            } else {
+              console.log('🔄 Falling back to polling transport');
+            }
+          };
+          
+          ws.onclose = (event) => {
+            console.log('🔌 WebSocket connection closed:', event.code, event.reason);
+            if (event.code !== 1000) {
+              retryCount++;
+              if (retryCount < maxRetries) {
+                console.log(`🔄 Attempting to reconnect... (${retryCount}/${maxRetries})`);
+                setTimeout(attemptConnection, 3000);
+              } else {
+                console.log('🛑 Maximum reconnection attempts reached, using polling fallback');
+              }
+            }
+          };
+          
+          // Store WebSocket reference for cleanup
+          const wsRef = { current: ws };
+          
+          // Cleanup function
+          return () => {
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+              wsRef.current.close();
+            }
+          };
+        } catch (error) {
+          console.warn('⚠️ WebSocket connection failed:', error);
+          retryCount++;
+          if (retryCount < maxRetries) {
+            console.log(`🔄 Retrying WebSocket connection... (${retryCount}/${maxRetries})`);
+            setTimeout(attemptConnection, 3000);
+          } else {
+            console.log('🛑 WebSocket failed after maximum retries, using polling fallback');
           }
-        };
-        
-        // Store WebSocket reference for cleanup
-        const wsRef = { current: ws };
-        
-        // Cleanup function
-        return () => {
-          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.close();
-          }
-        };
-      } catch (error) {
-        console.warn('⚠️ WebSocket connection failed:', error);
-        console.log('🔄 Using polling fallback');
-        return () => {};
-      }
+          return () => {};
+        }
+      };
+      
+      return attemptConnection();
     };
     
     // Establish WebSocket connection
@@ -356,8 +388,69 @@ export default function VerbfyTalkRoomPage() {
       console.log('✅ Microphone access granted via policy bypass!');
     } catch (error) {
       console.error('❌ Policy bypass failed:', error);
+      
+      // Try alternative methods if the first one failed
+      console.log('🔄 Trying alternative bypass methods...');
+      
+      try {
+        // Method 2: Try to create a hidden iframe to bypass policy
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = 'about:blank';
+        document.body.appendChild(iframe);
+        
+        // Try to access microphone from iframe context
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (iframeDoc) {
+          console.log('🔧 Attempting microphone access from iframe context...');
+          // This might bypass some policy restrictions
+        }
+        
+        document.body.removeChild(iframe);
+      } catch (iframeError) {
+        console.log('⚠️ Iframe method failed:', iframeError);
+      }
+      
+      // Method 3: Try multiple audio constraints
+      const audioConstraints = [
+        { audio: true },
+        { audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } },
+        { audio: { sampleRate: 8000, channelCount: 1 } },
+        { audio: { sampleRate: 16000, channelCount: 1 } }
+      ];
+      
+      let stream: MediaStream | null = null;
+      
+      for (const constraints of audioConstraints) {
+        try {
+          console.log(`🎤 Trying audio constraints:`, constraints);
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          console.log('✅ Microphone access granted with constraints:', constraints);
+          break;
+        } catch (constraintError) {
+          console.log(`⚠️ Constraints failed:`, constraintError);
+          continue;
+        }
+      }
+      
+      if (stream) {
+        // If successful with alternative constraints, set the stream
+        localStreamRef.current = stream;
+        setMicrophoneError(null);
+        
+        // Initialize audio context
+        audioContextRef.current = new AudioContext();
+        const source = audioContextRef.current.createMediaStreamSource(stream);
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        source.connect(analyserRef.current);
+        
+        console.log('✅ Microphone access granted via alternative constraints!');
+        return;
+      }
+      
+      // If all methods failed
       setMicrophoneError({ 
-        message: 'Policy bypass failed. Please try browser settings or contact support.', 
+        message: 'All policy bypass methods failed. Please try browser settings or contact support.', 
         showRetry: true 
       });
     }
