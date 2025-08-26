@@ -214,7 +214,6 @@ const io = new SocketIOServer(server, {
   },
   transports: ['websocket', 'polling'], // Prioritize WebSocket, fallback to polling
   allowEIO3: true,
-  allowEIO4: true, // Ensure EIO v4 compatibility
   pingTimeout: 60000,
   pingInterval: 25000,
   upgradeTimeout: 10000,
