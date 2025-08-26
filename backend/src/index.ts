@@ -199,20 +199,43 @@ const socketAllowedOrigins = [
 const io = new SocketIOServer(server, {
   cors: {
     origin: socketAllowedOrigins,
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'OPTIONS'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    allowedHeaders: [
+      'Content-Type', 
+      'Authorization', 
+      'X-Requested-With',
+      'Upgrade',
+      'Connection',
+      'Sec-WebSocket-Key',
+      'Sec-WebSocket-Version',
+      'Sec-WebSocket-Protocol'
+    ]
   },
-  transports: ['polling', 'websocket'], // Start with polling, then upgrade to websocket
+  transports: ['websocket', 'polling'], // Prioritize WebSocket, fallback to polling
   allowEIO3: true,
+  allowEIO4: true, // Ensure EIO v4 compatibility
   pingTimeout: 60000,
   pingInterval: 25000,
   upgradeTimeout: 10000,
   maxHttpBufferSize: 1e6,
   allowRequest: (req, callback) => {
     // Better error handling for connection attempts
+    console.log('🔌 Socket.IO connection request:', {
+      origin: req.headers.origin,
+      upgrade: req.headers.upgrade,
+      connection: req.headers.connection
+    });
     callback(null, true);
   }
+});
+
+// Add permissions policy headers for microphone access
+app.use((req, res, next) => {
+  // Allow microphone access for VerbfyTalk
+  res.setHeader('Permissions-Policy', 'microphone=(self), camera=(self)');
+  res.setHeader('Feature-Policy', 'microphone self; camera self');
+  next();
 });
 
 // Enhanced Socket.IO middleware with better error handling
