@@ -183,9 +183,9 @@ export default function DashboardLayout({
       },
       {
         name: t('nav.verbfyTalk','VerbfyTalk'),
-        href: '/talk',
+        href: '/verbfy-talk',
         icon: '🎤',
-        current: router.pathname.startsWith('/talk')
+        current: router.pathname.startsWith('/verbfy-talk')
       },
       {
         name: t('nav.materials','Materials'),
