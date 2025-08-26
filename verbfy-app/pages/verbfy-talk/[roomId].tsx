@@ -1,1101 +1,610 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
+import Head from 'next/head';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { useI18n } from '@/lib/i18n';
-import { verbfyTalkAPI } from '@/lib/api';
-import { 
-  UsersIcon, 
-  LockClosedIcon, 
-  GlobeAltIcon,
-  AcademicCapIcon,
-  ChatBubbleLeftRightIcon,
-  CalendarIcon,
-  ClockIcon,
-  MicrophoneIcon,
-  SpeakerWaveIcon,
-  VideoCameraIcon
-} from '@heroicons/react/24/outline';
+import { useAuthContext } from '@/context/AuthContext';
+import io, { Socket } from 'socket.io-client';
 
-export default function VerbfyTalkRoomPage() {
+interface Peer {
+  id: string;
+  name: string;
+  isMuted: boolean;
+  isSpeaking: boolean;
+}
+
+export default function VerbfyTalkRoom() {
   const router = useRouter();
   const { roomId } = router.query as { roomId?: string };
-  const { t } = useI18n();
-  const [room, setRoom] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [joining, setJoining] = useState(false);
-  const [joined, setJoined] = useState(false);
-  const [joinPassword, setJoinPassword] = useState('');
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const { user } = useAuthContext();
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [peers, setPeers] = useState<{ [key: string]: Peer }>({});
+  const [isMicOn, setIsMicOn] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   
-  // WebRTC states
-  const [isMuted, setIsMuted] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [audioLevel, setAudioLevel] = useState(0);
-  const [participants, setParticipants] = useState<any[]>([]);
-  const [microphoneError, setMicrophoneError] = useState<{ message: string; showRetry: boolean } | null>(null);
-  
-  // Chat states
-  const [chatMessages, setChatMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [isPushToTalk, setIsPushToTalk] = useState(false);
-  const [microphoneVolume, setMicrophoneVolume] = useState(100);
-  const [isRecording, setIsRecording] = useState(false);
-  
-  // WebRTC refs
+  const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({});
+  const peerConnections = useRef<{ [key: string]: RTCPeerConnection }>({});
   const localStreamRef = useRef<MediaStream | null>(null);
-  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
 
+  // WebRTC configuration
+  const webrtcConfig = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' }
+    ]
+  };
+
+  // Initialize audio context for Safari
   useEffect(() => {
-    if (!roomId) return;
-    const load = async () => {
-      try {
-        const res: any = await verbfyTalkAPI.getRoomDetails(roomId);
-        setRoom(res.data || res);
-        // Check if user is already in the room
-        if (res.data?.participants || res?.participants) {
-          const participants = res.data?.participants || res?.participants;
-          const isInRoom = participants.some((p: any) => p.isActive);
-          setJoined(isInRoom);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [roomId]);
-
-  // Additional microphone permission handling
-  useEffect(() => {
-    // Listen for permission changes
-    const handlePermissionChange = (event: any) => {
-      if (event.target.state === 'granted') {
-        console.log('🎤 Permission granted via change event');
-        setMicrophoneError(null);
-        // Try to initialize audio again
-        initializeAudio();
-      }
-    };
-
-    // Try to get permission status and listen for changes
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: 'microphone' as PermissionName })
-        .then(permission => {
-          permission.addEventListener('change', handlePermissionChange);
-          
-          // If already granted, try to initialize
-          if (permission.state === 'granted') {
-            console.log('🎤 Permission already granted, initializing audio...');
-            initializeAudio();
-          }
-        })
-        .catch(err => {
-          console.log('⚠️ Could not query microphone permission:', err);
-        });
-    }
-
-    // WebSocket connection monitoring
-    const checkWebSocketConnection = () => {
-      // Check if WebSocket is available and working
-      if ('WebSocket' in window) {
-        console.log('🔌 WebSocket support detected');
+    const initAudioContext = () => {
+      if (!audioContext) {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        setAudioContext(ctx);
         
-        // Try to establish a test connection
-        try {
-          const testSocket = new WebSocket('wss://api.verbfy.com/socket.io/');
-          
-          testSocket.onopen = () => {
-            console.log('✅ WebSocket connection test successful');
-            testSocket.close();
-          };
-          
-          testSocket.onerror = (error) => {
-            console.warn('⚠️ WebSocket connection test failed:', error);
-            console.log('🔄 Falling back to polling transport');
-          };
-          
-          // Close test socket after 5 seconds
-          setTimeout(() => {
-            if (testSocket.readyState === WebSocket.OPEN) {
-              testSocket.close();
-            }
-          }, 5000);
-        } catch (error) {
-          console.warn('⚠️ WebSocket test failed:', error);
-        }
-      } else {
-        console.warn('⚠️ WebSocket not supported, using polling fallback');
-      }
-    };
-
-    // Check WebSocket connection after a delay
-    const wsCheckTimer = setTimeout(checkWebSocketConnection, 2000);
-
-    // Enhanced WebSocket connection handling
-    const establishWebSocketConnection = () => {
-      console.log('🔌 Attempting to establish WebSocket connection...');
-      
-      // Add retry counter to prevent infinite loops
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      const attemptConnection = () => {
-        if (retryCount >= maxRetries) {
-          console.log('🛑 Maximum WebSocket retry attempts reached, using polling fallback');
-          return () => {};
-        }
-        
-        // Method 1: Direct WebSocket connection
-        try {
-          const ws = new WebSocket('wss://api.verbfy.com/socket.io/');
-          
-          ws.onopen = () => {
-            console.log('✅ WebSocket connection established successfully');
-            retryCount = 0; // Reset retry counter on success
-            // Send a test message
-            ws.send(JSON.stringify({ type: 'test', data: 'connection_test' }));
-          };
-          
-          ws.onmessage = (event) => {
-            console.log('📨 WebSocket message received:', event.data);
-          };
-          
-          ws.onerror = (error) => {
-            console.warn('⚠️ WebSocket connection error:', error);
-            retryCount++;
-            console.log(`🔄 WebSocket retry attempt ${retryCount}/${maxRetries}`);
-            
-            if (retryCount >= maxRetries) {
-              console.log('🛑 WebSocket failed after maximum retries, using polling fallback');
-            } else {
-              console.log('🔄 Falling back to polling transport');
-            }
-          };
-          
-          ws.onclose = (event) => {
-            console.log('🔌 WebSocket connection closed:', event.code, event.reason);
-            if (event.code !== 1000) {
-              retryCount++;
-              if (retryCount < maxRetries) {
-                console.log(`🔄 Attempting to reconnect... (${retryCount}/${maxRetries})`);
-                setTimeout(attemptConnection, 3000);
-              } else {
-                console.log('🛑 Maximum reconnection attempts reached, using polling fallback');
-              }
-            }
-          };
-          
-          // Store WebSocket reference for cleanup
-          const wsRef = { current: ws };
-          
-          // Cleanup function
-          return () => {
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-              wsRef.current.close();
-            }
-          };
-        } catch (error) {
-          console.warn('⚠️ WebSocket connection failed:', error);
-          retryCount++;
-          if (retryCount < maxRetries) {
-            console.log(`🔄 Retrying WebSocket connection... (${retryCount}/${maxRetries})`);
-            setTimeout(attemptConnection, 3000);
-          } else {
-            console.log('🛑 WebSocket failed after maximum retries, using polling fallback');
-          }
-          return () => {};
-        }
-      };
-      
-      return attemptConnection();
-    };
-    
-    // Establish WebSocket connection
-    const cleanupWs = establishWebSocketConnection();
-
-    // Cleanup
-    return () => {
-      if (navigator.permissions) {
-        navigator.permissions.query({ name: 'microphone' as PermissionName })
-          .then(permission => {
-            permission.removeEventListener('change', handlePermissionChange);
-          })
-          .catch(() => {});
-      }
-      clearTimeout(wsCheckTimer);
-      cleanupWs(); // Clean up WebSocket connection
-    };
-  }, []);
-
-  // Enhanced microphone initialization with proper user interaction
-  const initializeAudio = async () => {
-    try {
-      console.log('🎤 Requesting microphone permission...');
-      
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Microphone access not supported in this browser');
-      }
-      
-      if (!window.isSecureContext) {
-        throw new Error('Microphone access requires a secure context (HTTPS or localhost)');
-      }
-
-      // Check if we're in an iframe and handle permissions policy
-      if (window !== window.top) {
-        console.log('🔧 Running in iframe, checking parent permissions...');
-        // Try to request permission from parent context
-        try {
-          await window.top?.navigator?.mediaDevices?.getUserMedia({ audio: true });
-        } catch (iframeError) {
-          console.log('⚠️ Parent context microphone access failed:', iframeError);
-        }
-      }
-
-      // Check permission status first
-      let permissionState = 'prompt';
-      try {
-        const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-        permissionState = permission.state;
-        console.log('🔍 Microphone permission status:', permission.state);
-        
-        if (permission.state === 'denied') {
-          throw new Error('Microphone permission permanently denied. Please enable it in browser settings.');
-        }
-        
-        // Listen for permission changes
-        permission.onchange = () => {
-          console.log('🔍 Microphone permission changed to:', permission.state);
-          if (permission.state === 'granted') {
-            // Re-initialize audio when permission is granted
-            setTimeout(() => {
-              initializeAudio();
-            }, 100);
+        // Resume audio context on user interaction
+        const resumeAudio = () => {
+          if (ctx.state === 'suspended') {
+            ctx.resume();
           }
         };
-      } catch (permError) {
-        console.log('⚠️ Could not check permission status, proceeding with getUserMedia');
+        
+        document.addEventListener('click', resumeAudio, { once: true });
+        document.addEventListener('touchstart', resumeAudio, { once: true });
       }
+    };
+
+    initAudioContext();
+  }, [audioContext]);
+
+  // Request microphone access with user gesture
+  const requestMic = async () => {
+    try {
+      console.log("🎤 Requesting microphone...");
       
-      // Try multiple audio constraints for better compatibility
-      const audioConstraints = [
-        { audio: true }, // Basic audio
-        { 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            sampleRate: 44100,
-            channelCount: 1
-          }
-        },
-        { 
-          audio: {
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false,
-            sampleRate: 16000,
-            channelCount: 1
-          }
-        }
-      ];
-      
-      let stream: MediaStream | null = null;
-      
-      for (const constraints of audioConstraints) {
+      // Check if we're in a secure context
+      if (!window.isSecureContext) {
+        throw new Error('Microphone access requires HTTPS');
+      }
+
+      // Check permissions policy
+      if (navigator.permissions) {
         try {
-          console.log(`🎤 Trying audio constraints:`, constraints);
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
-          console.log('✅ Microphone permission granted with constraints:', constraints);
-          break;
-        } catch (constraintError: any) {
-          console.log(`⚠️ Constraints failed:`, constraintError);
-          if (constraintError.name === 'NotAllowedError') {
-            // Permission denied, don't try other constraints
-            throw constraintError;
+          const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+          console.log('🔍 Microphone permission status:', permission.state);
+          
+          if (permission.state === 'denied') {
+            throw new Error('Microphone permission permanently denied');
           }
-          continue;
+        } catch (permError) {
+          console.log('⚠️ Could not check permission status, proceeding with getUserMedia');
         }
       }
-      
-      if (!stream) {
-        throw new Error('All audio constraint methods failed');
-      }
-      
-      console.log('✅ Microphone permission granted');
-      localStreamRef.current = stream;
-      
-      // Initialize audio context for volume control and audio analysis
-      audioContextRef.current = new AudioContext();
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      source.connect(analyserRef.current);
-      
-      // Set up audio level monitoring
-      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-      const updateAudioLevel = () => {
-        if (analyserRef.current) {
-          analyserRef.current.getByteFrequencyData(dataArray);
-          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-          setAudioLevel(average);
-          setIsSpeaking(average > 30);
+
+      const localStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100,
+          channelCount: 1
         }
-        requestAnimationFrame(updateAudioLevel);
-      };
-      updateAudioLevel();
+      });
+
+      console.log('✅ Microphone access granted');
+      setStream(localStream);
+      localStreamRef.current = localStream;
+      return localStream;
+    } catch (err: any) {
+      console.error("❌ Mic error:", err);
       
-      setMicrophoneError(null); // Clear any previous errors
-      console.log('🎤 Audio initialized successfully');
-    } catch (error: any) {
-      console.error('❌ Failed to initialize audio:', error);
-      let errorMessage = 'Failed to access microphone';
-      let showRetryButton = true;
-      
-      if (error.name === 'NotAllowedError') {
+      let errorMessage = 'Microphone access denied';
+      if (err.name === 'NotAllowedError') {
         errorMessage = 'Microphone permission denied. Please allow microphone access and try again.';
-      } else if (error.name === 'NotFoundError') {
+      } else if (err.name === 'NotFoundError') {
         errorMessage = 'No microphone found. Please connect a microphone and try again.';
-      } else if (error.name === 'NotSupportedError') {
+      } else if (err.name === 'NotSupportedError') {
         errorMessage = 'Microphone access not supported in this browser.';
-        showRetryButton = false;
-      } else if (error.name === 'NotReadableError') {
+      } else if (err.name === 'NotReadableError') {
         errorMessage = 'Microphone is already in use by another application.';
-      } else if (error.message.includes('secure context')) {
+      } else if (err.message.includes('secure context')) {
         errorMessage = 'Microphone access requires HTTPS. Please use https://verbfy.com instead of http.';
-        showRetryButton = false;
-      } else if (error.message.includes('permanently denied')) {
-        errorMessage = 'Microphone access permanently blocked. Please enable it in browser settings: Chrome Settings > Privacy > Site Settings > Microphone > Allow.';
-        showRetryButton = false;
-      } else if (error.message.includes('permissions policy')) {
+      } else if (err.message.includes('permanently denied')) {
+        errorMessage = 'Microphone access permanently blocked. Please enable it in browser settings.';
+      } else if (err.message.includes('permissions policy')) {
         errorMessage = 'Permissions policy violation. Please try the User Interaction button or check browser settings.';
       }
       
-      setMicrophoneError({ message: errorMessage, showRetry: showRetryButton });
-      throw error;
+      setError(errorMessage);
+      return null;
     }
   };
 
-  const toggleMute = () => {
+  // Create peer connection
+  const createPeer = (userId: string, initiator: boolean, localStream: MediaStream) => {
+    const peer = new RTCPeerConnection(webrtcConfig);
+    
+    // Add local stream
+    localStream.getTracks().forEach(track => {
+      peer.addTrack(track, localStream);
+    });
+
+    // Handle remote stream
+    peer.ontrack = (event) => {
+      console.log(`🎵 Received audio stream from ${userId}`);
+      
+      const remoteStream = event.streams[0];
+      
+      // Create audio element for remote peer with cross-platform compatibility
+      const audio = document.createElement('audio');
+      audio.srcObject = remoteStream;
+      audio.autoplay = true;
+      audio.volume = 0.8;
+      audio.muted = false;
+      
+      // Cross-platform audio attributes (iOS Safari compatibility)
+      audio.setAttribute('playsinline', 'true');
+      audio.setAttribute('webkit-playsinline', 'true');
+      audio.setAttribute('controls', 'false');
+      audio.setAttribute('preload', 'none');
+      
+      // Store reference
+      audioRefs.current[userId] = audio;
+      
+      // Add to DOM
+      document.body.appendChild(audio);
+      
+      // Update peer state
+      setPeers(prev => ({
+        ...prev,
+        [userId]: {
+          id: userId,
+          name: `User ${userId.slice(0, 4)}`,
+          isMuted: false,
+          isSpeaking: false
+        }
+      }));
+    };
+
+    // Handle ICE candidates
+    peer.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket?.emit('signal', {
+          to: userId,
+          data: {
+            type: 'ice-candidate',
+            candidate: event.candidate
+          }
+        });
+      }
+    };
+
+    // Handle connection state changes
+    peer.onconnectionstatechange = () => {
+      console.log(`🔗 Peer connection state with ${userId}:`, peer.connectionState);
+    };
+
+    peerConnections.current[userId] = peer;
+    return peer;
+  };
+
+  // Handle signaling data
+  const handleSignal = async (data: any) => {
+    const { from, data: signalData } = data;
+    
+    if (!localStreamRef.current) return;
+
+    let peer = peerConnections.current[from];
+    
+    if (!peer) {
+      peer = createPeer(from, false, localStreamRef.current);
+    }
+
+    if (signalData.type === 'offer') {
+      await peer.setRemoteDescription(new RTCSessionDescription(signalData));
+      const answer = await peer.createAnswer();
+      await peer.setLocalDescription(answer);
+      
+      socket?.emit('signal', {
+        to: from,
+        data: {
+          type: 'answer',
+          answer: answer
+        }
+      });
+    } else if (signalData.type === 'answer') {
+      await peer.setRemoteDescription(new RTCSessionDescription(signalData.answer));
+    } else if (signalData.type === 'ice-candidate') {
+      await peer.addIceCandidate(new RTCIceCandidate(signalData.candidate));
+    }
+  };
+
+  // Initialize socket connection
+  useEffect(() => {
+    if (!roomId) return;
+
+    const initSocket = () => {
+      console.log('🔌 Initializing socket connection...');
+      
+      const newSocket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.verbfy.com', {
+        path: '/socket.io',
+        transports: ['websocket', 'polling'],
+        upgrade: true,
+        rememberUpgrade: true,
+        timeout: 20000,
+        forceNew: true
+      });
+
+      newSocket.on('connect', () => {
+        console.log('✅ Socket connected successfully');
+        setIsConnecting(false);
+        setError(null);
+      });
+
+      newSocket.on('connect_error', (err) => {
+        console.error('❌ Socket connection error:', err);
+        setError('Failed to connect to server. Please try again.');
+        setIsConnecting(false);
+      });
+
+      newSocket.on('disconnect', (reason) => {
+        console.log('🔌 Socket disconnected:', reason);
+        if (reason === 'io server disconnect') {
+          // Server disconnected, try to reconnect
+          setTimeout(() => {
+            newSocket.connect();
+          }, 1000);
+        }
+      });
+
+      newSocket.on('userJoined', (userId) => {
+        console.log(`👤 User joined: ${userId}`);
+        
+        if (localStreamRef.current) {
+          const peer = createPeer(userId, true, localStreamRef.current);
+          
+          // Create offer
+          peer.createOffer().then(offer => {
+            peer.setLocalDescription(offer);
+            newSocket.emit('signal', {
+              to: userId,
+              data: {
+                type: 'offer',
+                offer: offer
+              }
+            });
+          });
+        }
+      });
+
+      newSocket.on('userLeft', (userId) => {
+        console.log(`👤 User left: ${userId}`);
+        
+        // Close peer connection
+        if (peerConnections.current[userId]) {
+          peerConnections.current[userId].close();
+          delete peerConnections.current[userId];
+        }
+        
+        // Remove audio element
+        if (audioRefs.current[userId]) {
+          document.body.removeChild(audioRefs.current[userId]);
+          delete audioRefs.current[userId];
+        }
+        
+        // Update peers state
+        setPeers(prev => {
+          const newPeers = { ...prev };
+          delete newPeers[userId];
+          return newPeers;
+        });
+      });
+
+      newSocket.on('signal', handleSignal);
+
+      newSocket.on('roomFull', () => {
+        setError('Room is full (max 5 users)');
+      });
+
+      setSocket(newSocket);
+
+      return newSocket;
+    };
+
+    const newSocket = initSocket();
+
+    return () => {
+      if (newSocket) {
+        newSocket.disconnect();
+      }
+      
+      // Cleanup peer connections
+      Object.values(peerConnections.current).forEach(peer => peer.close());
+      peerConnections.current = {};
+      
+      // Cleanup audio elements
+      Object.values(audioRefs.current).forEach(audio => {
+        if (audio.parentNode) {
+          audio.parentNode.removeChild(audio);
+        }
+      });
+      audioRefs.current = {};
+      
+      // Cleanup local stream
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+        localStreamRef.current = null;
+      }
+    };
+  }, [roomId]);
+
+  // Join room function
+  const joinRoom = async () => {
+    if (!socket || !roomId) return;
+
+    try {
+      const localStream = await requestMic();
+      if (localStream) {
+        socket.emit('joinRoom', roomId);
+        setError(null);
+      }
+    } catch (err) {
+      console.error('Failed to join room:', err);
+      setError('Failed to join room. Please try again.');
+    }
+  };
+
+  // Leave room function
+  const leaveRoom = () => {
+    if (socket) {
+      socket.emit('leaveRoom', roomId);
+    }
+    
+    // Cleanup
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+    
+    setStream(null);
+    setPeers({});
+    router.push('/verbfy-talk');
+  };
+
+  // Toggle microphone
+  const toggleMic = () => {
     if (localStreamRef.current) {
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
-        setIsMuted(!audioTrack.enabled);
+        setIsMicOn(audioTrack.enabled);
       }
     }
   };
 
-  // Alternative method to bypass permissions policy
-  const bypassPermissionsPolicy = async () => {
-    try {
-      console.log('🚀 Attempting to bypass permissions policy...');
-      
-      // Create a hidden audio element to trigger user interaction
-      const audioElement = document.createElement('audio');
-      audioElement.style.display = 'none';
-      document.body.appendChild(audioElement);
-      
-      // Try to play a silent audio file to trigger user interaction
-      try {
-        await audioElement.play();
-        console.log('✅ User interaction triggered via audio play');
-      } catch (playError) {
-        console.log('⚠️ Audio play failed, trying alternative method');
-      }
-      
-      // Remove the audio element
-      document.body.removeChild(audioElement);
-      
-      // Now try to get microphone access
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
-      
-      // If successful, set the stream
-      localStreamRef.current = stream;
-      setMicrophoneError(null);
-      
-      // Initialize audio context
-      audioContextRef.current = new AudioContext();
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      source.connect(analyserRef.current);
-      
-      console.log('✅ Microphone access granted via policy bypass!');
-    } catch (error) {
-      console.error('❌ Policy bypass failed:', error);
-      
-      // Try alternative methods if the first one failed
-      console.log('🔄 Trying alternative bypass methods...');
-      
-      try {
-        // Method 2: Try to create a hidden iframe to bypass policy
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = 'about:blank';
-        document.body.appendChild(iframe);
-        
-        // Try to access microphone from iframe context
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-        if (iframeDoc) {
-          console.log('🔧 Attempting microphone access from iframe context...');
-          // This might bypass some policy restrictions
-        }
-        
-        document.body.removeChild(iframe);
-      } catch (iframeError) {
-        console.log('⚠️ Iframe method failed:', iframeError);
-      }
-      
-      // Method 3: Try multiple audio constraints
-      const audioConstraints = [
-        { audio: true },
-        { audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } },
-        { audio: { sampleRate: 8000, channelCount: 1 } },
-        { audio: { sampleRate: 16000, channelCount: 1 } }
-      ];
-      
-      let stream: MediaStream | null = null;
-      
-      for (const constraints of audioConstraints) {
-        try {
-          console.log(`🎤 Trying audio constraints:`, constraints);
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
-          console.log('✅ Microphone access granted with constraints:', constraints);
-          break;
-        } catch (constraintError) {
-          console.log(`⚠️ Constraints failed:`, constraintError);
-          continue;
-        }
-      }
-      
-      if (stream) {
-        // If successful with alternative constraints, set the stream
-        localStreamRef.current = stream;
-        setMicrophoneError(null);
-        
-        // Initialize audio context
-        audioContextRef.current = new AudioContext();
-        const source = audioContextRef.current.createMediaStreamSource(stream);
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        source.connect(analyserRef.current);
-        
-        console.log('✅ Microphone access granted via alternative constraints!');
-        return;
-      }
-      
-      // If all methods failed
-      setMicrophoneError({ 
-        message: 'All policy bypass methods failed. Please try browser settings or contact support.', 
-        showRetry: true 
-      });
-    }
-  };
-
-  // Chat Functions
-  const sendMessage = () => {
-    if (!newMessage.trim() || !joined) return;
-    
-    const message = {
-      id: Date.now(),
-      text: newMessage.trim(),
-      sender: {
-        id: room?.participants?.find((p: any) => p.isActive)?.userId?._id || 'unknown',
-        name: room?.participants?.find((p: any) => p.isActive)?.userId?.name || 'Unknown'
-      },
-      timestamp: new Date().toISOString()
-    };
-    
-    setChatMessages(prev => [...prev, message]);
-    setNewMessage('');
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  // Push-to-Talk Functions
-  const startPushToTalk = () => {
-    if (localStreamRef.current && !isMuted) {
-      setIsRecording(true);
-      // Enable microphone temporarily
-      const audioTrack = localStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = true;
-      }
-    }
-  };
-
-  const stopPushToTalk = () => {
-    if (localStreamRef.current && isPushToTalk) {
-      setIsRecording(false);
-      // Disable microphone if push-to-talk mode
-      const audioTrack = localStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = false;
-      }
-    }
-  };
-
-  // Microphone Volume Control
-  const handleVolumeChange = (volume: number) => {
-    setMicrophoneVolume(volume);
-    if (localStreamRef.current) {
-      const audioTrack = localStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        // Apply volume gain to audio track
-        const gainNode = audioContextRef.current?.createGain();
-        if (gainNode) {
-          gainNode.gain.value = volume / 100;
-        }
-      }
-    }
-  };
-
-  const handleJoin = async () => {
-    if (!roomId) return;
-    
-    if (room?.isPrivate && !joinPassword) {
-      setShowPasswordModal(true);
-      return;
-    }
-    
-    try {
-      setJoining(true);
-      const res: any = await verbfyTalkAPI.joinRoom(roomId, { password: joinPassword });
-      if (res.success) {
-        setJoined(true);
-        setJoinPassword('');
-        setShowPasswordModal(false);
-        
-        // Initialize WebRTC audio after joining
-        await initializeAudio();
-        
-        // Reload room data to show updated participants
-        const updatedRes = await verbfyTalkAPI.getRoomDetails(roomId);
-        setRoom(updatedRes.data || updatedRes);
-      }
-    } catch (error: any) {
-      console.error('Failed to join room:', error);
-      alert(error.response?.data?.message || 'Failed to join room');
-    } finally {
-      setJoining(false);
-    }
-  };
-
-  const handleLeave = async () => {
-    if (!roomId) return;
-    try {
-      // Stop all audio streams
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      
-      // Close peer connections
-      peerConnectionsRef.current.forEach(connection => connection.close());
-      peerConnectionsRef.current.clear();
-      
-      await verbfyTalkAPI.leaveRoom(roomId);
-      setJoined(false);
-      
-      // Navigate back to rooms list
-      router.push('/verbfy-talk');
-    } catch (error: any) {
-      console.error('Failed to leave room:', error);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getLevelIcon = (level: string) => {
-    switch (level) {
-      case 'Beginner':
-        return <AcademicCapIcon className="w-4 h-4 text-green-500" />;
-      case 'Intermediate':
-        return <AcademicCapIcon className="w-4 h-4 text-yellow-500" />;
-      case 'Advanced':
-        return <AcademicCapIcon className="w-4 h-4 text-red-500" />;
-      default:
-        return <AcademicCapIcon className="w-4 h-4 text-blue-500" />;
-    }
-  };
-
-  if (loading) {
+  if (!roomId) {
     return (
-      <DashboardLayout title="Loading Room...">
-        <div className="p-8 text-center text-gray-500">Loading room details...</div>
-      </DashboardLayout>
-    );
-  }
-
-  if (!room) {
-    return (
-      <DashboardLayout title="Room Not Found">
-        <div className="p-8 text-center text-gray-500">Room not found</div>
+      <DashboardLayout title="VerbfyTalk">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Room Not Found</h1>
+            <p className="text-gray-600 mb-6">The room you're looking for doesn't exist.</p>
+            <button
+              onClick={() => router.push('/verbfy-talk')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Back to Rooms
+            </button>
+          </div>
+        </div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout title={room.name || 'VerbfyTalk Room'}>
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Room Header */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <ChatBubbleLeftRightIcon className="w-8 h-8 text-blue-600" />
-                {room.name}
-              </h1>
-              <p className="text-gray-600 mt-2">{room.description}</p>
+    <>
+      <Head>
+        <title>VerbfyTalk Room - {roomId}</title>
+        <meta name="description" content="Join the conversation in VerbfyTalk" />
+      </Head>
+      
+      <DashboardLayout title={`VerbfyTalk Room: ${roomId}`}>
+        <div className="max-w-4xl mx-auto p-6">
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                  🎤 VerbfyTalk Room
+                </h1>
+                <p className="text-gray-600 mt-1">Room ID: {roomId}</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Maximum 5 participants • Audio only • P2P connection
+                </p>
+              </div>
               
-              <div className="flex items-center gap-4 mt-4 text-sm text-gray-500">
-                <div className="flex items-center gap-2">
-                  {room.isPrivate ? (
-                    <LockClosedIcon className="w-4 h-4" />
-                  ) : (
-                    <GlobeAltIcon className="w-4 h-4" />
-                  )}
-                  <span>{room.isPrivate ? 'Private' : 'Public'}</span>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  {getLevelIcon(room.level)}
-                  <span>{room.level}</span>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <UsersIcon className="w-4 h-4" />
-                  <span>{room.participants?.filter((p: any) => p.isActive).length || 0}/{room.maxParticipants}</span>
-                </div>
-                
-                {room.startedAt && (
-                  <div className="flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4" />
-                    <span>Started {formatDate(room.startedAt)}</span>
-                  </div>
+              <div className="flex items-center gap-3">
+                {!stream ? (
+                  <button
+                    onClick={joinRoom}
+                    disabled={isConnecting}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+                  >
+                    {isConnecting ? 'Connecting...' : '🎧 Join Room'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={leaveRoom}
+                    className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  >
+                    Leave Room
+                  </button>
                 )}
               </div>
             </div>
-            
-            <div className="flex flex-col gap-2">
-              {!joined ? (
-                <button
-                  onClick={handleJoin}
-                  disabled={joining}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
-                >
-                  {joining ? 'Joining...' : 'Join Room'}
-                </button>
-              ) : (
-                <button
-                  onClick={handleLeave}
-                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-                >
-                  Leave Room
-                </button>
-              )}
-            </div>
           </div>
-          
-          {room.topic && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-medium text-blue-900 mb-2">Discussion Topic</h3>
-              <p className="text-blue-800">{room.topic}</p>
-            </div>
-          )}
-        </div>
 
-        {/* Participants */}
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <UsersIcon className="w-5 h-5" />
-            Participants ({room.participants?.filter((p: any) => p.isActive).length || 0})
-          </h2>
-          
-          {/* Audio Controls for joined users */}
-          {joined && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <h3 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
-                <SpeakerWaveIcon className="w-5 h-5" />
-                Voice Chat Controls
-              </h3>
-              
-              {/* Microphone Permission Status */}
-              {!localStreamRef.current ? (
-                <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-yellow-800 text-sm mb-2">
-                    🔒 Microphone access required for voice chat
-                  </p>
-                  
-                  {/* Show error if microphone failed */}
-                  {microphoneError && (
-                    <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-red-800 text-sm mb-2">
-                        ❌ {microphoneError.message}
-                      </p>
-                      {microphoneError.showRetry && (
-                        <button
-                          onClick={() => {
-                            setMicrophoneError(null);
-                            initializeAudio();
-                          }}
-                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                        >
-                          🔄 Try Again
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  
-                  <button
-                    onClick={() => {
-                      setMicrophoneError(null);
-                      initializeAudio();
-                    }}
-                    className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    🎤 Enable Microphone
-                  </button>
-                  
-                  {/* Manual Permission Request */}
-                  <button
-                    onClick={async () => {
-                      try {
-                        // Try to request permission manually
-                        if (navigator.permissions) {
-                          const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-                          if (permission.state === 'prompt') {
-                            // Force a permission prompt
-                            await navigator.mediaDevices.getUserMedia({ audio: true });
-                          }
-                        }
-                      } catch (error) {
-                        console.log('Manual permission request failed:', error);
-                      }
-                    }}
-                    className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors"
-                  >
-                    🔧 Force Permission
-                  </button>
-                  
-                  {/* User Interaction Trigger - Bypass Policy */}
-                  <button
-                    onClick={async () => {
-                      try {
-                        // This button requires explicit user interaction
-                        // which can help bypass permissions policy restrictions
-                        console.log('🎯 User interaction detected, attempting microphone access...');
-                        
-                        // Try to access microphone immediately after user interaction
-                        const stream = await navigator.mediaDevices.getUserMedia({ 
-                          audio: {
-                            echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: true
-                          }
-                        });
-                        
-                        // If successful, set the stream
-                        localStreamRef.current = stream;
-                        setMicrophoneError(null);
-                        
-                        // Initialize audio context
-                        audioContextRef.current = new AudioContext();
-                        const source = audioContextRef.current.createMediaStreamSource(stream);
-                        analyserRef.current = audioContextRef.current.createAnalyser();
-                        source.connect(analyserRef.current);
-                        
-                        console.log('✅ Microphone access granted via user interaction!');
-                      } catch (error) {
-                        console.error('❌ User interaction method failed:', error);
-                        setMicrophoneError({ 
-                          message: 'User interaction method failed. Please try the main Enable Microphone button.', 
-                          showRetry: true 
-                        });
-                      }
-                    }}
-                    className="ml-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    🎯 User Interaction
-                  </button>
-                  
-                  {/* Policy Bypass Button */}
-                  <button
-                    onClick={bypassPermissionsPolicy}
-                    className="ml-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    🚀 Policy Bypass
-                  </button>
-                  
-                  {/* Additional help text */}
-                  <div className="mt-2 text-xs text-yellow-700">
-                    <p><strong>💡 Troubleshooting:</strong></p>
-                    <ul className="list-disc list-inside mt-1 space-y-1">
-                      <li>Make sure you're using HTTPS (https://verbfy.com)</li>
-                      <li>Check browser microphone permissions in settings</li>
-                      <li>Ensure no other apps are using the microphone</li>
-                      <li>Try refreshing the page if permission was denied</li>
-                      <li><strong>If "Permissions policy violation" error:</strong></li>
-                      <li>• Click "User Interaction" button first</li>
-                      <li>• Try "Policy Bypass" button</li>
-                      <li>• Use "Force Permission" button</li>
-                      <li>• Check browser security settings</li>
-                      <li>• Disable any browser extensions blocking permissions</li>
-                      <li>• Try incognito/private browsing mode</li>
-                    </ul>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {/* Basic Controls */}
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={toggleMute}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                        isMuted 
-                          ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
-                      }`}
-                    >
-                      <MicrophoneIcon className={`w-5 h-5 ${isMuted ? 'text-red-600' : 'text-green-600'}`} />
-                      {isMuted ? 'Unmute' : 'Mute'}
-                    </button>
-                    
-                    {/* Push-to-Talk Toggle */}
-                    <button
-                      onClick={() => setIsPushToTalk(!isPushToTalk)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                        isPushToTalk 
-                          ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' 
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      <VideoCameraIcon className="w-5 h-5" />
-                      {isPushToTalk ? 'Push-to-Talk ON' : 'Push-to-Talk OFF'}
-                    </button>
-                  </div>
-                  
-                  {/* Push-to-Talk Button */}
-                  {isPushToTalk && (
-                    <div className="flex items-center gap-3">
-                      <button
-                        onMouseDown={startPushToTalk}
-                        onMouseUp={stopPushToTalk}
-                        onTouchStart={startPushToTalk}
-                        onTouchEnd={stopPushToTalk}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
-                          isRecording 
-                            ? 'bg-red-500 text-white scale-105' 
-                            : 'bg-blue-500 text-white hover:bg-blue-600'
-                        }`}
-                      >
-                        <MicrophoneIcon className="w-5 h-5" />
-                        {isRecording ? 'Recording...' : 'Hold to Talk'}
-                      </button>
-                      <span className="text-sm text-gray-600">
-                        Hold the button while speaking
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* Volume Control */}
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-700 min-w-[80px]">Volume:</span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={microphoneVolume}
-                      onChange={(e) => handleVolumeChange(Number(e.target.value))}
-                      className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                    <span className="text-sm text-gray-600 min-w-[40px]">{microphoneVolume}%</span>
-                  </div>
-                  
-                  {/* Audio Level Indicator */}
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-700 min-w-[80px]">Audio Level:</span>
-                    <div className="flex-1 w-full h-3 bg-gray-200 rounded-lg overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-100 ${
-                          isSpeaking ? 'bg-green-500' : 'bg-blue-500'
-                        }`}
-                        style={{ width: `${Math.min(audioLevel * 2, 100)}%` }}
-                      />
-                    </div>
-                    <span className="text-sm text-gray-600 min-w-[60px]">
-                      {isSpeaking ? 'Speaking' : 'Silent'}
-                    </span>
-                  </div>
-                </div>
-              )}
-              
-              {/* Voice Chat Instructions */}
-              <div className="mt-3 text-xs text-blue-700">
-                <p>💡 <strong>Voice Chat Tips:</strong></p>
-                <ul className="list-disc list-inside mt-1 space-y-1">
-                  <li>Click "Enable Microphone" to start voice chat</li>
-                  <li>Use Mute/Unmute to control your audio</li>
-                  <li>Enable Push-to-Talk for hands-free operation</li>
-                  <li>Adjust volume slider to control microphone sensitivity</li>
-                  <li>Green indicator shows when you're speaking</li>
-                </ul>
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-2">
+                <span className="text-red-600">❌</span>
+                <p className="text-red-800">{error}</p>
               </div>
-            </div>
-          )}
-          
-          {room.participants && room.participants.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {room.participants
-                .filter((p: any) => p.isActive) // Only show active participants
-                .filter((p: any, index: number, arr: any[]) => 
-                  // Remove duplicates by userId
-                  arr.findIndex(participant => participant.userId._id === p.userId._id) === index
-                )
-                .map((participant: any, index: number) => (
-                  <div key={`${participant.userId._id}-${index}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="relative">
-                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
-                        {participant.userId?.name?.charAt(0) || 'U'}
-                      </div>
-                      {/* Speaking indicator */}
-                      {participant.isSpeaking && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{participant.userId?.name || 'Unknown User'}</p>
-                      <p className="text-sm text-gray-500">
-                        Joined {formatDate(participant.joinedAt)}
-                      </p>
-                      {/* Audio status */}
-                      <div className="flex items-center gap-2 mt-1">
-                        <MicrophoneIcon className={`w-4 h-4 ${
-                          participant.isMuted ? 'text-red-500' : 'text-green-500'
-                        }`} />
-                        <span className="text-xs text-gray-500">
-                          {participant.isMuted ? 'Muted' : 'Active'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center py-8">No participants yet</p>
-          )}
-        </div>
-
-        {/* Chat Section */}
-        {joined && (
-          <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <ChatBubbleLeftRightIcon className="w-5 h-5" />
-              Room Chat
-            </h2>
-            
-            {/* Chat Messages */}
-            <div className="h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 mb-3 bg-gray-50">
-              {chatMessages.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">No messages yet. Start the conversation!</p>
-              ) : (
-                <div className="space-y-2">
-                  {chatMessages.map((message) => (
-                    <div key={message.id} className="flex items-start gap-2">
-                      <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
-                        {message.sender.name.charAt(0)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">{message.sender.name}</span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(message.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <p className="text-gray-700">{message.text}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            {/* Chat Input */}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type your message..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={!joined}
-              />
               <button
-                onClick={sendMessage}
-                disabled={!newMessage.trim() || !joined}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={() => setError(null)}
+                className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
               >
-                Send
+                Dismiss
               </button>
             </div>
-            
-            <div className="mt-2 text-xs text-gray-500">
-              💡 Press Enter to send, Shift+Enter for new line
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Password Modal */}
-        {showPasswordModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Enter Room Password</h3>
-              <input
-                type="password"
-                value={joinPassword}
-                onChange={(e) => setJoinPassword(e.target.value)}
-                placeholder="Enter password"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowPasswordModal(false);
-                    setJoinPassword('');
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleJoin}
-                  disabled={joining}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {joining ? 'Joining...' : 'Join'}
-                </button>
+          {/* Connection Status */}
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Connection Status</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${socket?.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-sm text-gray-700">
+                  WebSocket: {socket?.connected ? 'Connected' : 'Disconnected'}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${stream ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                <span className="text-sm text-gray-700">
+                  Microphone: {stream ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${audioContext ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                <span className="text-sm text-gray-700">
+                  Audio Context: {audioContext ? 'Ready' : 'Not Ready'}
+                </span>
               </div>
             </div>
           </div>
-        )}
-      </div>
-    </DashboardLayout>
+
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col items-center justify-center p-8">
+            {/* Join Room Button (if not connected) */}
+            {!stream && !isConnecting && (
+              <div className="text-center mb-8">
+                <div className="bg-white rounded-lg shadow-md p-8 max-w-md mx-auto">
+                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">🎤</span>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                    Join VerbfyTalk Room
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Click the button below to join the audio conversation. You'll need to allow microphone access.
+                  </p>
+                  <button
+                    onClick={joinRoom}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+                  >
+                    🎧 Join Room
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Participants Grid */}
+            {stream && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl w-full">
+                {/* Local User */}
+                <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    {user?.name || 'You'} {isMicOn ? '🎤' : '🔇'}
+                  </h3>
+                  <p className="text-sm text-gray-600">Local</p>
+                  {!isMicOn && (
+                    <div className="mt-2 text-xs text-red-500 bg-red-50 px-2 py-1 rounded">
+                      Microphone Off
+                    </div>
+                  )}
+                </div>
+
+                {/* Remote Users */}
+                {Object.values(peers).map((peer) => (
+                  <div key={peer.id} className="bg-white rounded-lg shadow-md p-6 text-center">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <h3 className="font-semibold text-gray-900 mb-2">
+                      {peer.name} {peer.isMuted ? '🔇' : '🎤'}
+                    </h3>
+                    <p className="text-sm text-gray-600">Remote</p>
+                    {peer.isMuted && (
+                      <div className="mt-2 text-xs text-red-500 bg-red-50 px-2 py-1 rounded">
+                        Muted
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Room Info */}
+            <div className="mt-8 text-center">
+              <div className="bg-white rounded-lg shadow-sm border p-6 max-w-2xl mx-auto">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Room Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                  <div>
+                    <span className="font-medium">Room ID:</span> {roomId}
+                  </div>
+                  <div>
+                    <span className="font-medium">Participants:</span> {Object.keys(peers).length + (stream ? 1 : 0)}/5
+                  </div>
+                  <div>
+                    <span className="font-medium">Connection:</span> P2P WebRTC
+                  </div>
+                  <div>
+                    <span className="font-medium">Audio Quality:</span> High
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Audio Controls */}
+          {stream && (
+            <div className="bg-white rounded-lg shadow-sm border p-6 mt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Audio Controls</h3>
+              <div className="flex items-center justify-center gap-4">
+                <button
+                  onClick={toggleMic}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
+                    isMicOn 
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                      : 'bg-red-100 text-red-700 hover:bg-red-200'
+                  }`}
+                >
+                  {isMicOn ? '🎤 Mute' : '🔇 Unmute'}
+                </button>
+                
+                <button
+                  onClick={leaveRoom}
+                  className="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors bg-red-100 text-red-700 hover:bg-red-200"
+                >
+                  🚪 Leave Room
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </DashboardLayout>
+    </>
   );
 }
