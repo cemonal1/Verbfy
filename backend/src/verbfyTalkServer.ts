@@ -22,12 +22,26 @@ export class VerbfyTalkServer {
     this.io = new SocketIOServer(server, {
       path: '/socket.io',
       cors: {
-        origin: [
-          process.env.FRONTEND_URL || "http://localhost:3000",
-          "https://www.verbfy.com",
-          "https://verbfy.com"
-        ],
-        methods: ["GET", "POST"],
+        origin: (origin, callback) => {
+          const allowedOrigins = [
+            process.env.FRONTEND_URL || "http://localhost:3000",
+            "https://www.verbfy.com",
+            "https://verbfy.com"
+          ];
+          
+          // Allow requests with no origin (mobile apps, etc.)
+          if (!origin) return callback(null, true);
+          
+          // Check if origin is in allowed list
+          if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+          }
+          
+          console.log('❌ VerbfyTalk CORS blocked origin:', origin);
+          console.log('✅ Allowed origins:', allowedOrigins);
+          return callback(new Error('Not allowed by CORS'), false);
+        },
+        methods: ["GET", "POST", "OPTIONS"],
         credentials: true
       },
       transports: ['websocket', 'polling'],

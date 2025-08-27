@@ -257,8 +257,8 @@ export function useVoiceChat(): VoiceChatState & VoiceChatActions {
       const socket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.verbfy.com', {
         path: '/socket.io',
         transports: ['websocket', 'polling'],
-        timeout: 20000,
         forceNew: true,
+        withCredentials: true,
         auth: {
           token
         }

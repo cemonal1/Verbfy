@@ -200,7 +200,19 @@ const socketAllowedOrigins = [
 
 const io = new SocketIOServer(server, {
   cors: {
-    origin: socketAllowedOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, etc.)
+      if (!origin) return callback(null, true);
+      
+      // Check if origin is in allowed list
+      if (socketAllowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      
+      console.log('❌ CORS blocked origin:', origin);
+      console.log('✅ Allowed origins:', socketAllowedOrigins);
+      return callback(new Error('Not allowed by CORS'), false);
+    },
     methods: ['GET', 'POST', 'OPTIONS'],
     credentials: true,
     allowedHeaders: [

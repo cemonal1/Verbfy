@@ -124,10 +124,10 @@ export function ChatProvider({ children }: ChatProviderProps) {
         path: '/socket.io/',
         transports: ['websocket', 'polling'], // Prioritize WebSocket, fallback to polling
         withCredentials: true,
-        timeout: 20000, // 20 second timeout
         reconnectionAttempts: 5, // Maximum 5 reconnection attempts
         reconnectionDelay: 1000, // Start with 1 second delay
         reconnectionDelayMax: 5000, // Maximum 5 second delay
+        forceNew: true, // Force new connection
         auth: {
           token: tokenStorage.getToken() || undefined
         }
