@@ -211,7 +211,7 @@ export function useVoiceChat(): VoiceChatState & VoiceChatActions {
 
   // Handle signaling data
   const handleSignal = useCallback(async (data: any) => {
-    const { from, data: signalData } = data;
+    const { from, signal, userName } = data;
     
     if (!localStreamRef.current) return;
 
@@ -222,22 +222,20 @@ export function useVoiceChat(): VoiceChatState & VoiceChatActions {
     }
 
     try {
-      if (signalData.type === 'offer') {
-        await peer.setRemoteDescription(new RTCSessionDescription(signalData));
+      if (signal.type === 'offer') {
+        await peer.setRemoteDescription(new RTCSessionDescription(signal));
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
         
         socketRef.current?.emit('signal', {
           to: from,
-          data: {
-            type: 'answer',
-            answer: answer
-          }
+          signal: answer,
+          userName: 'User'
         });
-      } else if (signalData.type === 'answer') {
-        await peer.setRemoteDescription(new RTCSessionDescription(signalData.answer));
-      } else if (signalData.type === 'ice-candidate') {
-        await peer.addIceCandidate(new RTCIceCandidate(signalData.candidate));
+      } else if (signal.type === 'answer') {
+        await peer.setRemoteDescription(new RTCSessionDescription(signal));
+      } else if (signal.type === 'ice-candidate') {
+        await peer.addIceCandidate(new RTCIceCandidate(signal.candidate));
       }
     } catch (error) {
       console.error('❌ Error handling signal:', error);
@@ -255,7 +253,7 @@ export function useVoiceChat(): VoiceChatState & VoiceChatActions {
 
     try {
       const socket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.verbfy.com', {
-        path: '/voice-chat',
+        path: '/verbfy-talk',
         transports: ['websocket', 'polling'],
         forceNew: true,
         withCredentials: true,
@@ -304,26 +302,16 @@ export function useVoiceChat(): VoiceChatState & VoiceChatActions {
         }
       });
 
-      socket.on('authenticated', (data) => {
-        console.log('✅ User authenticated:', data);
-      });
-
-      socket.on('authentication_error', (data) => {
-        console.error('❌ Authentication error:', data);
-        setState(prev => ({
-          ...prev,
-          error: 'Authentication failed. Please try again.',
-          isConnecting: false,
-          connectionStatus: 'error'
-        }));
-      });
-
       socket.on('roomJoined', (data) => {
         console.log('🏠 Joined room:', data);
         setState(prev => ({
           ...prev,
           currentRoom: data.roomId,
-          users: data.users
+          users: data.users.map((u: any) => ({
+            id: u.userId,
+            name: u.userName,
+            socketId: u.userId
+          }))
         }));
       });
 
@@ -331,22 +319,20 @@ export function useVoiceChat(): VoiceChatState & VoiceChatActions {
         console.log('👤 User joined:', data);
         setState(prev => ({
           ...prev,
-          users: [...prev.users, { id: data.userId, name: data.userName, socketId: data.socketId }]
+          users: [...prev.users, { id: data.userId, name: data.userName, socketId: data.userId }]
         }));
 
         // Create peer connection for new user
         if (localStreamRef.current) {
-          const peer = createPeerConnection(data.socketId, true);
+          const peer = createPeerConnection(data.userId, true);
           
           // Create offer
           peer.createOffer().then(offer => {
             peer.setLocalDescription(offer);
             socket.emit('signal', {
-              to: data.socketId,
-              data: {
-                type: 'offer',
-                offer: offer
-              }
+              to: data.userId,
+              signal: offer,
+              userName: 'User'
             });
           }).catch(error => {
             console.error('❌ Error creating offer:', error);
@@ -354,25 +340,25 @@ export function useVoiceChat(): VoiceChatState & VoiceChatActions {
         }
       });
 
-      socket.on('userLeft', (data) => {
-        console.log('👋 User left:', data);
+      socket.on('userLeft', (socketId) => {
+        console.log('👋 User left:', socketId);
         setState(prev => ({
           ...prev,
-          users: prev.users.filter(user => user.socketId !== data.socketId)
+          users: prev.users.filter(user => user.socketId !== socketId)
         }));
 
         // Close peer connection
-        const peer = peerConnectionsRef.current.get(data.socketId);
+        const peer = peerConnectionsRef.current.get(socketId);
         if (peer) {
           peer.close();
-          peerConnectionsRef.current.delete(data.socketId);
+          peerConnectionsRef.current.delete(socketId);
         }
 
         // Remove audio element
-        const audio = audioRefsRef.current.get(data.socketId);
+        const audio = audioRefsRef.current.get(socketId);
         if (audio && audio.parentNode) {
           audio.parentNode.removeChild(audio);
-          audioRefsRef.current.delete(data.socketId);
+          audioRefsRef.current.delete(socketId);
         }
       });
 
@@ -395,9 +381,6 @@ export function useVoiceChat(): VoiceChatState & VoiceChatActions {
       });
 
       socketRef.current = socket;
-
-      // Authenticate
-      socket.emit('authenticate', { token });
 
     } catch (error) {
       console.error('❌ Connection failed:', error);
@@ -462,7 +445,7 @@ export function useVoiceChat(): VoiceChatState & VoiceChatActions {
         return;
       }
 
-      socketRef.current.emit('joinRoom', { roomId });
+      socketRef.current.emit('joinVerbfyTalkRoom', { roomId });
     } catch (error) {
       console.error('❌ Failed to join room:', error);
       setState(prev => ({ ...prev, error: 'Failed to join room' }));
@@ -472,7 +455,7 @@ export function useVoiceChat(): VoiceChatState & VoiceChatActions {
   // Leave room
   const leaveRoom = useCallback(() => {
     if (socketRef.current && state.currentRoom) {
-      socketRef.current.emit('leaveRoom');
+      socketRef.current.emit('leaveVerbfyTalkRoom', { roomId: state.currentRoom });
     }
 
     // Cleanup peer connections

@@ -42,13 +42,70 @@ export class VerbfyTalkServer {
           return callback(new Error('Not allowed by CORS'), false);
         },
         methods: ["GET", "POST", "OPTIONS"],
-        credentials: true
+        credentials: true,
+        allowedHeaders: [
+          'Content-Type', 
+          'Authorization', 
+          'X-Requested-With',
+          'Upgrade',
+          'Connection',
+          'Sec-WebSocket-Key',
+          'Sec-WebSocket-Version',
+          'Sec-WebSocket-Protocol'
+        ]
       },
       transports: ['websocket', 'polling'],
       pingTimeout: 60000,
       pingInterval: 25000,
       allowEIO3: true,
-      maxHttpBufferSize: 1e6
+      maxHttpBufferSize: 1e6,
+      allowRequest: (req, callback) => {
+        console.log('🔌 VerbfyTalk connection request:', {
+          origin: req.headers.origin,
+          upgrade: req.headers.upgrade,
+          connection: req.headers.connection,
+          userAgent: req.headers['user-agent']
+        });
+        callback(null, true);
+      }
+    });
+
+    // Add authentication middleware
+    this.io.use((socket, next) => {
+      try {
+        let token = (socket.handshake.auth && (socket.handshake.auth as any).token) as string | undefined;
+        
+        // Fallback to accessToken cookie if no auth token provided
+        if (!token && typeof socket.handshake.headers?.cookie === 'string') {
+          const cookieHeader = socket.handshake.headers.cookie as string;
+          const parts = cookieHeader.split(';').map(p => p.trim());
+          for (const part of parts) {
+            if (part.startsWith('accessToken=')) {
+              token = decodeURIComponent(part.substring('accessToken='.length));
+              break;
+            }
+          }
+        }
+
+        if (!token) {
+          console.log('🔌 VerbfyTalk connection attempt without token');
+          return next(new Error('Unauthorized - No token provided'));
+        }
+
+        const { verifyToken } = require('../utils/jwt');
+        try {
+          const payload = verifyToken(token);
+          (socket as any).user = payload;
+          console.log('🔌 VerbfyTalk authenticated for user:', payload.id);
+          next();
+        } catch (jwtError: any) {
+          console.log('🔌 VerbfyTalk JWT verification failed:', jwtError.message);
+          return next(new Error('Unauthorized - Invalid token'));
+        }
+      } catch (e) {
+        console.error('🔌 VerbfyTalk middleware error:', e);
+        return next(new Error('Unauthorized - Middleware error'));
+      }
     });
 
     this.setupEventHandlers();
@@ -112,10 +169,11 @@ export class VerbfyTalkServer {
       room.users.add(socket.id);
       this.userRooms.set(socket.id, roomId);
 
-      // Get user info (you might want to get this from authentication)
+      // Get user info from authentication
+      const user = (socket as any).user;
       const userInfo = {
-        userId: socket.id,
-        userName: 'User-' + socket.id.slice(-4), // Fallback name
+        userId: user?.id || socket.id,
+        userName: user?.name || 'User-' + socket.id.slice(-4),
         roomId
       };
 
