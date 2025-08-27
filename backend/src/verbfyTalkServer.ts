@@ -20,7 +20,7 @@ export class VerbfyTalkServer {
 
   constructor(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
-      path: '/socket.io',
+      path: '/verbfy-talk',
       cors: {
         origin: (origin, callback) => {
           const allowedOrigins = [

@@ -255,7 +255,7 @@ export function useVoiceChat(): VoiceChatState & VoiceChatActions {
 
     try {
       const socket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.verbfy.com', {
-        path: '/socket.io',
+        path: '/voice-chat',
         transports: ['websocket', 'polling'],
         forceNew: true,
         withCredentials: true,
