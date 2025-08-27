@@ -32,7 +32,7 @@ export class VoiceChatServer {
 
   constructor(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
-      path: '/socket.io',
+      path: '/voice-chat',
       cors: {
         origin: (origin, callback) => {
           const allowedOrigins = [
