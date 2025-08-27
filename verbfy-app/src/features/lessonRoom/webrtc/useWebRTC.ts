@@ -218,7 +218,7 @@ export function useWebRTC(roomId: string, peerIds: PeerIds, participantPeerIds: 
       audioTracks.forEach(track => {
         track.enabled = !track.enabled;
       });
-      setIsMicOn(!isMicOn);
+    setIsMicOn(!isMicOn);
       console.log(`🎤 Microphone ${!isMicOn ? 'enabled' : 'disabled'}`);
     }
   }, [isMicOn]);
@@ -230,7 +230,7 @@ export function useWebRTC(roomId: string, peerIds: PeerIds, participantPeerIds: 
       videoTracks.forEach(track => {
         track.enabled = !track.enabled;
       });
-      setIsCameraOn(!isCameraOn);
+    setIsCameraOn(!isCameraOn);
       console.log(`📹 Camera ${!isCameraOn ? 'enabled' : 'disabled'}`);
     }
   }, [isCameraOn]);
