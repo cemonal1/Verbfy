@@ -8,6 +8,8 @@ import path from 'path';
 import fs from 'fs';
 import { Server as SocketIOServer } from 'socket.io';
 import { connectDB } from './config/db';
+import { createVerbfyTalkServer } from './verbfyTalkServer';
+import { createVoiceChatServer } from './voiceChatServer';
 import { validateEnvironment } from './config/env';
 import { apiLimiter, authLimiter } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -228,6 +230,10 @@ const io = new SocketIOServer(server, {
     callback(null, true);
   }
 });
+
+// Initialize VerbfyTalk P2P Audio Server
+const verbfyTalkServer = createVerbfyTalkServer(server);
+const voiceChatServer = createVoiceChatServer(server);
 
 // Add permissions policy headers for microphone access
 app.use((req, res, next) => {
