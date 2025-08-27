@@ -255,9 +255,62 @@ const io = new SocketIOServer(server, {
   }
 });
 
-// Initialize VerbfyTalk P2P Audio Server
+// Initialize Socket.IO servers
 const verbfyTalkServer = createVerbfyTalkServer(server);
 const voiceChatServer = createVoiceChatServer(server);
+
+// Main Socket.IO server for general chat and notifications
+const mainIo = new SocketIOServer(server, {
+  path: '/socket.io',
+  cors: {
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        process.env.FRONTEND_URL || "http://localhost:3000",
+        "https://www.verbfy.com",
+        "https://verbfy.com"
+      ];
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      console.log('❌ Main Socket.IO CORS blocked origin:', origin);
+      return callback(new Error('Not allowed by CORS'), false);
+    },
+    methods: ["GET", "POST", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: [
+      "Origin",
+      "X-Requested-With",
+      "Content-Type",
+      "Accept",
+      "Authorization",
+      "X-CSRF-Token"
+    ]
+  },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  allowEIO3: true,
+  maxHttpBufferSize: 1e6
+});
+
+// Main namespace for general chat
+mainIo.of('/chat').on('connection', (socket) => {
+  console.log('🔌 Main chat connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('🔌 Main chat disconnected:', socket.id);
+  });
+});
+
+// Main namespace for notifications
+mainIo.of('/notifications').on('connection', (socket) => {
+  console.log('🔌 Main notifications connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('🔌 Main notifications disconnected:', socket.id);
+  });
+});
 
 // Add permissions policy headers for microphone access
 app.use((req, res, next) => {
