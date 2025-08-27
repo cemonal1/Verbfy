@@ -121,7 +121,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     if (isAuthenticated && user) {
       const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
       const socket = io(base, {
-        path: '/socket.io/',
+        path: '/chat',
         transports: ['websocket', 'polling'], // Prioritize WebSocket, fallback to polling
         withCredentials: true,
         reconnectionAttempts: 5, // Maximum 5 reconnection attempts

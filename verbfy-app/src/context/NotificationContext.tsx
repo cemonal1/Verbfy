@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
 import { tokenStorage } from '../utils/secureStorage';
@@ -112,119 +112,27 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const { user, isAuthenticated } = useAuth();
   const socketRef = useRef<Socket | null>(null);
 
-  // Create socket with optimized settings to avoid WebSocket warnings
-  const createSocket = useCallback((tok: string | null) => {
-    if (!tok) {
-      console.log('🔌 No token available, skipping socket creation');
-      return null;
-    }
+  const token = useMemo(() => tokenStorage.getToken(), []);
 
+  const socket = useMemo(() => {
+    if (!token) return null;
+    
     console.log('🔌 Creating socket with token');
     
-    const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
-    
-    const createdSocket = io(base, {
-      path: '/socket.io/',
-      transports: ['websocket', 'polling'], // Prioritize WebSocket, fallback to polling
+    return io(process.env.NEXT_PUBLIC_API_URL || 'https://api.verbfy.com', {
+      path: '/notifications',
+      transports: ['websocket', 'polling'],
+      forceNew: true,
       withCredentials: true,
-      auth: { token: tok },
-      autoConnect: false,
-      reconnection: true,
-      reconnectionAttempts: 15,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 10000,
-      forceNew: true, // Force new connection
       upgrade: true,
-      rememberUpgrade: true
-    });
-
-    // Connection event handlers
-    createdSocket.on('connect', () => {
-      console.log('🔌 Socket connected successfully via polling');
-      
-      // After successful connection, try to upgrade to websocket silently
-      setTimeout(() => {
-        try {
-          console.log('🔄 Socket connected and ready for real-time communication');
-        } catch (e) {
-          console.log('Socket setup completed');
-        }
-      }, 1000);
-      
-      // Join user's notification room
-      if (user?._id) {
-        createdSocket.emit('joinNotificationRoom', user._id);
+      rememberUpgrade: true,
+      auth: {
+        token: token
       }
     });
+  }, [token]);
 
-    createdSocket.on('connect_error', (error) => {
-      console.log('🔌 Socket connection error (expected during initial setup):', error.message);
-      // Don't show error to user, this is normal during connection setup
-    });
 
-    createdSocket.on('disconnect', (reason) => {
-      console.log('🔌 Socket disconnected:', reason);
-      if (reason === 'io server disconnect') {
-        console.log('🔄 Server disconnected, attempting reconnect...');
-        setTimeout(() => {
-          createdSocket.connect();
-        }, 1000);
-      }
-    });
-
-    createdSocket.on('reconnect', (attemptNumber) => {
-      console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
-      if (user?._id) {
-        createdSocket.emit('joinNotificationRoom', user._id);
-      }
-    });
-
-    createdSocket.on('reconnect_error', (error) => {
-      console.log('🔄 Socket reconnection attempt failed:', error.message);
-    });
-
-    createdSocket.on('reconnect_failed', () => {
-      console.log('🔄 Socket reconnection failed after all attempts');
-      // Try to create a new socket
-      setTimeout(() => {
-        if (tok) {
-          const newSocket = createSocket(tok);
-          if (newSocket) {
-            // setSocket(newSocket); // This line was removed as per the new_code, as the variable 'setSocket' is not defined.
-          }
-        }
-      }, 5000);
-    });
-
-    // Listen for new notifications
-    createdSocket.on('notification:new', (data: { notification: Notification }) => {
-      addNotification(data.notification);
-    });
-
-    // Listen for notification updates
-    createdSocket.on('notification:updated', (data: { notification: Notification }) => {
-      dispatch({
-        type: 'UPDATE_NOTIFICATION',
-        payload: data.notification
-      });
-    });
-
-    // Listen for notification deletions
-    createdSocket.on('notification:deleted', (data: { id: string }) => {
-      dispatch({
-        type: 'DELETE_NOTIFICATION',
-        payload: data.id
-      });
-    });
-
-    // Connect with delay to ensure token is fully processed
-    setTimeout(() => {
-      console.log('🔌 Initiating socket connection...');
-      createdSocket.connect();
-    }, 500);
-    
-    return createdSocket;
-  }, [user?._id]);
 
   // Fetch notifications from API
   const fetchNotifications = async (filters: NotificationFilters = {}) => {
@@ -368,39 +276,79 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
   // Socket.IO connection and event listeners for real-time notifications
   useEffect(() => {
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated || !user || !socket) return;
 
-    let isActive = true;
-    let localSocket: Socket | null = null;
-
-    (async () => {
-      let tok = tokenStorage.getToken();
-      if (!tok) {
+    console.log('🔌 Initiating socket connection...');
+    
+    // Set up event listeners
+    socket.on('connect', () => {
+      console.log('🔌 Socket connected successfully via polling');
+      
+      // After successful connection, try to upgrade to websocket silently
+      setTimeout(() => {
         try {
-          const r = await authAPI.refreshToken();
-          const access = r?.data?.accessToken;
-          if (access) { 
-            tokenStorage.setToken(access); 
-            tok = access; 
-          }
-        } catch (_) {
-          console.warn('Could not refresh token for socket connection');
-          return;
+          console.log('🔄 Socket connected and ready for real-time communication');
+        } catch (e) {
+          console.log('Socket setup completed');
         }
+      }, 1000);
+      
+      // Join user's notification room
+      if (user?._id) {
+        socket.emit('joinNotificationRoom', user._id);
       }
+    });
 
-      if (!isActive) return;
+    socket.on('connect_error', (error) => {
+      console.log('🔌 Socket connection error (expected during initial setup):', error.message);
+      // Don't show error to user, this is normal during connection setup
+    });
 
-      const socket = createSocket(tok);
-      if (socket) {
-        localSocket = socket;
-        socketRef.current = socket;
+    socket.on('disconnect', (reason) => {
+      console.log('🔌 Socket disconnected:', reason);
+      if (reason === 'io server disconnect') {
+        console.log('🔄 Server disconnected, attempting reconnect...');
+        setTimeout(() => {
+          socket.connect();
+        }, 1000);
       }
-    })();
+    });
+
+    socket.on('reconnect', (attemptNumber) => {
+      console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
+      if (user?._id) {
+        socket.emit('joinNotificationRoom', user._id);
+      }
+    });
+
+    // Listen for new notifications
+    socket.on('notification:new', (data: { notification: Notification }) => {
+      addNotification(data.notification);
+    });
+
+    // Listen for notification updates
+    socket.on('notification:updated', (data: { notification: Notification }) => {
+      dispatch({
+        type: 'UPDATE_NOTIFICATION',
+        payload: data.notification
+      });
+    });
+
+    // Listen for notification deletions
+    socket.on('notification:deleted', (data: { id: string }) => {
+      dispatch({
+        type: 'DELETE_NOTIFICATION',
+        payload: data.id
+      });
+    });
+
+    // Connect the socket
+    socket.connect();
+    
+    // Store reference
+    socketRef.current = socket;
 
     return () => {
-      isActive = false;
-      const socket = socketRef.current || localSocket;
       if (socket) {
         socket.off('connect');
         socket.off('connect_error');
@@ -415,7 +363,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       }
       socketRef.current = null;
     };
-  }, [isAuthenticated, user, createSocket]);
+  }, [isAuthenticated, user, socket]);
 
   // Initial load - only when user is authenticated
   useEffect(() => {
