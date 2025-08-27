@@ -125,7 +125,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     
     const createdSocket = io(base, {
       path: '/socket.io/',
-      transports: ['polling'], // Start with polling only to avoid websocket warnings
+      transports: ['websocket', 'polling'], // Prioritize WebSocket, fallback to polling
       withCredentials: true,
       auth: { token: tok },
       autoConnect: false,
@@ -133,8 +133,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       reconnectionAttempts: 15,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
-      timeout: 30000,
-      forceNew: true,
+      forceNew: true, // Force new connection
       upgrade: true,
       rememberUpgrade: true
     });
