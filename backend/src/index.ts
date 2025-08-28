@@ -343,6 +343,125 @@ mainIo.of('/notifications').on('connection', (socket) => {
 mainIo.of('/verbfy-talk').on('connection', (socket) => {
   console.log('🔌 VerbfyTalk connected:', socket.id);
   
+  // Join room
+  socket.on('room:join', (data: { roomId: string }) => {
+    console.log('🎤 User joining room:', data.roomId);
+    socket.join(data.roomId);
+    
+    // Create room object with current user
+    const room: any = {
+      id: data.roomId,
+      name: `Room ${data.roomId}`,
+      participants: [{
+        id: socket.id,
+        name: `User ${socket.id.slice(0, 6)}`,
+        isMuted: false,
+        isSpeaking: false,
+        audioLevel: 0
+      }],
+      maxParticipants: 5,
+      isActive: true
+    };
+    
+    socket.emit('room:joined', room);
+    
+    // Notify other participants
+    socket.to(data.roomId).emit('participant:joined', { 
+      id: socket.id, 
+      name: `User ${socket.id.slice(0, 6)}`, 
+      isSpeaking: false, 
+      isMuted: false,
+      audioLevel: 0
+    });
+  });
+  
+  // Leave room
+  socket.on('room:leave', (data: { roomId: string }) => {
+    console.log('🎤 User leaving room:', data.roomId);
+    socket.leave(data.roomId);
+    socket.emit('room:left');
+    
+    // Notify other participants
+    socket.to(data.roomId).emit('participant:left', socket.id);
+  });
+  
+  // Create room
+  socket.on('room:create', (data: { name: string }, callback: (response: any) => void) => {
+    const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('🎤 Creating room:', roomId, data.name);
+    
+    socket.join(roomId);
+    callback({ success: true, roomId });
+    
+    const room: any = {
+      id: roomId,
+      name: data.name,
+      participants: [{
+        id: socket.id,
+        name: `User ${socket.id.slice(0, 6)}`,
+        isMuted: false,
+        isSpeaking: false,
+        audioLevel: 0
+      }],
+      maxParticipants: 5,
+      isActive: true
+    };
+    
+    socket.emit('room:joined', room);
+    
+    // Broadcast room creation to all clients
+    mainIo.of('/verbfy-talk').emit('room:created', room);
+  });
+  
+  // Get rooms list
+  socket.on('rooms:get', () => {
+    // For now, return empty list - implement room management later
+    socket.emit('rooms:list', []);
+  });
+  
+  // WebRTC signaling
+  socket.on('webrtc:offer', (data: { to: string; offer: any }) => {
+    console.log('📡 WebRTC offer from', socket.id, 'to', data.to);
+    socket.to(data.to).emit('webrtc:offer', { from: socket.id, offer: data.offer });
+  });
+  
+  socket.on('webrtc:answer', (data: { to: string; answer: any }) => {
+    console.log('📡 WebRTC answer from', socket.id, 'to', data.to);
+    socket.to(data.to).emit('webrtc:answer', { from: socket.id, answer: data.answer });
+  });
+  
+  socket.on('webrtc:ice-candidate', (data: { to: string; candidate: any }) => {
+    console.log('📡 ICE candidate from', socket.id, 'to', data.to);
+    socket.to(data.to).emit('webrtc:ice-candidate', { from: socket.id, candidate: data.candidate });
+  });
+  
+  // WebRTC connection established
+  socket.on('webrtc:connection:established', (data: { peerId: string }) => {
+    console.log('🔗 WebRTC connection established between', socket.id, 'and', data.peerId);
+    socket.to(data.peerId).emit('webrtc:connection:established', { peerId: socket.id });
+  });
+  
+  // Participant mute/unmute
+  socket.on('participant:mute', (data: { roomId: string; isMuted: boolean }) => {
+    console.log('🎤 Participant', socket.id, 'mute state:', data.isMuted);
+    socket.to(data.roomId).emit('participant:mute', { participantId: socket.id, isMuted: data.isMuted });
+  });
+  
+  // Chat messages
+  socket.on('message:send', (data: { roomId: string; content: string }) => {
+    const message = {
+      id: Date.now().toString(),
+      sender: `User ${socket.id.slice(0, 6)}`,
+      content: data.content,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('💬 Message in room', data.roomId, ':', data.content);
+    
+    // Broadcast to all participants in the room
+    mainIo.of('/verbfy-talk').to(data.roomId).emit('message:new', message);
+  });
+  
   socket.on('disconnect', () => {
     console.log('🔌 VerbfyTalk disconnected:', socket.id);
   });
