@@ -47,6 +47,20 @@ pm2 delete verbfy-backend 2>/dev/null || true
 echo "🚀 Starting Verbfy backend with ecosystem config..."
 pm2 start ecosystem.config.js
 
+# Verify environment variables are loaded
+echo "🔍 Checking environment variables..."
+if [ -z "$MONGO_URI" ]; then
+    echo "❌ MONGO_URI not found in .env file!"
+    exit 1
+fi
+
+if [ -z "$JWT_SECRET" ]; then
+    echo "❌ JWT_SECRET not found in .env file!"
+    exit 1
+fi
+
+echo "✅ Environment variables loaded successfully"
+
 # Save PM2 configuration
 echo "💾 Saving PM2 configuration..."
 pm2 save

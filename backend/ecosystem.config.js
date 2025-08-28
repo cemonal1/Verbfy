@@ -1,5 +1,4 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 module.exports = {
   apps: [
@@ -13,25 +12,9 @@ module.exports = {
       max_memory_restart: '1G',
       env: {
         NODE_ENV: 'production',
-        PORT: process.env.PORT || 5000,
-        MONGO_URI: process.env.MONGO_URI,
-        JWT_SECRET: process.env.JWT_SECRET,
-        JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
-        FRONTEND_URL: process.env.FRONTEND_URL,
-        CORS_ORIGIN: process.env.CORS_ORIGIN,
-        LIVEKIT_CLOUD_URL: process.env.LIVEKIT_CLOUD_URL,
-        LIVEKIT_CLOUD_API_KEY: process.env.LIVEKIT_CLOUD_API_KEY,
-        LIVEKIT_CLOUD_API_SECRET: process.env.LIVEKIT_CLOUD_API_SECRET,
-        SESSION_SECRET: process.env.SESSION_SECRET,
-        SMTP_HOST: process.env.SMTP_HOST,
-        SMTP_PORT: process.env.SMTP_PORT,
-        SMTP_USER: process.env.SMTP_USER,
-        SMTP_PASS: process.env.SMTP_PASS,
-        STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-        STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-        REDIS_URL: process.env.REDIS_URL,
-        LOG_LEVEL: process.env.LOG_LEVEL || 'info',
-        SENTRY_DSN: process.env.SENTRY_DSN
+        PORT: 5000
+        // ⚠️ SECRET'LAR .env DOSYASINDAN OTOMATIK YÜKLENİR
+        // Bu dosyada secret'ları yazmıyoruz!
       },
       error_file: './logs/err.log',
       out_file: './logs/out.log',
