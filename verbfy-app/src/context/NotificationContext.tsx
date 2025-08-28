@@ -120,7 +120,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     console.log('🔌 Creating socket with token');
     
     return io(process.env.NEXT_PUBLIC_API_URL || 'https://api.verbfy.com', {
-      path: '/notifications',
+      path: '/socket.io',
       transports: ['websocket', 'polling'],
       forceNew: true,
       withCredentials: true,
