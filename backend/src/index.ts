@@ -82,6 +82,33 @@ const allowedOrigins = [
   ...(process.env.NODE_ENV === 'production' ? productionOrigins : [])
 ];
 
+// Enhanced CORS configuration
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    console.log('❌ CORS blocked origin:', origin);
+    return callback(new Error('Not allowed by CORS'), false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With',
+    'X-CSRF-Token',
+    'Origin',
+    'Accept'
+  ],
+  exposedHeaders: ['X-CSRF-Token']
+}));
+
 console.log('🔧 CORS Setup - Allowed origins:', allowedOrigins);
 console.log('🔧 CORS Setup - Node ENV:', process.env.NODE_ENV);
 console.log('🔧 CORS Setup - Frontend URL:', process.env.FRONTEND_URL);
@@ -309,6 +336,15 @@ mainIo.of('/notifications').on('connection', (socket) => {
   
   socket.on('disconnect', () => {
     console.log('🔌 Main notifications disconnected:', socket.id);
+  });
+});
+
+// VerbfyTalk namespace
+mainIo.of('/verbfy-talk').on('connection', (socket) => {
+  console.log('🔌 VerbfyTalk connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('🔌 VerbfyTalk disconnected:', socket.id);
   });
 });
 
