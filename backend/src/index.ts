@@ -499,10 +499,10 @@ io.use((socket, next) => {
 
     const { verifyToken } = require('./utils/jwt');
     try {
-      const payload = verifyToken(token);
-      (socket as any).user = payload;
+    const payload = verifyToken(token);
+    (socket as any).user = payload;
       console.log('🔌 Socket authenticated for user:', payload.id);
-      next();
+    next();
     } catch (jwtError: any) {
       console.log('🔌 Socket JWT verification failed:', jwtError.message);
       return next(new Error('Unauthorized - Invalid token'));
@@ -552,7 +552,7 @@ if (process.env.NODE_ENV === 'development') {
 // Enhanced health check endpoint
 app.get('/api/health', (_req, res) => {
   res.json({ 
-    status: 'ok',
+    status: 'ok', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
     cors: {

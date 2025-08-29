@@ -46,7 +46,6 @@ const requiredEnvVars: RequiredEnvVars = {
 
 export const validateEnvironment = (): void => {
   const missingVars: string[] = [];
-  const invalidVars: string[] = [];
 
   console.log('🔍 Validating environment variables...');
 
@@ -56,8 +55,6 @@ export const validateEnvironment = (): void => {
     
     if (config.required && !value) {
       missingVars.push(varName);
-    } else if (value && config.example && value === config.example) {
-      invalidVars.push(varName);
     }
   }
 
@@ -72,15 +69,6 @@ export const validateEnvironment = (): void => {
       }
     });
     throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
-  }
-
-  // Report invalid variables (using example values)
-  if (invalidVars.length > 0) {
-    console.warn('⚠️  Environment variables using example values:');
-    invalidVars.forEach(varName => {
-      const config = requiredEnvVars[varName];
-      console.warn(`   - ${varName}: Please replace with actual value`);
-    });
   }
 
   // Validate specific variables
