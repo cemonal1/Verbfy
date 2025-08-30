@@ -122,12 +122,15 @@ export function ChatProvider({ children }: ChatProviderProps) {
       const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
       const socket = io(base, {
         path: '/socket.io',
-        transports: ['websocket', 'polling'], // Prioritize WebSocket, fallback to polling
+        transports: ['polling', 'websocket'], // Start with polling, then upgrade to WebSocket
         withCredentials: true,
         reconnectionAttempts: 5, // Maximum 5 reconnection attempts
         reconnectionDelay: 1000, // Start with 1 second delay
         reconnectionDelayMax: 5000, // Maximum 5 second delay
         forceNew: true, // Force new connection
+        upgrade: true, // Allow transport upgrade
+        rememberUpgrade: true, // Remember successful upgrades
+        timeout: 20000, // Connection timeout
         auth: {
           token: tokenStorage.getToken() || undefined
         }

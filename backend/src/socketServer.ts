@@ -152,7 +152,17 @@ export const setupSocketServer = (server: HTTPServer) => {
     pingTimeout: 60000,
     pingInterval: 25000,
     upgradeTimeout: 30000,
-    maxHttpBufferSize: 1e6
+    maxHttpBufferSize: 1e6,
+    allowUpgrades: true,
+    perMessageDeflate: false, // Disable compression for better compatibility
+    httpCompression: true,
+    cors: {
+      origin: process.env.NODE_ENV === 'production' 
+        ? process.env.FRONTEND_URL 
+        : "http://localhost:3000",
+      credentials: true,
+      methods: ["GET", "POST"]
+    }
   });
 
   // Authentication middleware
