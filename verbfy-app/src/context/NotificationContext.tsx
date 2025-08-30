@@ -121,11 +121,12 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     
     return io(process.env.NEXT_PUBLIC_API_URL || 'https://api.verbfy.com', {
       path: '/socket.io',
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'], // Start with polling, then upgrade to WebSocket
       forceNew: true,
       withCredentials: true,
       upgrade: true,
       rememberUpgrade: true,
+      timeout: 20000, // Connection timeout
       auth: {
         token: token
       }
