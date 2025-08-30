@@ -230,7 +230,9 @@ const mainIo = new SocketIOServer(server, {
   maxHttpBufferSize: 1e6,
   allowUpgrades: true,
   upgradeTimeout: 10000,
-  connectTimeout: 45000
+  connectTimeout: 45000,
+  // Better WebSocket handling
+  perMessageDeflate: false
 });
 
 // Socket interface with user property
