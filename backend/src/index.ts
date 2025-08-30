@@ -144,6 +144,14 @@ try {
 // Security middleware
 const isDev = process.env.NODE_ENV !== 'production';
 const allowedFrames = (process.env.ALLOWED_FRAME_SRC || '').split(',').map(s => s.trim()).filter(Boolean);
+
+// Add microphone permission headers
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'microphone=*, camera=*, geolocation=*');
+  res.setHeader('Feature-Policy', 'microphone *; camera *; geolocation *');
+  next();
+});
+
 const cspDirectives: any = {
   defaultSrc: ["'self'"],
   styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],

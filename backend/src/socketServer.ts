@@ -146,7 +146,13 @@ export const setupSocketServer = (server: HTTPServer) => {
         ? process.env.FRONTEND_URL 
         : "http://localhost:3000",
       credentials: true
-    }
+    },
+    transports: ['polling', 'websocket'],
+    allowEIO3: true,
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    upgradeTimeout: 30000,
+    maxHttpBufferSize: 1e6
   });
 
   // Authentication middleware

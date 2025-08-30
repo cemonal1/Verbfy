@@ -49,7 +49,19 @@ export function useWebRTC(roomId: string, peerIds: PeerIds, participantPeerIds: 
         throw new Error('getUserMedia is not supported in this browser');
       }
 
-      // Request both audio and video
+      // Check microphone permission status
+      try {
+        const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        console.log('🔍 Microphone permission status:', permissionStatus.state);
+        
+        if (permissionStatus.state === 'denied') {
+          console.log('⚠️ Could not check permission status, proceeding with getUserMedia');
+        }
+      } catch (permissionError) {
+        console.log('⚠️ Could not check permission status, proceeding with getUserMedia');
+      }
+
+      // Request both audio and video with better error handling
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
