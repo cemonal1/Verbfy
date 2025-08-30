@@ -239,15 +239,40 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
   // Audio controls
   const requestMicrophone = useCallback(async (): Promise<boolean> => {
     try {
+      console.log('🎤 Requesting microphone access...');
+      
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('getUserMedia is not supported in this browser');
+      }
+
+      // Check permission status first
+      let permissionStatus = 'unknown';
+      try {
+        if (navigator.permissions && navigator.permissions.query) {
+          const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+          permissionStatus = result.state;
+          console.log('🔍 Microphone permission status:', permissionStatus);
+        }
+      } catch (error) {
+        console.log('⚠️ Could not check permission status, proceeding with getUserMedia');
+      }
+
+      // Request microphone access with user gesture
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: true, 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100
+        }, 
         video: false 
       });
       
       localStreamRef.current = stream;
       
       // Set up audio context for volume control
-      const audioContext = new AudioContext();
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const source = audioContext.createMediaStreamSource(stream);
       const gainNode = audioContext.createGain();
       
@@ -257,12 +282,25 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       // Mute initially
       gainNode.gain.value = 0;
       
-      console.log('🎤 Microphone access granted');
+      console.log('✅ Microphone access granted');
       return true;
       
-    } catch (error) {
-      console.error('❌ Microphone access denied:', error);
-      setConnectionError('Microphone access denied. Please allow microphone permissions.');
+    } catch (error: any) {
+      console.error('❌ Microphone error:', error);
+      
+      let errorMessage = 'Microphone access denied.';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Microphone permission denied. Please allow microphone access in your browser settings.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'No microphone found. Please connect a microphone and try again.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = 'Microphone not supported in this browser.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = 'Microphone is already in use by another application.';
+      }
+      
+      setConnectionError(errorMessage);
       return false;
     }
   }, []);
