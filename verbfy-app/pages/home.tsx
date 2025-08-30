@@ -20,7 +20,12 @@ export default function HomePage() {
         const [n, f, r] = await Promise.all([
           notificationAPI.getNotifications(),
           freeMaterialsAPI.getFeaturedMaterials(),
-          verbfyTalkAPI.getRooms({ limit: 4 }),
+          verbfyTalkAPI.getRooms({ 
+            level: 'All', 
+            isPrivate: false, 
+            page: 1, 
+            limit: 4 
+          }),
         ]);
         setUnread(n.data?.data?.unreadCount ?? 0);
         setFeatured((f as any).data ?? []);
