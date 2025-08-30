@@ -36,10 +36,35 @@ interface UseVerbfyTalkReturn {
   // Connection status
   isConnecting: boolean;
   connectionError: string | null;
+  reconnectionAttempts: number;
   
   // Cleanup
   disconnect: () => void;
 }
+
+// WebRTC Configuration
+const WEBRTC_CONFIG: RTCConfiguration = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' }
+  ],
+  iceCandidatePoolSize: 10
+};
+
+// Microphone error types
+const MICROPHONE_ERRORS = {
+  NotAllowedError: 'Microphone permission denied. Please allow microphone access in your browser settings.',
+  NotFoundError: 'No microphone found. Please connect a microphone and try again.',
+  NotSupportedError: 'Microphone not supported in this browser.',
+  NotReadableError: 'Microphone is already in use by another application.',
+  AbortError: 'Microphone access was aborted.',
+  SecurityError: 'Microphone access blocked due to security restrictions.',
+  InvalidStateError: 'Microphone is in an invalid state.',
+  UnknownError: 'Unknown microphone error occurred.'
+} as const;
 
 export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
   const [rooms, setRooms] = useState<VerbfyTalkRoom[]>([]);
@@ -49,30 +74,94 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [reconnectionAttempts, setReconnectionAttempts] = useState(0);
   
+  // Refs
   const socketRef = useRef<Socket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
-  
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const iceCandidateBufferRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+  const vadIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitializedRef = useRef(false);
+
+  // Voice Activity Detection
+  const startVAD = useCallback(() => {
+    if (!localStreamRef.current || vadIntervalRef.current) return;
+
+    const audioTrack = localStreamRef.current.getAudioTracks()[0];
+    if (!audioTrack) return;
+
+    // Simple VAD using audio levels
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const source = audioContext.createMediaStreamSource(localStreamRef.current);
+    const analyser = audioContext.createAnalyser();
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    source.connect(analyser);
+    analyser.fftSize = 256;
+
+    vadIntervalRef.current = setInterval(() => {
+      analyser.getByteFrequencyData(dataArray);
+      const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+      const isSpeaking = average > 30; // Threshold for voice activity
+
+      // Update local speaking state
+      if (socketRef.current?.connected && currentRoom) {
+        socketRef.current.emit('participant:speaking', {
+          roomId: currentRoom.id,
+          isSpeaking
+        });
+      }
+    }, 100);
+
+    // Cleanup function
+    return () => {
+      if (vadIntervalRef.current) {
+        clearInterval(vadIntervalRef.current);
+        vadIntervalRef.current = null;
+      }
+      source.disconnect();
+      analyser.disconnect();
+      audioContext.close();
+    };
+  }, [currentRoom]);
+
+  // Stop VAD
+  const stopVAD = useCallback(() => {
+    if (vadIntervalRef.current) {
+      clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = null;
+    }
+  }, []);
+
   // Initialize Socket.IO connection
   const initializeSocket = useCallback(async () => {
-    if (!token) return;
+    if (!token || isInitializedRef.current) return;
     
     try {
       setIsConnecting(true);
       setConnectionError(null);
+      setReconnectionAttempts(0);
+      
+      // Cleanup existing socket if any
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
       
       const socket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.verbfy.com', {
         path: '/socket.io',
         transports: ['websocket', 'polling'],
-        forceNew: true,
+        forceNew: false, // Changed from true to prevent socket recreation
         withCredentials: true,
         auth: { token },
         timeout: 20000,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        // Better WebSocket handling
         upgrade: true,
         rememberUpgrade: true
       });
@@ -82,6 +171,8 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
         setIsConnected(true);
         setIsConnecting(false);
         setConnectionError(null);
+        setReconnectionAttempts(0);
+        isInitializedRef.current = true;
       });
       
       socket.on('disconnect', (reason) => {
@@ -89,11 +180,35 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
         setIsConnected(false);
         setCurrentRoom(null);
         setParticipants([]);
+        stopVAD();
+        
+        // Cleanup peer connections on disconnect
+        peerConnectionsRef.current.forEach(connection => connection.close());
+        peerConnectionsRef.current.clear();
+        iceCandidateBufferRef.current.clear();
       });
       
       socket.on('connect_error', (error) => {
         console.error('🔌 VerbfyTalk connection error:', error);
-        setConnectionError(error.message);
+        setConnectionError(`Connection failed: ${error.message}`);
+        setIsConnecting(false);
+      });
+
+      socket.on('reconnect_attempt', (attemptNumber) => {
+        console.log('🔄 VerbfyTalk reconnection attempt:', attemptNumber);
+        setReconnectionAttempts(attemptNumber);
+        setConnectionError(`Reconnecting... (Attempt ${attemptNumber}/5)`);
+      });
+
+      socket.on('reconnect', (attemptNumber) => {
+        console.log('✅ VerbfyTalk reconnected after', attemptNumber, 'attempts');
+        setConnectionError(null);
+        setReconnectionAttempts(0);
+      });
+
+      socket.on('reconnect_failed', () => {
+        console.error('❌ VerbfyTalk reconnection failed');
+        setConnectionError('Failed to reconnect. Please refresh the page.');
         setIsConnecting(false);
       });
       
@@ -110,33 +225,84 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       socket.on('room:left', () => {
         setCurrentRoom(null);
         setParticipants([]);
+        stopVAD();
         console.log('🎤 Left room');
       });
       
-      // Participant events
+      // Participant events with proper state management
       socket.on('participants:update', (participantsList: VerbfyTalkParticipant[]) => {
         setParticipants(participantsList);
       });
       
       socket.on('participant:joined', (participant: VerbfyTalkParticipant) => {
         console.log('👤 Participant joined:', participant.name);
+        setParticipants(prev => [...prev, participant]);
       });
       
       socket.on('participant:left', (participantId: string) => {
         console.log('👤 Participant left:', participantId);
+        setParticipants(prev => prev.filter(p => p.id !== participantId));
+        
+        // Cleanup peer connection for this participant
+        const peerConnection = peerConnectionsRef.current.get(participantId);
+        if (peerConnection) {
+          peerConnection.close();
+          peerConnectionsRef.current.delete(participantId);
+        }
+        
+        // Clear ICE candidate buffer for this participant
+        iceCandidateBufferRef.current.delete(participantId);
+      });
+
+      socket.on('participant:mute', (data: { participantId: string; isMuted: boolean }) => {
+        setParticipants(prev => 
+          prev.map(p => 
+            p.id === data.participantId 
+              ? { ...p, isMuted: data.isMuted }
+              : p
+          )
+        );
+      });
+
+      socket.on('participant:speaking', (data: { participantId: string; isSpeaking: boolean }) => {
+        setParticipants(prev => 
+          prev.map(p => 
+            p.id === data.participantId 
+              ? { ...p, isSpeaking: data.isSpeaking }
+              : p
+          )
+        );
       });
       
-      // WebRTC signaling
+      // WebRTC signaling with error handling
       socket.on('webrtc:offer', async (data: { from: string; offer: RTCSessionDescriptionInit }) => {
-        await handleWebRTCOffer(data.from, data.offer);
+        try {
+          await handleWebRTCOffer(data.from, data.offer);
+        } catch (error) {
+          console.error('❌ WebRTC offer handling failed:', error);
+          setConnectionError('Failed to establish voice connection');
+        }
       });
       
       socket.on('webrtc:answer', async (data: { from: string; answer: RTCSessionDescriptionInit }) => {
-        await handleWebRTCAnswer(data.from, data.answer);
+        try {
+          await handleWebRTCAnswer(data.from, data.answer);
+        } catch (error) {
+          console.error('❌ WebRTC answer handling failed:', error);
+          setConnectionError('Failed to complete voice connection');
+        }
       });
       
       socket.on('webrtc:ice-candidate', async (data: { from: string; candidate: RTCIceCandidateInit }) => {
-        await handleICECandidate(data.from, data.candidate);
+        try {
+          await handleICECandidate(data.from, data.candidate);
+        } catch (error) {
+          console.error('❌ ICE candidate handling failed:', error);
+          // Buffer the candidate for later if connection not ready
+          const buffer = iceCandidateBufferRef.current.get(data.from) || [];
+          buffer.push(data.candidate);
+          iceCandidateBufferRef.current.set(data.from, buffer);
+        }
       });
       
       socketRef.current = socket;
@@ -149,25 +315,43 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       setConnectionError(error instanceof Error ? error.message : 'Unknown error');
       setIsConnecting(false);
     }
-  }, [token]);
+  }, [token, stopVAD]);
   
-  // WebRTC handlers
+  // WebRTC handlers with improved error handling
   const handleWebRTCOffer = async (from: string, offer: RTCSessionDescriptionInit) => {
     try {
-      const peerConnection = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      });
+      const peerConnection = new RTCPeerConnection(WEBRTC_CONFIG);
       
       peerConnectionsRef.current.set(from, peerConnection);
       
+      // Add local stream if available
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => {
           peerConnection.addTrack(track, localStreamRef.current!);
         });
       }
+      
+      // Handle ICE candidates
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate && socketRef.current?.connected) {
+          socketRef.current.emit('webrtc:ice-candidate', {
+            to: from,
+            candidate: event.candidate
+          });
+        }
+      };
+
+      peerConnection.onconnectionstatechange = () => {
+        console.log(`🔗 Peer connection state (${from}):`, peerConnection.connectionState);
+        if (peerConnection.connectionState === 'failed') {
+          peerConnection.close();
+          peerConnectionsRef.current.delete(from);
+        }
+      };
+
+      peerConnection.oniceconnectionstatechange = () => {
+        console.log(`🧊 ICE connection state (${from}):`, peerConnection.iceConnectionState);
+      };
       
       await peerConnection.setRemoteDescription(offer);
       const answer = await peerConnection.createAnswer();
@@ -175,58 +359,90 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       
       socketRef.current?.emit('webrtc:answer', { to: from, answer });
       
+      // Process buffered ICE candidates
+      const bufferedCandidates = iceCandidateBufferRef.current.get(from) || [];
+      for (const candidate of bufferedCandidates) {
+        try {
+          await peerConnection.addIceCandidate(candidate);
+        } catch (error) {
+          console.warn('Failed to add buffered ICE candidate:', error);
+        }
+      }
+      iceCandidateBufferRef.current.delete(from);
+      
     } catch (error) {
       console.error('❌ WebRTC offer handling failed:', error);
+      throw error;
     }
   };
   
   const handleWebRTCAnswer = async (from: string, answer: RTCSessionDescriptionInit) => {
     try {
       const peerConnection = peerConnectionsRef.current.get(from);
-      if (peerConnection) {
+      if (peerConnection && peerConnection.signalingState !== 'closed') {
         await peerConnection.setRemoteDescription(answer);
       }
     } catch (error) {
       console.error('❌ WebRTC answer handling failed:', error);
+      throw error;
     }
   };
   
   const handleICECandidate = async (from: string, candidate: RTCIceCandidateInit) => {
     try {
       const peerConnection = peerConnectionsRef.current.get(from);
-      if (peerConnection) {
+      if (peerConnection && peerConnection.remoteDescription) {
         await peerConnection.addIceCandidate(candidate);
+      } else {
+        // Buffer candidate if connection not ready
+        const buffer = iceCandidateBufferRef.current.get(from) || [];
+        buffer.push(candidate);
+        iceCandidateBufferRef.current.set(from, buffer);
       }
     } catch (error) {
       console.error('❌ ICE candidate handling failed:', error);
+      throw error;
     }
   };
   
   // Room management
   const joinRoom = useCallback(async (roomId: string): Promise<boolean> => {
-    if (!socketRef.current || !isConnected) return false;
+    if (!socketRef.current?.connected) {
+      setConnectionError('Not connected to server');
+      return false;
+    }
     
     try {
       socketRef.current.emit('room:join', { roomId });
       return true;
     } catch (error) {
       console.error('❌ Failed to join room:', error);
+      setConnectionError('Failed to join room');
       return false;
     }
-  }, [isConnected]);
+  }, []);
   
   const leaveRoom = useCallback(() => {
-    if (!socketRef.current || !currentRoom) return;
+    if (!socketRef.current?.connected || !currentRoom) return;
     
     socketRef.current.emit('room:leave', { roomId: currentRoom.id });
-  }, [currentRoom]);
+    stopVAD();
+  }, [currentRoom, stopVAD]);
   
   const createRoom = useCallback(async (name: string): Promise<string | null> => {
-    if (!socketRef.current || !isConnected) return null;
+    if (!socketRef.current?.connected) {
+      setConnectionError('Not connected to server');
+      return null;
+    }
     
     try {
       return new Promise((resolve) => {
-        socketRef.current!.emit('room:create', { name }, (response: { success: boolean; roomId?: string }) => {
+        const timeout = setTimeout(() => {
+          resolve(null);
+        }, 10000); // 10 second timeout
+        
+        socketRef.current?.emit('room:create', { name }, (response: { success: boolean; roomId?: string }) => {
+          clearTimeout(timeout);
           if (response.success && response.roomId) {
             resolve(response.roomId);
           } else {
@@ -236,25 +452,28 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       });
     } catch (error) {
       console.error('❌ Failed to create room:', error);
+      setConnectionError('Failed to create room');
       return null;
     }
-  }, [isConnected]);
+  }, []);
   
-  // Audio controls
+  // Audio controls with unified mute logic
   const requestMicrophone = useCallback(async (): Promise<boolean> => {
     try {
       console.log('🎤 Requesting microphone access...');
       
       // Check if getUserMedia is supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('getUserMedia is not supported in this browser');
       }
 
       // Check permission status first
       let permissionStatus = 'unknown';
       try {
-        if (navigator.permissions && navigator.permissions.query) {
-          const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        if (navigator.permissions?.query) {
+          const result = await navigator.permissions.query({ 
+            name: 'microphone' as PermissionName 
+          });
           permissionStatus = result.state;
           console.log('🔍 Microphone permission status:', permissionStatus);
         }
@@ -262,7 +481,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
         console.log('⚠️ Could not check permission status, proceeding with getUserMedia');
       }
 
-      // Request microphone access with user gesture
+      // Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -283,8 +502,14 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       source.connect(gainNode);
       gainNode.connect(audioContext.destination);
       
-      // Mute initially
+      // Store references
+      audioContextRef.current = audioContext;
+      sourceNodeRef.current = source;
+      gainNodeRef.current = gainNode;
+      
+      // Mute initially using gain node
       gainNode.gain.value = 0;
+      setIsMuted(true);
       
       console.log('✅ Microphone access granted');
       return true;
@@ -292,17 +517,8 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
     } catch (error: any) {
       console.error('❌ Microphone error:', error);
       
-      let errorMessage = 'Microphone access denied.';
-      
-      if (error.name === 'NotAllowedError') {
-        errorMessage = 'Microphone permission denied. Please allow microphone access in your browser settings.';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage = 'No microphone found. Please connect a microphone and try again.';
-      } else if (error.name === 'NotSupportedError') {
-        errorMessage = 'Microphone not supported in this browser.';
-      } else if (error.name === 'NotReadableError') {
-        errorMessage = 'Microphone is already in use by another application.';
-      }
+      const errorMessage = MICROPHONE_ERRORS[error.name as keyof typeof MICROPHONE_ERRORS] || 
+                          MICROPHONE_ERRORS.UnknownError;
       
       setConnectionError(errorMessage);
       return false;
@@ -310,45 +526,86 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
   }, []);
   
   const toggleMute = useCallback(() => {
-    if (localStreamRef.current) {
-      const audioTrack = localStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setIsMuted(!audioTrack.enabled);
-        
-        // Notify other participants
-        socketRef.current?.emit('participant:mute', { 
-          roomId: currentRoom?.id, 
-          isMuted: !audioTrack.enabled 
-        });
-      }
+    if (!localStreamRef.current || !gainNodeRef.current) return;
+
+    const newMutedState = !isMuted;
+    setIsMuted(newMutedState);
+    
+    // Use gain node for mute/unmute (more reliable than track.enabled)
+    gainNodeRef.current.gain.value = newMutedState ? 0 : 1;
+    
+    // Also update track enabled state for WebRTC
+    const audioTrack = localStreamRef.current.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !newMutedState;
     }
-  }, [currentRoom]);
+    
+    // Notify other participants
+    socketRef.current?.emit('participant:mute', { 
+      roomId: currentRoom?.id, 
+      isMuted: newMutedState 
+    });
+  }, [isMuted, currentRoom]);
   
-  // Cleanup
+  // Comprehensive cleanup
   const disconnect = useCallback(() => {
+    console.log('🧹 Cleaning up VerbfyTalk...');
+    
+    // Stop VAD
+    stopVAD();
+    
+    // Stop local stream
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current.getTracks().forEach(track => {
+        track.stop();
+      });
       localStreamRef.current = null;
     }
     
-    peerConnectionsRef.current.forEach(connection => connection.close());
+    // Close audio context
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    
+    // Disconnect audio nodes
+    if (sourceNodeRef.current) {
+      sourceNodeRef.current.disconnect();
+      sourceNodeRef.current = null;
+    }
+    gainNodeRef.current = null;
+    
+    // Close peer connections
+    peerConnectionsRef.current.forEach(connection => {
+      connection.close();
+    });
     peerConnectionsRef.current.clear();
     
+    // Clear ICE candidate buffers
+    iceCandidateBufferRef.current.clear();
+    
+    // Disconnect socket
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
     
+    // Reset state
     setIsConnected(false);
+    setIsConnecting(false);
     setCurrentRoom(null);
     setParticipants([]);
     setConnectionError(null);
-  }, []);
+    setReconnectionAttempts(0);
+    setIsMuted(false);
+    isInitializedRef.current = false;
+    
+    console.log('✅ VerbfyTalk cleanup completed');
+  }, [stopVAD]);
   
   // Initialize on mount
   useEffect(() => {
-    if (token) {
+    if (token && !isInitializedRef.current) {
       initializeSocket();
     }
     
@@ -356,6 +613,14 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       disconnect();
     };
   }, [token, initializeSocket, disconnect]);
+  
+  // Start VAD when microphone is available and in room
+  useEffect(() => {
+    if (localStreamRef.current && currentRoom && isConnected) {
+      const cleanup = startVAD();
+      return cleanup;
+    }
+  }, [localStreamRef.current, currentRoom, isConnected, startVAD]);
   
   return {
     rooms,
@@ -370,6 +635,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
     participants,
     isConnecting,
     connectionError,
+    reconnectionAttempts,
     disconnect
   };
 };
