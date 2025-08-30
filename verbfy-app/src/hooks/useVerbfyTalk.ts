@@ -514,6 +514,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       console.log('✅ Microphone access granted');
       return true;
       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('❌ Microphone error:', error);
       
@@ -620,7 +621,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       const cleanup = startVAD();
       return cleanup;
     }
-  }, [localStreamRef.current, currentRoom, isConnected, startVAD]);
+  }, [currentRoom, isConnected, startVAD]);
   
   return {
     rooms,

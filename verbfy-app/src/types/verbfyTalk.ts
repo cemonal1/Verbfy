@@ -9,7 +9,7 @@ export interface VerbfyTalkRoom {
   maxParticipants: number;
   currentParticipants: number;
   isActive: boolean;
-  createdBy: string;
+  createdBy: string; // User ID of the creator
   createdAt: string;
   updatedAt: string;
 }
@@ -29,6 +29,27 @@ export interface RoomFilters {
   isPrivate: boolean;
   page: number;
   limit: number;
+}
+
+export interface RoomsResponse {
+  success: boolean;
+  rooms: VerbfyTalkRoom[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export interface RoomResponse {
+  success: boolean;
+  room: VerbfyTalkRoom;
+}
+
+export interface JoinRoomData {
+  roomId: string;
+  password?: string;
 }
 
 export interface VerbfyTalkParticipant {

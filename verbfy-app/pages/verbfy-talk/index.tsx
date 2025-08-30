@@ -50,7 +50,7 @@ function VerbfyTalkPage() {
     try {
       setLoading(true);
       const response = await verbfyTalkAPI.getRooms(filters);
-      setRooms(response.data);
+      setRooms(response.rooms);
       setPagination(response.pagination);
     } catch (error) {
       toast.error('Failed to load rooms');
@@ -82,7 +82,7 @@ function VerbfyTalkPage() {
       loadRooms();
       
       // Navigate to the new room
-      router.push(`/verbfy-talk/${response.data._id}`);
+      router.push(`/verbfy-talk/${response.room._id}`);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to create room');
     }
@@ -98,7 +98,7 @@ function VerbfyTalkPage() {
 
   const joinRoom = async (roomId: string, password?: string) => {
     try {
-      await verbfyTalkAPI.joinRoom(roomId, password ? { password } : undefined);
+      await verbfyTalkAPI.joinRoom(roomId, password ? { roomId, password } : undefined);
       toast.success('Joined room successfully!');
       setShowJoinModal(null);
       setJoinPassword('');
@@ -166,7 +166,7 @@ function VerbfyTalkPage() {
           <div className="flex flex-wrap gap-4">
             <select
               value={filters.level}
-              onChange={(e) => setFilters({ ...filters, level: e.target.value })}
+              onChange={(e) => setFilters({ ...filters, level: e.target.value as 'All' | 'Beginner' | 'Intermediate' | 'Advanced' | 'Mixed' })}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="All">All Levels</option>
@@ -230,24 +230,24 @@ function VerbfyTalkPage() {
                   
                   <div className="flex items-center gap-1 text-sm text-gray-500">
                     <UsersIcon className="w-4 h-4" />
-                    <span>{room.currentParticipants || room.participants.filter(p => p.isActive).length}/{room.maxParticipants}</span>
+                    <span>{room.currentParticipants || 0}/{room.maxParticipants}</span>
                   </div>
                 </div>
                 
                 <div className="text-xs text-gray-400 mb-4">
-                  Created by {room.createdBy.name}
+                  Created by {room.createdBy}
                 </div>
                 
                 <button
                   onClick={() => handleJoinRoom(room._id, room.isPrivate)}
-                  disabled={(room.currentParticipants || room.participants.filter(p => p.isActive).length) >= room.maxParticipants}
+                  disabled={(room.currentParticipants || 0) >= room.maxParticipants}
                   className={`w-full py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                    (room.currentParticipants || room.participants.filter(p => p.isActive).length) >= room.maxParticipants
+                    (room.currentParticipants || 0) >= room.maxParticipants
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-blue-600 hover:bg-blue-700 text-white'
                   }`}
                 >
-                  {(room.currentParticipants || room.participants.filter(p => p.isActive).length) >= room.maxParticipants
+                  {(room.currentParticipants || 0) >= room.maxParticipants
                     ? 'Room Full'
                     : 'Join Room'
                   }
