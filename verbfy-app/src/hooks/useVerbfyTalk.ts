@@ -71,6 +71,10 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
         timeout: 20000,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        // Better WebSocket handling
+        upgrade: true,
+        rememberUpgrade: true
       });
       
       socket.on('connect', () => {
