@@ -6,15 +6,15 @@ import helmet from 'helmet';
 import { createServer } from 'http';
 import path from 'path';
 import fs from 'fs';
-import { Server as SocketIOServer } from 'socket.io';
+import { Server as SocketIOServer, Socket } from 'socket.io';
 import { connectDB } from './config/db';
-import { createVerbfyTalkServer } from './verbfyTalkServer';
-import { createVoiceChatServer } from './voiceChatServer';
 import { validateEnvironment } from './config/env';
 import { apiLimiter, authLimiter } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { setCsrfCookie, verifyCsrf } from './middleware/csrf';
 import pinoHttp from 'pino-http';
+import UserModel from './models/User';
+import { verifyToken } from './utils/jwt';
 import livekitRoutes from './routes/livekitRoutes';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/userRoutes';
@@ -192,74 +192,7 @@ try {
 }
 app.use('/uploads', express.static(uploadsRoot));
 
-// Initialize Socket.IO with optimized settings to eliminate WebSocket warnings
-const socketDefaultOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
-const socketExtraOrigins = (process.env.CORS_EXTRA_ORIGINS || '')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
-// Add production domains explicitly for Socket.IO
-const socketProductionOrigins = [
-  'https://verbfy.com',
-  'https://www.verbfy.com',
-  'https://api.verbfy.com'
-];
-const socketAllowedOrigins = [
-  socketDefaultOrigin, 
-  ...socketExtraOrigins,
-  ...(process.env.NODE_ENV === 'production' ? socketProductionOrigins : [])
-];
-
-const io = new SocketIOServer(server, {
-  cors: {
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, etc.)
-      if (!origin) return callback(null, true);
-      
-      // Check if origin is in allowed list
-      if (socketAllowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      
-      console.log('❌ CORS blocked origin:', origin);
-      console.log('✅ Allowed origins:', socketAllowedOrigins);
-      return callback(new Error('Not allowed by CORS'), false);
-    },
-    methods: ['GET', 'POST', 'OPTIONS'],
-    credentials: true,
-    allowedHeaders: [
-      'Content-Type', 
-      'Authorization', 
-      'X-Requested-With',
-      'Upgrade',
-      'Connection',
-      'Sec-WebSocket-Key',
-      'Sec-WebSocket-Version',
-      'Sec-WebSocket-Protocol'
-    ]
-  },
-  transports: ['websocket', 'polling'], // Prioritize WebSocket, fallback to polling
-  allowEIO3: true,
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  upgradeTimeout: 10000,
-  maxHttpBufferSize: 1e6,
-  allowRequest: (req, callback) => {
-    // Better error handling for connection attempts
-    console.log('🔌 Socket.IO connection request:', {
-      origin: req.headers.origin,
-      upgrade: req.headers.upgrade,
-      connection: req.headers.connection
-    });
-    callback(null, true);
-  }
-});
-
-// Initialize Socket.IO servers
-const verbfyTalkServer = createVerbfyTalkServer(server);
-const voiceChatServer = createVoiceChatServer(server);
-
-// Main Socket.IO server for general chat and notifications
+// Initialize Socket.IO server
 const mainIo = new SocketIOServer(server, {
   path: '/socket.io',
   cors: {
@@ -295,158 +228,202 @@ const mainIo = new SocketIOServer(server, {
   pingInterval: 25000,
   allowEIO3: true,
   maxHttpBufferSize: 1e6,
-  // WebSocket specific settings
   allowUpgrades: true,
   upgradeTimeout: 10000,
-  // Better error handling
   connectTimeout: 45000
 });
 
-// Main namespace for general chat
-mainIo.of('/chat').on('connection', (socket) => {
-  console.log('🔌 Main chat connected:', socket.id);
-  
-  socket.on('disconnect', () => {
-    console.log('🔌 Main chat disconnected:', socket.id);
-  });
-});
+// Socket interface with user property
+interface AuthenticatedSocket extends Socket {
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+}
 
-// Main namespace for notifications
-mainIo.of('/notifications').on('connection', (socket) => {
-  console.log('🔌 Main notifications connected:', socket.id);
+// Authentication middleware for all namespaces
+const authMiddleware = async (socket: AuthenticatedSocket, next: any) => {
+  const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
   
-  socket.on('disconnect', () => {
-    console.log('🔌 Main notifications disconnected:', socket.id);
-  });
-});
+  if (!token) {
+    return next(new Error('Authentication failed: No token provided'));
+  }
 
-// VerbfyTalk namespace
-mainIo.of('/verbfy-talk').on('connection', (socket) => {
-  console.log('🔌 VerbfyTalk connected:', socket.id);
-  
-  // Join room
-  socket.on('room:join', (data: { roomId: string }) => {
-    console.log('🎤 User joining room:', data.roomId);
-    socket.join(data.roomId);
+  try {
+    const decoded = verifyToken(token) as any;
+    if (!decoded || !decoded.id) {
+      return next(new Error('Authentication failed: Invalid token'));
+    }
     
-    // Create room object with current user
-    const room: any = {
-      id: data.roomId,
-      name: `Room ${data.roomId}`,
-      participants: [{
-        id: socket.id,
-        name: `User ${socket.id.slice(0, 6)}`,
-        isMuted: false,
-        isSpeaking: false,
-        audioLevel: 0
-      }],
-      maxParticipants: 5,
-      isActive: true
+    // Verify user exists in database
+    const user = await UserModel.findById(decoded.id);
+    if (!user) {
+      return next(new Error('Authentication failed: User not found'));
+    }
+
+    socket.user = {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role
     };
-    
-    socket.emit('room:joined', room);
-    
-    // Notify other participants
-    socket.to(data.roomId).emit('participant:joined', { 
-      id: socket.id, 
-      name: `User ${socket.id.slice(0, 6)}`, 
-      isSpeaking: false, 
-      isMuted: false,
-      audioLevel: 0
+
+    next();
+  } catch (error) {
+    return next(new Error('Authentication failed: Token verification failed'));
+  }
+};
+
+// Create namespaces for different features
+const chatNamespace = mainIo.of('/chat');
+const notificationNamespace = mainIo.of('/notifications');
+const verbfyTalkNamespace = mainIo.of('/verbfy-talk');
+const voiceChatNamespace = mainIo.of('/voice-chat');
+
+// Apply authentication to all namespaces
+chatNamespace.use(authMiddleware);
+notificationNamespace.use(authMiddleware);
+verbfyTalkNamespace.use(authMiddleware);
+voiceChatNamespace.use(authMiddleware);
+
+// Chat namespace events
+chatNamespace.on('connection', (socket: AuthenticatedSocket) => {
+  console.log('🔌 Chat namespace connected:', socket.user?.name);
+  
+  socket.on('join-room', (data: { roomId: string }) => {
+    socket.join(data.roomId);
+    console.log(`📋 User ${socket.user?.name} joined chat room: ${data.roomId}`);
+  });
+  
+  socket.on('leave-room', (data: { roomId: string }) => {
+    socket.leave(data.roomId);
+    console.log(`📋 User ${socket.user?.name} left chat room: ${data.roomId}`);
+  });
+  
+  socket.on('send-message', (data: { roomId: string; message: any }) => {
+    socket.to(data.roomId).emit('receive-message', {
+      ...data.message,
+      sender: socket.user
     });
   });
   
-  // Leave room
-  socket.on('room:leave', (data: { roomId: string }) => {
-    console.log('🎤 User leaving room:', data.roomId);
-    socket.leave(data.roomId);
-    socket.emit('room:left');
-    
-    // Notify other participants
-    socket.to(data.roomId).emit('participant:left', socket.id);
+  socket.on('typing', (data: { roomId: string; isTyping: boolean }) => {
+    socket.to(data.roomId).emit('user-typing', {
+      userId: socket.user?.id,
+      userName: socket.user?.name,
+      isTyping: data.isTyping
+    });
   });
+});
+
+// Notification namespace events
+notificationNamespace.on('connection', (socket: AuthenticatedSocket) => {
+  console.log('🔌 Notification namespace connected:', socket.user?.name);
   
-  // Create room
-  socket.on('room:create', (data: { name: string }, callback: (response: any) => void) => {
-    const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log('🎤 Creating room:', roomId, data.name);
-    
-    socket.join(roomId);
-    callback({ success: true, roomId });
-    
-    const room: any = {
-      id: roomId,
-      name: data.name,
-      participants: [{
-        id: socket.id,
-        name: `User ${socket.id.slice(0, 6)}`,
-        isMuted: false,
-        isSpeaking: false,
-        audioLevel: 0
-      }],
-      maxParticipants: 5,
-      isActive: true
-    };
-    
-    socket.emit('room:joined', room);
-    
-    // Broadcast room creation to all clients
-    mainIo.of('/verbfy-talk').emit('room:created', room);
-  });
-  
-  // Get rooms list
-  socket.on('rooms:get', () => {
-    // For now, return empty list - implement room management later
-    socket.emit('rooms:list', []);
-  });
-  
-  // WebRTC signaling
-  socket.on('webrtc:offer', (data: { to: string; offer: any }) => {
-    console.log('📡 WebRTC offer from', socket.id, 'to', data.to);
-    socket.to(data.to).emit('webrtc:offer', { from: socket.id, offer: data.offer });
-  });
-  
-  socket.on('webrtc:answer', (data: { to: string; answer: any }) => {
-    console.log('📡 WebRTC answer from', socket.id, 'to', data.to);
-    socket.to(data.to).emit('webrtc:answer', { from: socket.id, answer: data.answer });
-  });
-  
-  socket.on('webrtc:ice-candidate', (data: { to: string; candidate: any }) => {
-    console.log('📡 ICE candidate from', socket.id, 'to', data.to);
-    socket.to(data.to).emit('webrtc:ice-candidate', { from: socket.id, candidate: data.candidate });
-  });
-  
-  // WebRTC connection established
-  socket.on('webrtc:connection:established', (data: { peerId: string }) => {
-    console.log('🔗 WebRTC connection established between', socket.id, 'and', data.peerId);
-    socket.to(data.peerId).emit('webrtc:connection:established', { peerId: socket.id });
-  });
-  
-  // Participant mute/unmute
-  socket.on('participant:mute', (data: { roomId: string; isMuted: boolean }) => {
-    console.log('🎤 Participant', socket.id, 'mute state:', data.isMuted);
-    socket.to(data.roomId).emit('participant:mute', { participantId: socket.id, isMuted: data.isMuted });
-  });
-  
-  // Chat messages
-  socket.on('message:send', (data: { roomId: string; content: string }) => {
-    const message = {
-      id: Date.now().toString(),
-      sender: `User ${socket.id.slice(0, 6)}`,
-      content: data.content,
-      timestamp: new Date().toISOString()
-    };
-    
-    console.log('💬 Message in room', data.roomId, ':', data.content);
-    
-    // Broadcast to all participants in the room
-    mainIo.of('/verbfy-talk').to(data.roomId).emit('message:new', message);
+  socket.on('joinNotificationRoom', (userId: string) => {
+    socket.join(`notification-${userId}`);
+    console.log(`📋 User ${socket.user?.name} joined notification room: ${userId}`);
   });
   
   socket.on('disconnect', () => {
-    console.log('🔌 VerbfyTalk disconnected:', socket.id);
+    console.log('🔌 Notification namespace disconnected:', socket.user?.name);
   });
 });
+
+// VerbfyTalk namespace events
+verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
+  console.log('🔌 VerbfyTalk namespace connected:', socket.user?.name);
+  
+  socket.on('join-room', (data: { roomId: string }) => {
+    socket.join(data.roomId);
+    console.log(`📋 User ${socket.user?.name} joined VerbfyTalk room: ${data.roomId}`);
+    
+    // Notify other users in the room
+    socket.to(data.roomId).emit('user-joined', {
+      userId: socket.user?.id,
+      userName: socket.user?.name
+    });
+  });
+  
+  socket.on('leave-room', (data: { roomId: string }) => {
+    socket.to(data.roomId).emit('user-left', {
+      userId: socket.user?.id,
+      userName: socket.user?.name
+    });
+    socket.leave(data.roomId);
+    console.log(`📋 User ${socket.user?.name} left VerbfyTalk room: ${data.roomId}`);
+  });
+  
+  // WebRTC signaling
+  socket.on('offer', (data: { roomId: string; offer: any; targetUserId?: string }) => {
+    if (data.targetUserId) {
+      // Send to specific user
+      socket.to(data.roomId).emit('offer', {
+        userId: socket.user?.id,
+        userName: socket.user?.name,
+        offer: data.offer
+      });
+    } else {
+      // Send to all in room
+      socket.to(data.roomId).emit('offer', {
+        userId: socket.user?.id,
+        userName: socket.user?.name,
+        offer: data.offer
+      });
+    }
+  });
+  
+  socket.on('answer', (data: { roomId: string; answer: any; targetUserId: string }) => {
+    socket.to(data.roomId).emit('answer', {
+      userId: socket.user?.id,
+      userName: socket.user?.name,
+      answer: data.answer
+    });
+  });
+  
+  socket.on('ice-candidate', (data: { roomId: string; candidate: any }) => {
+    socket.to(data.roomId).emit('ice-candidate', {
+      userId: socket.user?.id,
+      candidate: data.candidate
+    });
+  });
+});
+
+// Voice Chat namespace events
+voiceChatNamespace.on('connection', (socket: AuthenticatedSocket) => {
+  console.log('🔌 Voice Chat namespace connected:', socket.user?.name);
+  
+  socket.on('join-room', (data: { roomId: string }) => {
+    socket.join(data.roomId);
+    console.log(`📋 User ${socket.user?.name} joined voice chat room: ${data.roomId}`);
+  });
+  
+  socket.on('leave-room', (data: { roomId: string }) => {
+    socket.leave(data.roomId);
+    console.log(`📋 User ${socket.user?.name} left voice chat room: ${data.roomId}`);
+  });
+  
+  // Voice chat specific events
+  socket.on('voice-offer', (data: { roomId: string; offer: any }) => {
+    socket.to(data.roomId).emit('voice-offer', {
+      userId: socket.user?.id,
+      userName: socket.user?.name,
+      offer: data.offer
+    });
+  });
+  
+  socket.on('voice-answer', (data: { roomId: string; answer: any }) => {
+    socket.to(data.roomId).emit('voice-answer', {
+      userId: socket.user?.id,
+      userName: socket.user?.name,
+      answer: data.answer
+    });
+  });
+});
+
+console.log('🔧 Socket.IO Setup - Main server initialized with namespaces');
 
 // Add permissions policy headers for microphone access
 app.use((req, res, next) => {
@@ -457,7 +434,7 @@ app.use((req, res, next) => {
 });
 
 // Enhanced Socket.IO middleware with better error handling
-io.use((socket, next) => {
+mainIo.use((socket, next) => {
   try {
     let token = (socket.handshake.auth && (socket.handshake.auth as any).token) as string | undefined;
     
@@ -478,7 +455,6 @@ io.use((socket, next) => {
       return next(new Error('Unauthorized - No token provided'));
     }
 
-    const { verifyToken } = require('./utils/jwt');
     try {
     const payload = verifyToken(token);
     (socket as any).user = payload;
@@ -496,7 +472,7 @@ io.use((socket, next) => {
 
 // Attach io to request for controllers that need to emit events
 app.use((req, _res, next) => {
-  (req as any).io = io;
+  (req as any).io = mainIo;
   next();
 });
 
@@ -622,7 +598,7 @@ app.get('/api/test-sentry', (_req, res) => {
 });
 
 // Socket.IO event handling
-io.on('connection', (socket) => {
+mainIo.on('connection', (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
   
   // Get user from socket
