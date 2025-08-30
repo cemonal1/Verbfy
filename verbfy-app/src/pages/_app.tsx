@@ -6,6 +6,7 @@ import { NotificationProvider } from '../context/NotificationContext';
 import { ToastProvider } from '../components/common/Toast';
 import '../styles/globals.css';
 import Head from 'next/head';
+import Script from 'next/script';
 
 // Error boundary component
 class ErrorBoundary extends React.Component<
@@ -59,14 +60,21 @@ function MyApp({ Component, pageProps }: AppProps) {
         <meta name="description" content="Learn English with native speakers through interactive lessons and real-time conversations." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
-        
-        {/* Socket.IO client script */}
-        <script
-          src="https://cdn.socket.io/4.7.2/socket.io.min.js"
-          integrity="sha384-mZLF4UVrpi/QTWPA7BjNPEnkIfRFn5qEOw1W1eMEPNy0I0jnCLshSJC7qj6Jj/Ka"
-          crossOrigin="anonymous"
-        />
       </Head>
+      
+      {/* Socket.IO client script - Load before app */}
+      <Script
+        src="https://cdn.socket.io/4.7.2/socket.io.min.js"
+        integrity="sha384-mZLF4UVrpi/QTWPA7BjNPEnkIfRFn5qEOw1W1eMEPNy0I0jnCLshSJC7qj6Jj/Ka"
+        crossOrigin="anonymous"
+        strategy="beforeInteractive"
+        onLoad={() => {
+          console.log('✅ Socket.IO client loaded successfully');
+        }}
+        onError={(e) => {
+          console.error('❌ Failed to load Socket.IO client:', e);
+        }}
+      />
       
       <AuthProvider>
         <ToastProvider>
