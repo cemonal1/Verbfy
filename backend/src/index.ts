@@ -94,37 +94,6 @@ app.use(cors({
     }
     
     console.log('❌ CORS blocked origin:', origin);
-    return callback(new Error('Not allowed by CORS'), false);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With',
-    'X-CSRF-Token',
-    'Origin',
-    'Accept'
-  ],
-  exposedHeaders: ['X-CSRF-Token']
-}));
-
-console.log('🔧 CORS Setup - Allowed origins:', allowedOrigins);
-console.log('🔧 CORS Setup - Node ENV:', process.env.NODE_ENV);
-console.log('🔧 CORS Setup - Frontend URL:', process.env.FRONTEND_URL);
-
-// Simple CORS configuration
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, etc.)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is in allowed list
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    
-    console.log('❌ CORS blocked origin:', origin);
     console.log('✅ Allowed origins:', allowedOrigins);
     return callback(new Error('Not allowed by CORS'), false);
   },
@@ -145,6 +114,10 @@ app.use(cors({
   ],
   exposedHeaders: ['set-cookie', 'X-CSRF-Token']
 }));
+
+console.log('🔧 CORS Setup - Allowed origins:', allowedOrigins);
+console.log('🔧 CORS Setup - Node ENV:', process.env.NODE_ENV);
+console.log('🔧 CORS Setup - Frontend URL:', process.env.FRONTEND_URL);
 
 // Debug middleware to log all requests
 app.use((req, res, next) => {
@@ -294,13 +267,15 @@ const mainIo = new SocketIOServer(server, {
       const allowedOrigins = [
         process.env.FRONTEND_URL || "http://localhost:3000",
         "https://www.verbfy.com",
-        "https://verbfy.com"
+        "https://verbfy.com",
+        "https://api.verbfy.com"
       ];
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       console.log('❌ Main Socket.IO CORS blocked origin:', origin);
+      console.log('✅ Allowed origins:', allowedOrigins);
       return callback(new Error('Not allowed by CORS'), false);
     },
     methods: ["GET", "POST", "OPTIONS"],
@@ -311,14 +286,20 @@ const mainIo = new SocketIOServer(server, {
       "Content-Type",
       "Accept",
       "Authorization",
-      "X-CSRF-Token"
+      "X-CSRF-Token",
+      "Cache-Control"
     ]
   },
   transports: ['websocket', 'polling'],
   pingTimeout: 60000,
   pingInterval: 25000,
   allowEIO3: true,
-  maxHttpBufferSize: 1e6
+  maxHttpBufferSize: 1e6,
+  // WebSocket specific settings
+  allowUpgrades: true,
+  upgradeTimeout: 10000,
+  // Better error handling
+  connectTimeout: 45000
 });
 
 // Main namespace for general chat
