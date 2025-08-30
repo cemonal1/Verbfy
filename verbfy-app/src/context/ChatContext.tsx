@@ -118,19 +118,23 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
   // Initialize Socket.IO connection
   useEffect(() => {
+    // Prevent multiple socket connections
+    if (socketRef.current) {
+      return;
+    }
+
     if (isAuthenticated && user) {
       const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
       const socket = io(base, {
         path: '/socket.io',
-        transports: ['polling', 'websocket'], // Start with polling, then upgrade to WebSocket
+        transports: ['polling'], // Only use polling for now to avoid WebSocket issues
         withCredentials: true,
-        reconnectionAttempts: 5, // Maximum 5 reconnection attempts
-        reconnectionDelay: 1000, // Start with 1 second delay
-        reconnectionDelayMax: 5000, // Maximum 5 second delay
-        forceNew: true, // Force new connection
-        upgrade: true, // Allow transport upgrade
-        rememberUpgrade: true, // Remember successful upgrades
-        timeout: 20000, // Connection timeout
+        reconnectionAttempts: 3, // Reduce reconnection attempts
+        reconnectionDelay: 2000, // Increase delay
+        reconnectionDelayMax: 10000, // Increase max delay
+        forceNew: false, // Don't force new connection
+        upgrade: false, // Disable upgrade for now
+        timeout: 30000, // Increase timeout
         auth: {
           token: tokenStorage.getToken() || undefined
         }
