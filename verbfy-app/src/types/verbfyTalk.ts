@@ -8,8 +8,9 @@ export interface VerbfyTalkRoom {
   password?: string;
   maxParticipants: number;
   currentParticipants: number;
+  activeParticipantCount?: number; // Added by backend
   isActive: boolean;
-  createdBy: string; // User ID of the creator
+  createdBy: string | { _id: string; name: string; email: string; avatar?: string }; // Can be populated
   createdAt: string;
   updatedAt: string;
 }

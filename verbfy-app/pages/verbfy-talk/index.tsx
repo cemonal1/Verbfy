@@ -239,9 +239,9 @@ function VerbfyTalkPage() {
                   </div>
                 </div>
                 
-                <div className="text-xs text-gray-400 mb-4">
-                  Created by {room.createdBy?.name || 'Unknown'}
-                </div>
+                                 <div className="text-xs text-gray-400 mb-4">
+                   Created by {typeof room.createdBy === 'string' ? 'Unknown' : room.createdBy?.name || 'Unknown'}
+                 </div>
                 
                 <button
                   onClick={() => handleJoinRoom(room)}
