@@ -40,6 +40,7 @@ import aiContentGenerationRoutes from './routes/aiContentGeneration';
 import organizationRoutes from './routes/organization';
 import rolesRoutes from './routes/roles';
 import gameRoutes from './routes/gameRoutes';
+import { VerbfyTalkController } from './controllers/verbfyTalkController';
 
 // Load environment variables and initialize Sentry
 dotenv.config();
@@ -98,6 +99,14 @@ app.use(cors({
     return callback(new Error('Not allowed by CORS'), false);
   },
   credentials: true,
+}));
+
+// Add permission headers for WebRTC
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'microphone=*, camera=*, geolocation=*');
+  res.setHeader('Feature-Policy', 'microphone *; camera *; geolocation *');
+  next();
+});
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
@@ -693,8 +702,20 @@ server.listen(PORT, () => {
   console.log(`   - /api/messages (Messaging system)`);
   console.log(`   - /api/analytics (Analytics & reports)`);
   console.log(`   - /api/chat (Real-time chat system)`);
+  console.log(`   - /api/verbfy-talk (Voice chat rooms)`);
   console.log(`🔌 Socket.IO: Enabled for real-time communication`);
 });
+
+// Setup cron job for cleaning up empty rooms (every 5 minutes)
+setInterval(async () => {
+  try {
+    await VerbfyTalkController.cleanupEmptyRooms();
+  } catch (error) {
+    console.error('❌ Cron job failed:', error);
+  }
+}, 5 * 60 * 1000); // 5 minutes
+
+console.log(`🧹 Room cleanup cron job started (every 5 minutes)`);
 
 // Export app for testing
 export { app }; 
