@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebRTC } from '@/features/lessonRoom/webrtc/useWebRTC';
 import { useAuthContext } from '@/context/AuthContext';
-import { useChatContext } from '@/context/ChatContext';
+import { useChat } from '@/context/ChatContext';
 import { toast } from 'react-hot-toast';
 import {
   MicrophoneIcon,
@@ -32,7 +32,12 @@ interface Participant {
 
 export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   const { user } = useAuthContext();
-  const { socket, sendMessage, messages } = useChatContext();
+  const { state, actions } = useChat();
+  const { messages } = state;
+  const { sendMessage } = actions;
+  
+  // Voice chat socket (separate from chat socket)
+  const [socket, setSocket] = useState<Socket | null>(null);
   
   // Room state
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -65,10 +70,26 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Initialize room
+  // Initialize socket and room
   useEffect(() => {
     if (user && roomId) {
-      initializeRoom();
+      // Initialize voice chat socket
+      const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
+      const voiceSocket = io(base, {
+        path: '/socket.io',
+        transports: ['polling'],
+        withCredentials: true,
+        auth: {
+          token: localStorage.getItem('token') || undefined
+        }
+      });
+      
+      setSocket(voiceSocket);
+      initializeRoom(voiceSocket);
+      
+      return () => {
+        voiceSocket.disconnect();
+      };
     }
   }, [user, roomId]);
 
@@ -86,39 +107,37 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
     }
   }, [messages]);
 
-  const initializeRoom = async () => {
+  const initializeRoom = async (voiceSocket: Socket) => {
     try {
       setIsLoading(true);
       
       // Join room via socket
-      if (socket) {
-        socket.emit('join-room', { roomId, userId: user?.id });
+      voiceSocket.emit('join-room', { roomId, userId: user?.id });
         
         // Listen for room updates
-        socket.on('room-updated', (data) => {
+        voiceSocket.on('room-updated', (data) => {
           setRoomInfo(data.room);
           setParticipants(data.participants);
         });
 
         // Listen for participant updates
-        socket.on('participant-joined', (participant) => {
+        voiceSocket.on('participant-joined', (participant) => {
           setParticipants(prev => [...prev, participant]);
           toast.success(`${participant.name} joined the room`);
         });
 
-        socket.on('participant-left', (participantId) => {
+        voiceSocket.on('participant-left', (participantId) => {
           setParticipants(prev => prev.filter(p => p.id !== participantId));
           toast.info('A participant left the room');
         });
 
-        socket.on('speaking-update', ({ participantId, isSpeaking }) => {
+        voiceSocket.on('speaking-update', ({ participantId, isSpeaking }) => {
           setParticipants(prev => 
             prev.map(p => 
               p.id === participantId ? { ...p, isSpeaking } : p
             )
           );
         });
-      }
 
       // Add current user to participants
       if (user) {
@@ -142,7 +161,8 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (chatMessage.trim() && socket) {
+    if (chatMessage.trim()) {
+      // Use chat context's sendMessage for text chat
       sendMessage(chatMessage);
       setChatMessage('');
     }
