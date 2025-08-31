@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebRTC } from '@/features/lessonRoom/webrtc/useWebRTC';
 import { useAuthContext } from '@/context/AuthContext';
-import { useChat } from '@/context/ChatContext';
 import { toast } from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
 import {
@@ -11,8 +10,7 @@ import {
   SpeakerXMarkIcon,
   ChatBubbleLeftRightIcon,
   UsersIcon,
-  ArrowLeftIcon,
-  Cog6ToothIcon
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 
 interface VoiceChatRoomProps {
@@ -29,20 +27,23 @@ interface Participant {
   isSpeaker: boolean;
 }
 
+interface RoomMessage {
+  id: string;
+  content: string;
+  sender: string;
+  senderName: string;
+  timestamp: number;
+}
+
 export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   const { user } = useAuthContext();
-  const { state, actions } = useChat();
-  const { messages: chatMessages } = state;
-  const { sendMessage } = actions;
   
-  // Voice chat messages (separate from chat messages)
-  const [messages, setMessages] = useState<any[]>([]);
-  
-  // Voice chat socket (separate from chat socket)
+  // Voice chat socket
   const [socket, setSocket] = useState<Socket | null>(null);
   
   // Room state
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [messages, setMessages] = useState<RoomMessage[]>([]);
   const [isSpeaker, setIsSpeaker] = useState(false);
   const [showChat, setShowChat] = useState(true);
   const [showParticipants, setShowParticipants] = useState(false);
@@ -75,7 +76,6 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   // Initialize socket and room
   useEffect(() => {
     if (user && roomId) {
-      // Initialize voice chat socket
       const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
       const voiceSocket = io(base, {
         path: '/socket.io',
@@ -116,35 +116,35 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
       // Join room via socket
       voiceSocket.emit('join-room', { roomId, userId: user?.id });
         
-        // Listen for room updates
-        voiceSocket.on('room-updated', (data) => {
-          setRoomInfo(data.room);
-          setParticipants(data.participants);
-        });
+      // Listen for room updates
+      voiceSocket.on('room-updated', (data) => {
+        setRoomInfo(data.room);
+        setParticipants(data.participants);
+      });
 
-        // Listen for participant updates
-        voiceSocket.on('participant-joined', (participant) => {
-          setParticipants(prev => [...prev, participant]);
-          toast.success(`${participant.name} joined the room`);
-        });
+      // Listen for participant updates
+      voiceSocket.on('participant-joined', (participant) => {
+        setParticipants(prev => [...prev, participant]);
+        toast.success(`${participant.name} joined the room`);
+      });
 
-                 voiceSocket.on('participant-left', (participantId) => {
-           setParticipants(prev => prev.filter(p => p.id !== participantId));
-           toast('A participant left the room');
-         });
+      voiceSocket.on('participant-left', (participantId) => {
+        setParticipants(prev => prev.filter(p => p.id !== participantId));
+        toast('A participant left the room');
+      });
 
-                 voiceSocket.on('speaking-update', ({ participantId, isSpeaking }) => {
-           setParticipants(prev => 
-             prev.map(p => 
-               p.id === participantId ? { ...p, isSpeaking } : p
-             )
-           );
-         });
+      voiceSocket.on('speaking-update', ({ participantId, isSpeaking }) => {
+        setParticipants(prev => 
+          prev.map(p => 
+            p.id === participantId ? { ...p, isSpeaking } : p
+          )
+        );
+      });
 
-         // Listen for room messages
-         voiceSocket.on('room-message', (message) => {
-           setMessages(prev => [...prev, message]);
-         });
+      // Listen for room messages
+      voiceSocket.on('room-message', (message) => {
+        setMessages(prev => [...prev, message]);
+      });
 
       // Add current user to participants
       if (user) {
@@ -169,7 +169,6 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (chatMessage.trim() && socket) {
-      // Send message via voice chat socket
       socket.emit('send-room-message', {
         roomId,
         content: chatMessage,
@@ -280,11 +279,11 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
               <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                 {user?.name} (You)
               </div>
-                             {!isMicOn && (
-                 <div className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded">
-                   <MicrophoneIcon className="w-4 h-4" />
-                 </div>
-               )}
+              {!isMicOn && (
+                <div className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded">
+                  <MicrophoneIcon className="w-4 h-4" />
+                </div>
+              )}
             </div>
 
             {/* Remote Videos */}
@@ -305,11 +304,11 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
                     )}
                   </div>
                 </div>
-                                 {!participant.isMicOn && (
-                   <div className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded">
-                     <MicrophoneIcon className="w-4 h-4" />
-                   </div>
-                 )}
+                {!participant.isMicOn && (
+                  <div className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded">
+                    <MicrophoneIcon className="w-4 h-4" />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -338,9 +337,9 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
                         {participant.isSpeaker ? 'Speaker' : 'Listener'}
                       </p>
                     </div>
-                                         <div className="flex gap-1">
-                       <MicrophoneIcon className={`w-4 h-4 ${participant.isMicOn ? 'text-green-500' : 'text-red-500'}`} />
-                     </div>
+                    <div className="flex gap-1">
+                      <MicrophoneIcon className={`w-4 h-4 ${participant.isMicOn ? 'text-green-500' : 'text-red-500'}`} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -396,23 +395,23 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
 
       {/* Controls */}
       <div className="bg-gray-800 p-4 flex items-center justify-center gap-4">
-                 <button
-           onClick={toggleMic}
-           className={`p-3 rounded-full ${
-             isMicOn ? 'bg-gray-600 text-white' : 'bg-red-500 text-white'
-           } hover:opacity-80 transition-colors`}
-         >
-           <MicrophoneIcon className="w-6 h-6" />
-         </button>
+        <button
+          onClick={toggleMic}
+          className={`p-3 rounded-full ${
+            isMicOn ? 'bg-gray-600 text-white' : 'bg-red-500 text-white'
+          } hover:opacity-80 transition-colors`}
+        >
+          <MicrophoneIcon className="w-6 h-6" />
+        </button>
 
-                 <button
-           onClick={toggleCamera}
-           className={`p-3 rounded-full ${
-             isCameraOn ? 'bg-gray-600 text-white' : 'bg-red-500 text-white'
-           } hover:opacity-80 transition-colors`}
-         >
-           <VideoCameraIcon className="w-6 h-6" />
-         </button>
+        <button
+          onClick={toggleCamera}
+          className={`p-3 rounded-full ${
+            isCameraOn ? 'bg-gray-600 text-white' : 'bg-red-500 text-white'
+          } hover:opacity-80 transition-colors`}
+        >
+          <VideoCameraIcon className="w-6 h-6" />
+        </button>
 
         <button
           onClick={handleToggleSpeaker}
