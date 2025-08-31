@@ -5,9 +5,7 @@ import { useChat } from '@/context/ChatContext';
 import { toast } from 'react-hot-toast';
 import {
   MicrophoneIcon,
-  MicrophoneSlashIcon,
   VideoCameraIcon,
-  VideoCameraSlashIcon,
   SpeakerWaveIcon,
   SpeakerXMarkIcon,
   ChatBubbleLeftRightIcon,
@@ -267,11 +265,11 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
               <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                 {user?.name} (You)
               </div>
-              {!isMicOn && (
-                <div className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded">
-                  <MicrophoneSlashIcon className="w-4 h-4" />
-                </div>
-              )}
+                             {!isMicOn && (
+                 <div className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded">
+                   <MicrophoneIcon className="w-4 h-4" />
+                 </div>
+               )}
             </div>
 
             {/* Remote Videos */}
@@ -292,11 +290,11 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
                     )}
                   </div>
                 </div>
-                {!participant.isMicOn && (
-                  <div className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded">
-                    <MicrophoneSlashIcon className="w-4 h-4" />
-                  </div>
-                )}
+                                 {!participant.isMicOn && (
+                   <div className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded">
+                     <MicrophoneIcon className="w-4 h-4" />
+                   </div>
+                 )}
               </div>
             ))}
           </div>
@@ -325,13 +323,9 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
                         {participant.isSpeaker ? 'Speaker' : 'Listener'}
                       </p>
                     </div>
-                    <div className="flex gap-1">
-                      {participant.isMicOn ? (
-                        <MicrophoneIcon className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <MicrophoneSlashIcon className="w-4 h-4 text-red-500" />
-                      )}
-                    </div>
+                                         <div className="flex gap-1">
+                       <MicrophoneIcon className={`w-4 h-4 ${participant.isMicOn ? 'text-green-500' : 'text-red-500'}`} />
+                     </div>
                   </div>
                 ))}
               </div>
@@ -387,31 +381,23 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
 
       {/* Controls */}
       <div className="bg-gray-800 p-4 flex items-center justify-center gap-4">
-        <button
-          onClick={toggleMic}
-          className={`p-3 rounded-full ${
-            isMicOn ? 'bg-gray-600 text-white' : 'bg-red-500 text-white'
-          } hover:opacity-80 transition-colors`}
-        >
-          {isMicOn ? (
-            <MicrophoneIcon className="w-6 h-6" />
-          ) : (
-            <MicrophoneSlashIcon className="w-6 h-6" />
-          )}
-        </button>
+                 <button
+           onClick={toggleMic}
+           className={`p-3 rounded-full ${
+             isMicOn ? 'bg-gray-600 text-white' : 'bg-red-500 text-white'
+           } hover:opacity-80 transition-colors`}
+         >
+           <MicrophoneIcon className="w-6 h-6" />
+         </button>
 
-        <button
-          onClick={toggleCamera}
-          className={`p-3 rounded-full ${
-            isCameraOn ? 'bg-gray-600 text-white' : 'bg-red-500 text-white'
-          } hover:opacity-80 transition-colors`}
-        >
-          {isCameraOn ? (
-            <VideoCameraIcon className="w-6 h-6" />
-          ) : (
-            <VideoCameraSlashIcon className="w-6 h-6" />
-          )}
-        </button>
+                 <button
+           onClick={toggleCamera}
+           className={`p-3 rounded-full ${
+             isCameraOn ? 'bg-gray-600 text-white' : 'bg-red-500 text-white'
+           } hover:opacity-80 transition-colors`}
+         >
+           <VideoCameraIcon className="w-6 h-6" />
+         </button>
 
         <button
           onClick={handleToggleSpeaker}
