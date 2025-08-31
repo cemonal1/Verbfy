@@ -361,36 +361,7 @@ export class VerbfyTalkController {
     }
   }
 
-  // Leave room
-  static async leaveRoom(req: Request, res: Response) {
-    try {
-      const userId = (req as any).user.id;
-      const { roomId } = req.params;
 
-      const room = await VerbfyTalkRoom.findById(roomId);
-      if (!room) {
-        return res.status(404).json({ success: false, message: 'Room not found' });
-      }
-
-      // Remove user from participants
-      room.participants = room.participants.filter((p: any) => p.userId.toString() !== userId);
-      
-      // If no participants left, close the room
-      if (room.participants.length === 0) {
-        room.isActive = false;
-        room.endedAt = new Date();
-      }
-
-      await room.save();
-
-      res.json({
-        success: true,
-        message: 'Left room successfully'
-      });
-    } catch (error) {
-      res.status(500).json({ success: false, message: 'Failed to leave room' });
-    }
-  }
 
   // Clean up empty rooms (cron job)
   static async cleanupEmptyRooms() {
