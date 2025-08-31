@@ -32,8 +32,11 @@ interface Participant {
 export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   const { user } = useAuthContext();
   const { state, actions } = useChat();
-  const { messages } = state;
+  const { messages: chatMessages } = state;
   const { sendMessage } = actions;
+  
+  // Voice chat messages (separate from chat messages)
+  const [messages, setMessages] = useState<any[]>([]);
   
   // Voice chat socket (separate from chat socket)
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -130,13 +133,18 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
            toast('A participant left the room');
          });
 
-        voiceSocket.on('speaking-update', ({ participantId, isSpeaking }) => {
-          setParticipants(prev => 
-            prev.map(p => 
-              p.id === participantId ? { ...p, isSpeaking } : p
-            )
-          );
-        });
+                 voiceSocket.on('speaking-update', ({ participantId, isSpeaking }) => {
+           setParticipants(prev => 
+             prev.map(p => 
+               p.id === participantId ? { ...p, isSpeaking } : p
+             )
+           );
+         });
+
+         // Listen for room messages
+         voiceSocket.on('room-message', (message) => {
+           setMessages(prev => [...prev, message]);
+         });
 
       // Add current user to participants
       if (user) {
@@ -160,9 +168,15 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (chatMessage.trim()) {
-      // Use chat context's sendMessage for text chat
-      sendMessage(chatMessage);
+    if (chatMessage.trim() && socket) {
+      // Send message via voice chat socket
+      socket.emit('send-room-message', {
+        roomId,
+        content: chatMessage,
+        sender: user?.id,
+        senderName: user?.name,
+        timestamp: Date.now()
+      });
       setChatMessage('');
     }
   };
