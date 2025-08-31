@@ -166,7 +166,10 @@ function VerbfyTalkPage() {
             <p className="text-gray-600 mt-2">Join conversation rooms with up to 5 people</p>
           </div>
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              console.log('Create Room button clicked');
+              setShowCreateModal(true);
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
           >
             <PlusIcon className="w-5 h-5" />
@@ -178,6 +181,8 @@ function VerbfyTalkPage() {
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
           <div className="flex flex-wrap gap-4">
             <select
+              id="filterLevel"
+              name="filterLevel"
               value={filters.level}
               onChange={(e) => setFilters({ ...filters, level: e.target.value as 'All' | 'Beginner' | 'Intermediate' | 'Advanced' | 'Mixed' })}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -191,6 +196,8 @@ function VerbfyTalkPage() {
             
             <label className="flex items-center gap-2">
               <input
+                id="filterPrivate"
+                name="filterPrivate"
                 type="checkbox"
                 checked={filters.isPrivate}
                 onChange={(e) => setFilters({ ...filters, isPrivate: e.target.checked })}
@@ -307,8 +314,10 @@ function VerbfyTalkPage() {
                 <h3 className="text-lg font-semibold mb-4">Create VerbfyTalk Room</h3>
                 <form onSubmit={handleCreateRoom} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Room Name</label>
+                    <label htmlFor="roomName" className="block text-sm font-medium text-gray-700 mb-1">Room Name</label>
                     <input
+                      id="roomName"
+                      name="roomName"
                       type="text"
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -318,8 +327,10 @@ function VerbfyTalkPage() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <label htmlFor="roomDescription" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                     <textarea
+                      id="roomDescription"
+                      name="roomDescription"
                       value={form.description}
                       onChange={(e) => setForm({ ...form, description: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -328,8 +339,10 @@ function VerbfyTalkPage() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Topic (Optional)</label>
+                    <label htmlFor="roomTopic" className="block text-sm font-medium text-gray-700 mb-1">Topic (Optional)</label>
                     <input
+                      id="roomTopic"
+                      name="roomTopic"
                       type="text"
                       value={form.topic}
                       onChange={(e) => setForm({ ...form, topic: e.target.value })}
@@ -339,8 +352,10 @@ function VerbfyTalkPage() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Level</label>
+                    <label htmlFor="roomLevel" className="block text-sm font-medium text-gray-700 mb-1">Level</label>
                     <select
+                      id="roomLevel"
+                      name="roomLevel"
                       value={form.level}
                       onChange={(e) => setForm({ ...form, level: e.target.value as any })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -353,8 +368,10 @@ function VerbfyTalkPage() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Max Participants</label>
+                    <label htmlFor="roomMaxParticipants" className="block text-sm font-medium text-gray-700 mb-1">Max Participants</label>
                     <select
+                      id="roomMaxParticipants"
+                      name="roomMaxParticipants"
                       value={form.maxParticipants}
                       onChange={(e) => setForm({ ...form, maxParticipants: Number(e.target.value) })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -368,18 +385,22 @@ function VerbfyTalkPage() {
                   
                   <div className="flex items-center gap-2">
                     <input
+                      id="roomIsPrivate"
+                      name="roomIsPrivate"
                       type="checkbox"
                       checked={form.isPrivate}
                       onChange={(e) => setForm({ ...form, isPrivate: e.target.checked })}
                       className="rounded"
                     />
-                    <label className="text-sm text-gray-700">Private room</label>
+                    <label htmlFor="roomIsPrivate" className="text-sm text-gray-700">Private room</label>
                   </div>
                   
                   {form.isPrivate && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                      <label htmlFor="roomPassword" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                       <input
+                        id="roomPassword"
+                        name="roomPassword"
                         type="password"
                         value={form.password}
                         onChange={(e) => setForm({ ...form, password: e.target.value })}
