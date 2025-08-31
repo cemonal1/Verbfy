@@ -125,10 +125,10 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
           toast.success(`${participant.name} joined the room`);
         });
 
-        voiceSocket.on('participant-left', (participantId) => {
-          setParticipants(prev => prev.filter(p => p.id !== participantId));
-          toast.info('A participant left the room');
-        });
+                 voiceSocket.on('participant-left', (participantId) => {
+           setParticipants(prev => prev.filter(p => p.id !== participantId));
+           toast('A participant left the room');
+         });
 
         voiceSocket.on('speaking-update', ({ participantId, isSpeaking }) => {
           setParticipants(prev => 
