@@ -112,7 +112,7 @@ function VerbfyTalkPage() {
 
   const joinRoom = async (roomId: string, password?: string) => {
     try {
-      await verbfyTalkAPI.joinRoom(roomId, password ? { password } : undefined);
+      await verbfyTalkAPI.joinRoom(roomId, password ? { roomId, password } : { roomId });
       router.push(`/verbfy-talk/${roomId}`);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to join room');
