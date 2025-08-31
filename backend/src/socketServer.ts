@@ -141,12 +141,6 @@ const validateRoomAccess = async (userId: string, reservationId: string): Promis
 
 export const setupSocketServer = (server: HTTPServer) => {
   const io = new SocketIOServer(server, {
-    cors: {
-      origin: process.env.NODE_ENV === 'production' 
-        ? process.env.FRONTEND_URL 
-        : "http://localhost:3000",
-      credentials: true
-    },
     transports: ['polling', 'websocket'],
     allowEIO3: true,
     pingTimeout: 60000,
