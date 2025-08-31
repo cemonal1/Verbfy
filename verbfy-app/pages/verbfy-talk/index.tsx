@@ -18,7 +18,6 @@ function VerbfyTalkPage() {
   const [rooms, setRooms] = useState<VerbfyTalkRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState<{ roomId: string; isPrivate: boolean } | null>(null);
   const [filters, setFilters] = useState<RoomFilters>({
     level: 'All',
     isPrivate: false,
@@ -40,7 +39,6 @@ function VerbfyTalkPage() {
     level: 'Mixed',
     maxParticipants: 5
   });
-  const [joinPassword, setJoinPassword] = useState('');
 
   useEffect(() => {
     loadRooms();
@@ -50,7 +48,7 @@ function VerbfyTalkPage() {
     try {
       setLoading(true);
       const response = await verbfyTalkAPI.getRooms(filters);
-      setRooms(response?.rooms || []);
+      setRooms(response?.data || []);
       setPagination(response?.pagination || {
         page: 1,
         limit: 10,
@@ -95,35 +93,29 @@ function VerbfyTalkPage() {
       loadRooms();
       
       // Navigate to the new room
-      router.push(`/verbfy-talk/${response.room._id}`);
+      router.push(`/verbfy-talk/${response.data._id}`);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to create room');
     }
   };
 
-  const handleJoinRoom = async (roomId: string, isPrivate: boolean) => {
-    if (isPrivate) {
-      setShowJoinModal({ roomId, isPrivate });
+  const handleJoinRoom = (room: VerbfyTalkRoom) => {
+    if (room.isPrivate) {
+      const password = prompt('Enter room password:');
+      if (password) {
+        joinRoom(room._id, password);
+      }
     } else {
-      await joinRoom(roomId);
+      joinRoom(room._id);
     }
   };
 
   const joinRoom = async (roomId: string, password?: string) => {
     try {
-      await verbfyTalkAPI.joinRoom(roomId, password ? { roomId, password } : undefined);
-      toast.success('Joined room successfully!');
-      setShowJoinModal(null);
-      setJoinPassword('');
+      await verbfyTalkAPI.joinRoom(roomId, password ? { password } : undefined);
       router.push(`/verbfy-talk/${roomId}`);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to join room');
-    }
-  };
-
-  const handleJoinWithPassword = async () => {
-    if (showJoinModal) {
-      await joinRoom(showJoinModal.roomId, joinPassword);
     }
   };
 
@@ -154,8 +146,8 @@ function VerbfyTalkPage() {
   };
 
   return (
-    <DashboardLayout allowedRoles={['student', 'teacher']}>
-      <div className="max-w-6xl mx-auto p-6">
+    <DashboardLayout>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -166,10 +158,7 @@ function VerbfyTalkPage() {
             <p className="text-gray-600 mt-2">Join conversation rooms with up to 5 people</p>
           </div>
           <button
-            onClick={() => {
-              console.log('Create Room button clicked');
-              setShowCreateModal(true);
-            }}
+            onClick={() => setShowCreateModal(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
           >
             <PlusIcon className="w-5 h-5" />
@@ -181,10 +170,8 @@ function VerbfyTalkPage() {
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
           <div className="flex flex-wrap gap-4">
             <select
-              id="filterLevel"
-              name="filterLevel"
               value={filters.level}
-              onChange={(e) => setFilters({ ...filters, level: e.target.value as 'All' | 'Beginner' | 'Intermediate' | 'Advanced' | 'Mixed' })}
+              onChange={(e) => setFilters({ ...filters, level: e.target.value as any })}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="All">All Levels</option>
@@ -196,8 +183,6 @@ function VerbfyTalkPage() {
             
             <label className="flex items-center gap-2">
               <input
-                id="filterPrivate"
-                name="filterPrivate"
                 type="checkbox"
                 checked={filters.isPrivate}
                 onChange={(e) => setFilters({ ...filters, isPrivate: e.target.checked })}
@@ -250,38 +235,40 @@ function VerbfyTalkPage() {
                   
                   <div className="flex items-center gap-1 text-sm text-gray-500">
                     <UsersIcon className="w-4 h-4" />
-                    <span>{room.currentParticipants || 0}/{room.maxParticipants}</span>
+                    <span>{room.activeParticipantCount || 0}/{room.maxParticipants}</span>
                   </div>
                 </div>
                 
                 <div className="text-xs text-gray-400 mb-4">
-                  Created by {room.createdBy}
+                  Created by {room.createdBy?.name || 'Unknown'}
                 </div>
                 
                 <button
-                  onClick={() => handleJoinRoom(room._id, room.isPrivate)}
-                  disabled={(room.currentParticipants || 0) >= room.maxParticipants}
-                  className={`w-full py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                    (room.currentParticipants || 0) >= room.maxParticipants
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                  }`}
+                  onClick={() => handleJoinRoom(room)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
                 >
-                  {(room.currentParticipants || 0) >= room.maxParticipants
-                    ? 'Room Full'
-                    : 'Join Room'
-                  }
+                  Join Room
                 </button>
               </div>
             ))}
           </div>
         )}
 
-        {!loading && (rooms?.length || 0) === 0 && (
+        {/* Empty State */}
+        {!loading && rooms.length === 0 && (
           <div className="text-center py-12">
-            <ChatBubbleLeftRightIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No rooms available</h3>
-            <p className="text-gray-500">Be the first to create a conversation room!</p>
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ChatBubbleLeftRightIcon className="w-12 h-12 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No rooms available</h3>
+            <p className="text-gray-600 mb-6">Be the first to create a conversation room!</p>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 mx-auto transition-colors"
+            >
+              <PlusIcon className="w-5 h-5" />
+              Create Room
+            </button>
           </div>
         )}
 
@@ -289,14 +276,14 @@ function VerbfyTalkPage() {
         {pagination.pages > 1 && (
           <div className="flex justify-center mt-8">
             <div className="flex gap-2">
-              {[...Array(pagination.pages)].map((_, i) => (
+              {Array.from({ length: pagination.pages }, (_, i) => (
                 <button
                   key={i}
                   onClick={() => setFilters({ ...filters, page: i + 1 })}
-                  className={`px-3 py-2 rounded-md text-sm ${
-                    pagination.page === i + 1
+                  className={`px-3 py-2 rounded-md ${
+                    filters.page === i + 1
                       ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-700 border hover:bg-gray-50'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
                   {i + 1}
@@ -314,10 +301,8 @@ function VerbfyTalkPage() {
                 <h3 className="text-lg font-semibold mb-4">Create VerbfyTalk Room</h3>
                 <form onSubmit={handleCreateRoom} className="space-y-4">
                   <div>
-                    <label htmlFor="roomName" className="block text-sm font-medium text-gray-700 mb-1">Room Name</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Room Name</label>
                     <input
-                      id="roomName"
-                      name="roomName"
                       type="text"
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -327,10 +312,8 @@ function VerbfyTalkPage() {
                   </div>
                   
                   <div>
-                    <label htmlFor="roomDescription" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                     <textarea
-                      id="roomDescription"
-                      name="roomDescription"
                       value={form.description}
                       onChange={(e) => setForm({ ...form, description: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -339,10 +322,8 @@ function VerbfyTalkPage() {
                   </div>
                   
                   <div>
-                    <label htmlFor="roomTopic" className="block text-sm font-medium text-gray-700 mb-1">Topic (Optional)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Topic (Optional)</label>
                     <input
-                      id="roomTopic"
-                      name="roomTopic"
                       type="text"
                       value={form.topic}
                       onChange={(e) => setForm({ ...form, topic: e.target.value })}
@@ -352,10 +333,8 @@ function VerbfyTalkPage() {
                   </div>
                   
                   <div>
-                    <label htmlFor="roomLevel" className="block text-sm font-medium text-gray-700 mb-1">Level</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Level</label>
                     <select
-                      id="roomLevel"
-                      name="roomLevel"
                       value={form.level}
                       onChange={(e) => setForm({ ...form, level: e.target.value as any })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -368,10 +347,8 @@ function VerbfyTalkPage() {
                   </div>
                   
                   <div>
-                    <label htmlFor="roomMaxParticipants" className="block text-sm font-medium text-gray-700 mb-1">Max Participants</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Max Participants</label>
                     <select
-                      id="roomMaxParticipants"
-                      name="roomMaxParticipants"
                       value={form.maxParticipants}
                       onChange={(e) => setForm({ ...form, maxParticipants: Number(e.target.value) })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -385,22 +362,18 @@ function VerbfyTalkPage() {
                   
                   <div className="flex items-center gap-2">
                     <input
-                      id="roomIsPrivate"
-                      name="roomIsPrivate"
                       type="checkbox"
                       checked={form.isPrivate}
                       onChange={(e) => setForm({ ...form, isPrivate: e.target.checked })}
                       className="rounded"
                     />
-                    <label htmlFor="roomIsPrivate" className="text-sm text-gray-700">Private room</label>
+                    <label className="text-sm text-gray-700">Private room</label>
                   </div>
                   
                   {form.isPrivate && (
                     <div>
-                      <label htmlFor="roomPassword" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                       <input
-                        id="roomPassword"
-                        name="roomPassword"
                         type="password"
                         value={form.password}
                         onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -426,38 +399,6 @@ function VerbfyTalkPage() {
                     </button>
                   </div>
                 </form>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Join Room Password Modal */}
-        {showJoinModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Enter Room Password</h3>
-                <input
-                  type="password"
-                  placeholder="Enter password"
-                  value={joinPassword}
-                  onChange={(e) => setJoinPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-                />
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleJoinWithPassword}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
-                  >
-                    Join Room
-                  </button>
-                  <button
-                    onClick={() => setShowJoinModal(null)}
-                    className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
               </div>
             </div>
           </div>
