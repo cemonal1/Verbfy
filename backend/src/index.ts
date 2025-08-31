@@ -99,14 +99,6 @@ app.use(cors({
     return callback(new Error('Not allowed by CORS'), false);
   },
   credentials: true,
-}));
-
-// Add permission headers for WebRTC
-app.use((req, res, next) => {
-  res.setHeader('Permissions-Policy', 'microphone=*, camera=*, geolocation=*');
-  res.setHeader('Feature-Policy', 'microphone *; camera *; geolocation *');
-  next();
-});
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
@@ -123,6 +115,13 @@ app.use((req, res, next) => {
   ],
   exposedHeaders: ['set-cookie', 'X-CSRF-Token']
 }));
+
+// Add permission headers for WebRTC
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'microphone=*, camera=*, geolocation=*');
+  res.setHeader('Feature-Policy', 'microphone *; camera *; geolocation *');
+  next();
+});
 
 console.log('🔧 CORS Setup - Allowed origins:', allowedOrigins);
 console.log('🔧 CORS Setup - Node ENV:', process.env.NODE_ENV);
