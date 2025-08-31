@@ -3,6 +3,7 @@ import { useWebRTC } from '@/features/lessonRoom/webrtc/useWebRTC';
 import { useAuthContext } from '@/context/AuthContext';
 import { useChat } from '@/context/ChatContext';
 import { toast } from 'react-hot-toast';
+import { io, Socket } from 'socket.io-client';
 import {
   MicrophoneIcon,
   VideoCameraIcon,
