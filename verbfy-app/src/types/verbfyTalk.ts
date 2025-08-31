@@ -33,7 +33,7 @@ export interface RoomFilters {
 
 export interface RoomsResponse {
   success: boolean;
-  rooms: VerbfyTalkRoom[];
+  data: VerbfyTalkRoom[];
   pagination: {
     page: number;
     limit: number;
@@ -44,7 +44,7 @@ export interface RoomsResponse {
 
 export interface RoomResponse {
   success: boolean;
-  room: VerbfyTalkRoom;
+  data: VerbfyTalkRoom;
 }
 
 export interface JoinRoomData {
