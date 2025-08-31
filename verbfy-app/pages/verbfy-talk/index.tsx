@@ -50,10 +50,23 @@ function VerbfyTalkPage() {
     try {
       setLoading(true);
       const response = await verbfyTalkAPI.getRooms(filters);
-      setRooms(response.rooms);
-      setPagination(response.pagination);
+      setRooms(response?.rooms || []);
+      setPagination(response?.pagination || {
+        page: 1,
+        limit: 10,
+        total: 0,
+        pages: 0
+      });
     } catch (error) {
+      console.error('Error loading rooms:', error);
       toast.error('Failed to load rooms');
+      setRooms([]);
+      setPagination({
+        page: 1,
+        limit: 10,
+        total: 0,
+        pages: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -201,7 +214,7 @@ function VerbfyTalkPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rooms.map((room) => (
+            {rooms?.map((room) => (
               <div key={room._id} className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-3">
                   <h3 className="font-semibold text-lg text-gray-900 truncate">{room.name}</h3>
@@ -257,7 +270,7 @@ function VerbfyTalkPage() {
           </div>
         )}
 
-        {!loading && rooms.length === 0 && (
+        {!loading && (rooms?.length || 0) === 0 && (
           <div className="text-center py-12">
             <ChatBubbleLeftRightIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No rooms available</h3>
