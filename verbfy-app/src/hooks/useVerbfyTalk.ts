@@ -160,10 +160,11 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
   const initializeSocket = useCallback(async () => {
     if (!token || isInitializedRef.current) return;
     
-    try {
-      setIsConnecting(true);
-      setConnectionError(null);
-      setReconnectionAttempts(0);
+         try {
+       setIsConnecting(true);
+       setStatus('connecting');
+       setConnectionError(null);
+       setReconnectionAttempts(0);
       
       // Cleanup existing socket if any
       if (socketRef.current) {
@@ -185,51 +186,57 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
         rememberUpgrade: true
       });
       
-      socket.on('connect', () => {
-        console.log('🔌 VerbfyTalk connected:', socket.id);
-        setIsConnected(true);
-        setIsConnecting(false);
-        setConnectionError(null);
-        setReconnectionAttempts(0);
-        isInitializedRef.current = true;
-      });
+             socket.on('connect', () => {
+         console.log('🔌 VerbfyTalk connected:', socket.id);
+         setIsConnected(true);
+         setIsConnecting(false);
+         setStatus('connected');
+         setConnectionError(null);
+         setReconnectionAttempts(0);
+         isInitializedRef.current = true;
+       });
       
-      socket.on('disconnect', (reason) => {
-        console.log('🔌 VerbfyTalk disconnected:', reason);
-        setIsConnected(false);
-        setCurrentRoom(null);
-        setParticipants([]);
-        stopVAD();
-        
-        // Cleanup peer connections on disconnect
-        peerConnectionsRef.current.forEach(connection => connection.close());
-        peerConnectionsRef.current.clear();
-        iceCandidateBufferRef.current.clear();
-      });
+             socket.on('disconnect', (reason) => {
+         console.log('🔌 VerbfyTalk disconnected:', reason);
+         setIsConnected(false);
+         setStatus('disconnected');
+         setCurrentRoom(null);
+         setParticipants([]);
+         stopVAD();
+         
+         // Cleanup peer connections on disconnect
+         peerConnectionsRef.current.forEach(connection => connection.close());
+         peerConnectionsRef.current.clear();
+         iceCandidateBufferRef.current.clear();
+       });
       
-      socket.on('connect_error', (error) => {
-        console.error('🔌 VerbfyTalk connection error:', error);
-        setConnectionError(`Connection failed: ${error.message}`);
-        setIsConnecting(false);
-      });
+             socket.on('connect_error', (error) => {
+         console.error('🔌 VerbfyTalk connection error:', error);
+         setStatus('error');
+         setConnectionError(`Connection failed: ${error.message}`);
+         setIsConnecting(false);
+       });
 
-      socket.on('reconnect_attempt', (attemptNumber) => {
-        console.log('🔄 VerbfyTalk reconnection attempt:', attemptNumber);
-        setReconnectionAttempts(attemptNumber);
-        setConnectionError(`Reconnecting... (Attempt ${attemptNumber}/5)`);
-      });
+             socket.on('reconnect_attempt', (attemptNumber) => {
+         console.log('🔄 VerbfyTalk reconnection attempt:', attemptNumber);
+         setStatus('connecting');
+         setReconnectionAttempts(attemptNumber);
+         setConnectionError(`Reconnecting... (Attempt ${attemptNumber}/5)`);
+       });
 
-      socket.on('reconnect', (attemptNumber) => {
-        console.log('✅ VerbfyTalk reconnected after', attemptNumber, 'attempts');
-        setConnectionError(null);
-        setReconnectionAttempts(0);
-      });
+             socket.on('reconnect', (attemptNumber) => {
+         console.log('✅ VerbfyTalk reconnected after', attemptNumber, 'attempts');
+         setStatus('connected');
+         setConnectionError(null);
+         setReconnectionAttempts(0);
+       });
 
-      socket.on('reconnect_failed', () => {
-        console.error('❌ VerbfyTalk reconnection failed');
-        setConnectionError('Failed to reconnect. Please refresh the page.');
-        setIsConnecting(false);
-      });
+             socket.on('reconnect_failed', () => {
+         console.error('❌ VerbfyTalk reconnection failed');
+         setStatus('error');
+         setConnectionError('Failed to reconnect. Please refresh the page.');
+         setIsConnecting(false);
+       });
       
       // Room events
       socket.on('rooms:list', (roomsList: VerbfyTalkRoom[]) => {
@@ -271,6 +278,13 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
         
         // Clear ICE candidate buffer for this participant
         iceCandidateBufferRef.current.delete(participantId);
+        
+        // Remove remote stream for this participant
+        setRemoteStreams(prev => {
+          const newStreams = { ...prev };
+          delete newStreams[participantId];
+          return newStreams;
+        });
       });
 
       socket.on('participant:mute', (data: { participantId: string; isMuted: boolean }) => {
@@ -370,6 +384,15 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
 
       peerConnection.oniceconnectionstatechange = () => {
         console.log(`🧊 ICE connection state (${from}):`, peerConnection.iceConnectionState);
+      };
+
+      // Handle incoming remote streams
+      peerConnection.ontrack = (event) => {
+        console.log(`🎵 Received remote stream from ${from}`);
+        setRemoteStreams(prev => ({
+          ...prev,
+          [from]: event.streams[0]
+        }));
       };
       
       await peerConnection.setRemoteDescription(offer);
@@ -632,15 +655,18 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       socketRef.current = null;
     }
     
-    // Reset state
-    setIsConnected(false);
-    setIsConnecting(false);
-    setCurrentRoom(null);
-    setParticipants([]);
-    setConnectionError(null);
-    setReconnectionAttempts(0);
-    setIsMuted(false);
-    isInitializedRef.current = false;
+         // Reset state
+     setIsConnected(false);
+     setIsConnecting(false);
+     setStatus('disconnected');
+     setCurrentRoom(null);
+     setParticipants([]);
+     setRemoteStreams({});
+     setMessages([]);
+     setConnectionError(null);
+     setReconnectionAttempts(0);
+     setIsMuted(false);
+     isInitializedRef.current = false;
     
     console.log('✅ VerbfyTalk cleanup completed');
   }, [stopVAD]);
