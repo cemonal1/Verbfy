@@ -16,6 +16,7 @@ import pinoHttp from 'pino-http';
 import UserModel from './models/User';
 import { VerbfyTalkRoom } from './models/VerbfyTalkRoom';
 import { verifyToken } from './utils/jwt';
+import { Types } from 'mongoose';
 import livekitRoutes from './routes/livekitRoutes';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/userRoutes';
@@ -124,13 +125,11 @@ app.use((req, res, next) => {
   next();
 });
 
-console.log('🔧 CORS Setup - Allowed origins:', allowedOrigins);
-console.log('🔧 CORS Setup - Node ENV:', process.env.NODE_ENV);
-console.log('🔧 CORS Setup - Frontend URL:', process.env.FRONTEND_URL);
+// CORS setup completed
 
 // Debug middleware to log all requests
 app.use((req, res, next) => {
-  console.log(`🔍 Request: ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  // Request logged
   next();
 });
 
@@ -412,14 +411,14 @@ verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
          room.participants[inactiveParticipantIndex].isActive = true;
          room.participants[inactiveParticipantIndex].joinedAt = new Date();
          room.participants[inactiveParticipantIndex].leftAt = undefined;
-       } else {
-         // Add new participant
-         room.participants.push({
-           userId: socket.user?.id!,
-           joinedAt: new Date(),
-           isActive: true
-         });
-       }
+               } else {
+          // Add new participant
+          room.participants.push({
+            userId: new Types.ObjectId(socket.user?.id!),
+            joinedAt: new Date(),
+            isActive: true
+          });
+        }
       
       await room.save();
       
@@ -446,18 +445,20 @@ verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
         isSpeaker: false
       });
       
-      // Send current participants list to the new user
-      const activeParticipants = updatedRoom.participants
-        .filter((p: any) => p.isActive)
-        .map((p: any) => ({
-          id: p.userId._id.toString(),
-          name: p.userId.name,
-          isSpeaking: false,
-          isMuted: false,
-          isSpeaker: false
-        }));
-      
-      socket.emit('participants:update', activeParticipants);
+             // Send current participants list to the new user
+       if (updatedRoom) {
+         const activeParticipants = updatedRoom.participants
+           .filter((p: any) => p.isActive)
+           .map((p: any) => ({
+             id: p.userId._id.toString(),
+             name: p.userId.name,
+             isSpeaking: false,
+             isMuted: false,
+             isSpeaker: false
+           }));
+         
+         socket.emit('participants:update', activeParticipants);
+       }
       
       console.log(`📋 User ${socket.user?.name} joined VerbfyTalk room: ${data.roomId}`);
     } catch (error) {
@@ -513,11 +514,11 @@ verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
   // Create room
   socket.on('room:create', async (data: { name: string }, callback) => {
     try {
-      const roomData = {
-        name: data.name,
-        createdBy: socket.user?.id,
-        participants: [{ userId: socket.user?.id, joinedAt: new Date(), isActive: true }]
-      };
+             const roomData = {
+         name: data.name,
+         createdBy: new Types.ObjectId(socket.user?.id!),
+         participants: [{ userId: new Types.ObjectId(socket.user?.id!), joinedAt: new Date(), isActive: true }]
+       };
       
       const room = new VerbfyTalkRoom(roomData);
       await room.save();
@@ -763,22 +764,7 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// CORS test endpoint for debugging
-app.get('/api/cors-test', (req, res) => {
-  const origin = req.headers.origin;
-  console.log('🔍 CORS Test - Origin:', origin);
-  console.log('🔍 CORS Test - Allowed origins:', allowedOrigins);
-  console.log('🔍 CORS Test - Node ENV:', process.env.NODE_ENV);
-  
-  res.json({ 
-    origin, 
-    allowedOrigins,
-    nodeEnv: process.env.NODE_ENV,
-    frontendUrl: process.env.FRONTEND_URL,
-    corsExtraOrigins: process.env.CORS_EXTRA_ORIGINS,
-    timestamp: new Date().toISOString()
-  });
-});
+// CORS test endpoint removed - no longer needed
 
 // API Routes
 app.use('/api/auth', authRoutes);

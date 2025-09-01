@@ -2,11 +2,19 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 interface VerbfyTalkRoom {
-  id: string;
+  _id: string;
+  id?: string; // For backward compatibility
   name: string;
-  participants: number;
+  description?: string;
+  topic?: string;
+  level?: string;
+  isPrivate?: boolean;
   maxParticipants: number;
+  participants?: any[];
   isActive: boolean;
+  createdBy?: any;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface VerbfyTalkParticipant {
@@ -131,13 +139,13 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
       const isSpeaking = average > 30; // Threshold for voice activity
 
-      // Update local speaking state
-      if (socketRef.current?.connected && currentRoom) {
-        socketRef.current.emit('participant:speaking', {
-          roomId: currentRoom.id,
-          isSpeaking
-        });
-      }
+             // Update local speaking state
+       if (socketRef.current?.connected && currentRoom) {
+         socketRef.current.emit('participant:speaking', {
+           roomId: currentRoom._id,
+           isSpeaking
+         });
+       }
     }, 100);
 
     // Cleanup function
@@ -459,7 +467,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
   const leaveRoom = useCallback(() => {
     if (!socketRef.current?.connected || !currentRoom) return;
     
-    socketRef.current.emit('room:leave', { roomId: currentRoom.id });
+         socketRef.current.emit('room:leave', { roomId: currentRoom._id });
     stopVAD();
   }, [currentRoom, stopVAD]);
   
@@ -571,22 +579,22 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       audioTrack.enabled = !newMutedState;
     }
     
-    // Notify other participants
-    socketRef.current?.emit('participant:mute', { 
-      roomId: currentRoom?.id, 
-      isMuted: newMutedState 
-    });
+         // Notify other participants
+     socketRef.current?.emit('participant:mute', { 
+       roomId: currentRoom?._id, 
+       isMuted: newMutedState 
+     });
   }, [isMuted, currentRoom]);
   
   const toggleSpeaker = useCallback(() => {
     const newSpeakerState = !isSpeaker;
     setIsSpeaker(newSpeakerState);
     
-    // Notify other participants
-    socketRef.current?.emit('participant:speaker', { 
-      roomId: currentRoom?.id, 
-      isSpeaker: newSpeakerState 
-    });
+         // Notify other participants
+     socketRef.current?.emit('participant:speaker', { 
+       roomId: currentRoom?._id, 
+       isSpeaker: newSpeakerState 
+     });
   }, [isSpeaker, currentRoom]);
   
   const sendMessage = useCallback((content: string) => {
@@ -603,12 +611,12 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
     // Add message to local state
     setMessages(prev => [...prev, message]);
     
-    // Send via socket
-    socketRef.current.emit('send-room-message', {
-      roomId: currentRoom.id,
-      content,
-      timestamp: Date.now()
-    });
+         // Send via socket
+     socketRef.current.emit('send-room-message', {
+       roomId: currentRoom._id,
+       content,
+       timestamp: Date.now()
+     });
   }, [currentRoom]);
   
   // Comprehensive cleanup

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useVerbfyTalk } from '@/hooks/useVerbfyTalk';
 import { useAuthContext } from '@/context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { io, Socket } from 'socket.io-client';
+import { Socket } from 'socket.io-client';
 import {
   MicrophoneIcon,
   SpeakerWaveIcon,
@@ -22,8 +22,8 @@ interface VoiceChatRoomProps {
 export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   const { user } = useAuthContext();
   
-  // Voice chat socket
-  const [socket, setSocket] = useState<Socket | null>(null);
+  // Voice chat socket (using VerbfyTalk socket)
+  const [socket] = useState<Socket | null>(null);
   
   // Room state
   const [showChat, setShowChat] = useState(true);
@@ -54,25 +54,10 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Initialize socket and room
+  // Initialize room
   useEffect(() => {
     if (user && roomId) {
-      const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
-      const voiceSocket = io(base, {
-        path: '/socket.io',
-        transports: ['polling'],
-        withCredentials: true,
-        auth: {
-          token: localStorage.getItem('token') || undefined
-        }
-      });
-      
-      setSocket(voiceSocket);
-      initializeRoom(voiceSocket);
-      
-      return () => {
-        voiceSocket.disconnect();
-      };
+      initializeRoom();
     }
   }, [user, roomId]);
 
@@ -90,7 +75,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
     }
   }, [verbfyMessages]);
 
-  const initializeRoom = async (voiceSocket: Socket) => {
+  const initializeRoom = async () => {
     try {
       setIsLoading(true);
       

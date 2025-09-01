@@ -58,7 +58,8 @@ export interface VerbfyTalkParticipant {
   name: string;
   isSpeaking: boolean;
   isMuted: boolean;
-  joinedAt: string;
+  isSpeaker: boolean;
+  joinedAt?: string;
 }
 
 export interface VerbfyTalkMessage {
