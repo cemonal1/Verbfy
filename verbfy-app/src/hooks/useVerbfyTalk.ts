@@ -246,6 +246,12 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
         setConnectionError('Failed to reconnect. Please refresh the page.');
         setIsConnecting(false);
       });
+
+      // Room error handling
+      socket.on('room:error', (data: { message: string }) => {
+        setConnectionError(data.message);
+        setStatus('error');
+      });
       
       // Room events
       socket.on('rooms:list', (roomsList: VerbfyTalkRoom[]) => {
@@ -269,6 +275,13 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       
       socket.on('participant:joined', (participant: VerbfyTalkParticipant) => {
         setParticipants(prev => [...prev, participant]);
+        
+        // Create WebRTC connection with new participant
+        if (localStreamRef.current && participant.id !== socketRef.current?.auth?.token) {
+          setTimeout(() => {
+            createPeerConnection(participant.id);
+          }, 500);
+        }
       });
       
       socket.on('participant:left', (participantId: string) => {
@@ -371,8 +384,9 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       
       // Handle ICE candidates
       peerConnection.onicecandidate = (event) => {
-        if (event.candidate && socketRef.current?.connected) {
+        if (event.candidate && socketRef.current?.connected && currentRoom) {
           socketRef.current.emit('webrtc:ice-candidate', {
+            roomId: currentRoom._id,
             to: from,
             candidate: event.candidate
           });
@@ -402,7 +416,11 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
       
-      socketRef.current?.emit('webrtc:answer', { to: from, answer });
+      socketRef.current?.emit('webrtc:answer', { 
+        roomId: currentRoom?._id,
+        to: from, 
+        answer 
+      });
       
       // Process buffered ICE candidates
       const bufferedCandidates = iceCandidateBufferRef.current.get(from) || [];
@@ -459,13 +477,73 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
     
     try {
       socketRef.current.emit('room:join', { roomId });
+      
+      // Initialize WebRTC connections with existing participants
+      setTimeout(() => {
+        if (localStreamRef.current && participants.length > 0) {
+          participants.forEach(participant => {
+            if (participant.id !== socketRef.current?.auth?.token) {
+              createPeerConnection(participant.id);
+            }
+          });
+        }
+      }, 1000);
+      
       return true;
     } catch (error) {
       console.error('❌ Failed to join room:', error);
       setConnectionError('Failed to join room');
       return false;
     }
-  }, []);
+  }, [participants]);
+
+  // Create peer connection and send offer
+  const createPeerConnection = useCallback((participantId: string) => {
+    if (!localStreamRef.current || !socketRef.current?.connected || !currentRoom) return;
+    
+    const peerConnection = new RTCPeerConnection(WEBRTC_CONFIG);
+    peerConnectionsRef.current.set(participantId, peerConnection);
+    
+    // Add local stream
+    localStreamRef.current.getTracks().forEach(track => {
+      peerConnection.addTrack(track, localStreamRef.current!);
+    });
+    
+    // Handle ICE candidates
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate && socketRef.current?.connected && currentRoom) {
+        socketRef.current.emit('webrtc:ice-candidate', {
+          roomId: currentRoom._id,
+          to: participantId,
+          candidate: event.candidate
+        });
+      }
+    };
+    
+    // Handle remote streams
+    peerConnection.ontrack = (event) => {
+      setRemoteStreams(prev => ({
+        ...prev,
+        [participantId]: event.streams[0]
+      }));
+    };
+    
+    // Create and send offer
+    peerConnection.createOffer()
+      .then(offer => peerConnection.setLocalDescription(offer))
+      .then(() => {
+        if (socketRef.current?.connected && currentRoom) {
+          socketRef.current.emit('webrtc:offer', {
+            roomId: currentRoom._id,
+            to: participantId,
+            offer: peerConnection.localDescription
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Failed to create offer:', error);
+      });
+  }, [currentRoom]);
   
   const leaveRoom = useCallback(() => {
     if (!socketRef.current?.connected || !currentRoom) return;

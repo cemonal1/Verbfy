@@ -76,17 +76,22 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
     }
   }, [verbfyMessages]);
 
+  // Update room info when participants change
+  useEffect(() => {
+    if (verbfyParticipants.length > 0) {
+      setRoomInfo({ 
+        name: `Room ${roomId}`, 
+        participants: verbfyParticipants.length 
+      });
+    }
+  }, [verbfyParticipants, roomId]);
+
   const initializeRoom = async () => {
     try {
       setIsLoading(true);
       
       // Join room via VerbfyTalk
       await joinRoom(roomId);
-      
-      // Set room info from current room
-      if (verbfyParticipants.length > 0) {
-        setRoomInfo({ name: `Room ${roomId}`, participants: verbfyParticipants.length });
-      }
 
     } catch (error) {
       console.error('Failed to initialize room:', error);
