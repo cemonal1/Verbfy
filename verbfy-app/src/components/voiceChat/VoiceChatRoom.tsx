@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useWebRTC } from '@/features/lessonRoom/webrtc/useWebRTC';
+import { useVerbfyTalk } from '@/hooks/useVerbfyTalk';
 import { useAuthContext } from '@/context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
@@ -22,8 +22,7 @@ interface Participant {
   id: string;
   name: string;
   isSpeaking: boolean;
-  isMicOn: boolean;
-  isCameraOn: boolean;
+  isMuted: boolean;
   isSpeaker: boolean;
 }
 
@@ -51,23 +50,21 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   const [roomInfo, setRoomInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // WebRTC setup
-  const peerIds = user ? {
-    self: `${user.id}-room-${roomId}`,
-    remote: undefined,
-  } : { self: '', remote: undefined };
-
+  // VerbfyTalk setup
   const {
     localStream,
     remoteStreams,
-    isMicOn,
-    isCameraOn,
-    toggleMic,
-    toggleCamera,
+    isMuted,
+    toggleMute,
     status,
-    error,
+    connectionError,
     isInitialized,
-  } = useWebRTC(roomId, peerIds, participants.map(p => p.id));
+    participants: verbfyParticipants,
+    messages: verbfyMessages,
+    sendMessage: sendVerbfyMessage,
+    joinRoom,
+    leaveRoom: leaveVerbfyRoom,
+  } = useVerbfyTalk();
 
   // Refs
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -107,56 +104,33 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [verbfyMessages]);
 
   const initializeRoom = async (voiceSocket: Socket) => {
     try {
       setIsLoading(true);
       
-      // Join room via socket
-      voiceSocket.emit('join-room', { roomId, userId: user?.id });
+      // Join room via VerbfyTalk
+      await joinRoom(roomId);
         
       // Listen for room updates
       voiceSocket.on('room-updated', (data) => {
         setRoomInfo(data.room);
-        setParticipants(data.participants);
       });
 
       // Listen for participant updates
       voiceSocket.on('participant-joined', (participant) => {
-        setParticipants(prev => [...prev, participant]);
         toast.success(`${participant.name} joined the room`);
       });
 
       voiceSocket.on('participant-left', (participantId) => {
-        setParticipants(prev => prev.filter(p => p.id !== participantId));
         toast('A participant left the room');
-      });
-
-      voiceSocket.on('speaking-update', ({ participantId, isSpeaking }) => {
-        setParticipants(prev => 
-          prev.map(p => 
-            p.id === participantId ? { ...p, isSpeaking } : p
-          )
-        );
       });
 
       // Listen for room messages
       voiceSocket.on('room-message', (message) => {
-        setMessages(prev => [...prev, message]);
+        // Messages are handled by useVerbfyTalk hook
       });
-
-      // Add current user to participants
-      if (user) {
-        setParticipants([{
-          id: user.id,
-          name: user.name,
-          isSpeaking: false,
-          isMicOn: true,
-          isCameraOn: true,
-          isSpeaker: false
-        }]);
-      }
 
     } catch (error) {
       console.error('Failed to initialize room:', error);
@@ -168,14 +142,8 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (chatMessage.trim() && socket) {
-      socket.emit('send-room-message', {
-        roomId,
-        content: chatMessage,
-        sender: user?.id,
-        senderName: user?.name,
-        timestamp: Date.now()
-      });
+    if (chatMessage.trim()) {
+      sendVerbfyMessage(chatMessage);
       setChatMessage('');
     }
   };
@@ -188,9 +156,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   };
 
   const handleLeaveRoom = () => {
-    if (socket) {
-      socket.emit('leave-room', { roomId, userId: user?.id });
-    }
+    leaveVerbfyRoom();
     onLeave();
   };
 
@@ -205,11 +171,11 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
     );
   }
 
-  if (error) {
+  if (connectionError) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <p className="text-red-500 mb-4">Failed to join room: {error}</p>
+          <p className="text-red-500 mb-4">Failed to join room: {connectionError}</p>
           <button
             onClick={handleLeaveRoom}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg"
@@ -237,7 +203,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
               {roomInfo?.name || `Room ${roomId}`}
             </h1>
             <p className="text-gray-400 text-sm">
-              {participants.length} participants
+              {verbfyParticipants.length} participants
             </p>
           </div>
         </div>
@@ -279,7 +245,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
               <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                 {user?.name} (You)
               </div>
-              {!isMicOn && (
+              {isMuted && (
                 <div className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded">
                   <MicrophoneIcon className="w-4 h-4" />
                 </div>
@@ -287,7 +253,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
             </div>
 
             {/* Remote Videos */}
-            {participants.filter(p => p.id !== user?.id).map((participant) => (
+            {verbfyParticipants.filter(p => p.id !== user?.id).map((participant) => (
               <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden">
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="text-center">
@@ -304,7 +270,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
                     )}
                   </div>
                 </div>
-                {!participant.isMicOn && (
+                {participant.isMuted && (
                   <div className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded">
                     <MicrophoneIcon className="w-4 h-4" />
                   </div>
@@ -321,7 +287,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
             <div className="p-4 border-b border-gray-700">
               <h3 className="text-white font-semibold mb-3">Participants</h3>
               <div className="space-y-2">
-                {participants.map((participant) => (
+                {verbfyParticipants.map((participant) => (
                   <div key={participant.id} className="flex items-center gap-3 p-2 rounded bg-gray-700">
                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                       <span className="text-white text-sm font-semibold">
@@ -338,7 +304,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
                       </p>
                     </div>
                     <div className="flex gap-1">
-                      <MicrophoneIcon className={`w-4 h-4 ${participant.isMicOn ? 'text-green-500' : 'text-red-500'}`} />
+                      <MicrophoneIcon className={`w-4 h-4 ${!participant.isMuted ? 'text-green-500' : 'text-red-500'}`} />
                     </div>
                   </div>
                 ))}
@@ -355,7 +321,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
               
               <div className="flex-1 overflow-y-auto p-4" ref={chatContainerRef}>
                 <div className="space-y-3">
-                  {messages.map((message, index) => (
+                  {verbfyMessages.map((message, index) => (
                     <div key={index} className="bg-gray-700 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-blue-400 text-sm font-semibold">
@@ -396,21 +362,12 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
       {/* Controls */}
       <div className="bg-gray-800 p-4 flex items-center justify-center gap-4">
         <button
-          onClick={toggleMic}
+          onClick={toggleMute}
           className={`p-3 rounded-full ${
-            isMicOn ? 'bg-gray-600 text-white' : 'bg-red-500 text-white'
+            !isMuted ? 'bg-gray-600 text-white' : 'bg-red-500 text-white'
           } hover:opacity-80 transition-colors`}
         >
           <MicrophoneIcon className="w-6 h-6" />
-        </button>
-
-        <button
-          onClick={toggleCamera}
-          className={`p-3 rounded-full ${
-            isCameraOn ? 'bg-gray-600 text-white' : 'bg-red-500 text-white'
-          } hover:opacity-80 transition-colors`}
-        >
-          <VideoCameraIcon className="w-6 h-6" />
         </button>
 
         <button
