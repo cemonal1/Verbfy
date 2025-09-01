@@ -64,7 +64,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
     sendMessage: sendVerbfyMessage,
     joinRoom,
     leaveRoom: leaveVerbfyRoom,
-  } = useVerbfyTalk();
+  } = useVerbfyTalk(localStorage.getItem('token') || '');
 
   // Refs
   const localVideoRef = useRef<HTMLVideoElement>(null);
