@@ -16,6 +16,14 @@ interface VerbfyTalkParticipant {
   isMuted: boolean;
 }
 
+interface VerbfyTalkMessage {
+  id: string;
+  content: string;
+  sender: string;
+  senderName: string;
+  timestamp: number;
+}
+
 interface UseVerbfyTalkReturn {
   // Room management
   rooms: VerbfyTalkRoom[];
@@ -30,13 +38,21 @@ interface UseVerbfyTalkReturn {
   toggleMute: () => void;
   requestMicrophone: () => Promise<boolean>;
   
-  // Participants
+  // Media streams
+  localStream: MediaStream | null;
+  remoteStreams: { [peerId: string]: MediaStream };
+  
+  // Participants and messages
   participants: VerbfyTalkParticipant[];
+  messages: VerbfyTalkMessage[];
+  sendMessage: (content: string) => void;
   
   // Connection status
   isConnecting: boolean;
   connectionError: string | null;
   reconnectionAttempts: number;
+  status: 'disconnected' | 'connecting' | 'connected' | 'error';
+  isInitialized: boolean;
   
   // Cleanup
   disconnect: () => void;
@@ -75,6 +91,9 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [reconnectionAttempts, setReconnectionAttempts] = useState(0);
+  const [remoteStreams, setRemoteStreams] = useState<{ [peerId: string]: MediaStream }>({});
+  const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [messages, setMessages] = useState<VerbfyTalkMessage[]>([]);
   
   // Refs
   const socketRef = useRef<Socket | null>(null);
@@ -548,6 +567,28 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
     });
   }, [isMuted, currentRoom]);
   
+  const sendMessage = useCallback((content: string) => {
+    if (!socketRef.current || !currentRoom) return;
+    
+    const message: VerbfyTalkMessage = {
+      id: Date.now().toString(),
+      content,
+      sender: 'current-user', // This should be replaced with actual user ID
+      senderName: 'You', // This should be replaced with actual user name
+      timestamp: Date.now()
+    };
+    
+    // Add message to local state
+    setMessages(prev => [...prev, message]);
+    
+    // Send via socket
+    socketRef.current.emit('send-room-message', {
+      roomId: currentRoom.id,
+      content,
+      timestamp: Date.now()
+    });
+  }, [currentRoom]);
+  
   // Comprehensive cleanup
   const disconnect = useCallback(() => {
     console.log('🧹 Cleaning up VerbfyTalk...');
@@ -633,10 +674,16 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
     isConnected,
     toggleMute,
     requestMicrophone,
+    localStream: localStreamRef.current,
+    remoteStreams,
     participants,
+    messages,
+    sendMessage,
     isConnecting,
     connectionError,
     reconnectionAttempts,
+    status,
+    isInitialized: isInitializedRef.current,
     disconnect
   };
 };
