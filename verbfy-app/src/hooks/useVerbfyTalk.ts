@@ -189,7 +189,6 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       }
       
       const socket = io(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.verbfy.com'}/verbfy-talk`, {
-        path: '/socket.io',
         transports: ['polling', 'websocket'], // Start with polling, upgrade to websocket
         forceNew: true, // Force new connection for VerbfyTalk
         withCredentials: true,
@@ -367,6 +366,11 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
           iceCandidateBufferRef.current.set(data.from, buffer);
         }
       });
+
+      // Chat messages
+      socket.on('room:message', (message: VerbfyTalkMessage) => {
+        setMessages(prev => [...prev, message]);
+      });
       
       socketRef.current = socket;
       
@@ -482,17 +486,43 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
   
   // Room management
   const joinRoom = useCallback(async (roomId: string): Promise<boolean> => {
+    console.log('🚪 Attempting to join room:', roomId);
+    
     if (!socketRef.current?.connected) {
+      console.error('❌ Cannot join room: Socket not connected');
       setConnectionError('Not connected to server');
       return false;
     }
     
     try {
+      // First, join via HTTP API
+      console.log('📡 Joining room via HTTP API:', roomId);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.verbfy.com'}/api/verbfy-talk/${roomId}/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ HTTP API join failed:', errorData);
+        setConnectionError(errorData.message || 'Failed to join room via API');
+        return false;
+      }
+      
+      console.log('✅ HTTP API join successful');
+      
+      // Then, join via Socket.IO
+      console.log('📡 Emitting room:join event for room:', roomId);
       socketRef.current.emit('room:join', { roomId });
       
       // Initialize WebRTC connections with existing participants
       setTimeout(() => {
         if (localStreamRef.current && participants.length > 0) {
+          console.log('🔗 Initializing WebRTC connections with', participants.length, 'participants');
           participants.forEach(participant => {
             if (participant.id !== currentUserId) {
               createPeerConnection(participant.id);
@@ -507,7 +537,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       setConnectionError('Failed to join room');
       return false;
     }
-  }, [participants, currentUserId]);
+  }, [participants, currentUserId, token]);
 
   // Create peer connection and send offer
   const createPeerConnection = useCallback((participantId: string) => {

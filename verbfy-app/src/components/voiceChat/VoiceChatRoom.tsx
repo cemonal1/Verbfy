@@ -88,13 +88,16 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
 
   const initializeRoom = async () => {
     try {
+      console.log('🏠 Initializing room:', roomId);
       setIsLoading(true);
       
       // Join room via VerbfyTalk
+      console.log('📡 Calling joinRoom from useVerbfyTalk hook');
       await joinRoom(roomId);
+      console.log('✅ Room join request sent successfully');
 
     } catch (error) {
-      console.error('Failed to initialize room:', error);
+      console.error('❌ Failed to initialize room:', error);
       toast.error('Failed to join room');
     } finally {
       setIsLoading(false);
