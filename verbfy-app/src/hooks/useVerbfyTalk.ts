@@ -176,7 +176,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
         socketRef.current = null;
       }
       
-      const socket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.verbfy.com', {
+      const socket = io(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.verbfy.com'}/verbfy-talk`, {
         path: '/socket.io',
         transports: ['polling', 'websocket'], // Start with polling, upgrade to websocket
         forceNew: true, // Force new connection for VerbfyTalk

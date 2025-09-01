@@ -14,6 +14,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { setCsrfCookie, verifyCsrf } from './middleware/csrf';
 import pinoHttp from 'pino-http';
 import UserModel from './models/User';
+import { VerbfyTalkRoom } from './models/VerbfyTalkRoom';
 import { verifyToken } from './utils/jwt';
 import livekitRoutes from './routes/livekitRoutes';
 import authRoutes from './routes/auth';
@@ -354,58 +355,281 @@ notificationNamespace.on('connection', (socket: AuthenticatedSocket) => {
 verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
   console.log('🔌 VerbfyTalk namespace connected:', socket.user?.name);
   
-  socket.on('join-room', (data: { roomId: string }) => {
-    socket.join(data.roomId);
-    console.log(`📋 User ${socket.user?.name} joined VerbfyTalk room: ${data.roomId}`);
-    
-    // Notify other users in the room
-    socket.to(data.roomId).emit('user-joined', {
-      userId: socket.user?.id,
-      userName: socket.user?.name
-    });
-  });
+  // Store room information for this socket
+  let currentRoomId: string | null = null;
   
-  socket.on('leave-room', (data: { roomId: string }) => {
-    socket.to(data.roomId).emit('user-left', {
-      userId: socket.user?.id,
-      userName: socket.user?.name
-    });
-    socket.leave(data.roomId);
-    console.log(`📋 User ${socket.user?.name} left VerbfyTalk room: ${data.roomId}`);
-  });
-  
-  // WebRTC signaling
-  socket.on('offer', (data: { roomId: string; offer: any; targetUserId?: string }) => {
-    if (data.targetUserId) {
-      // Send to specific user
-      socket.to(data.roomId).emit('offer', {
-        userId: socket.user?.id,
-        userName: socket.user?.name,
-        offer: data.offer
+  // Get rooms list
+  socket.on('rooms:get', async () => {
+    try {
+      const rooms = await VerbfyTalkRoom.find({ isActive: true })
+        .populate('createdBy', 'name email avatar')
+        .populate('participants.userId', 'name email avatar')
+        .sort({ createdAt: -1 });
+      
+      const roomsWithActiveCount = rooms.map(room => {
+        const activeCount = room.participants.filter((p: any) => p.isActive).length;
+        return {
+          ...room.toObject(),
+          activeParticipantCount: activeCount
+        };
       });
-    } else {
-      // Send to all in room
-      socket.to(data.roomId).emit('offer', {
-        userId: socket.user?.id,
-        userName: socket.user?.name,
-        offer: data.offer
-      });
+      
+      socket.emit('rooms:list', roomsWithActiveCount);
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
     }
   });
   
-  socket.on('answer', (data: { roomId: string; answer: any; targetUserId: string }) => {
-    socket.to(data.roomId).emit('answer', {
-      userId: socket.user?.id,
-      userName: socket.user?.name,
-      answer: data.answer
+  // Join room
+  socket.on('room:join', async (data: { roomId: string }) => {
+    try {
+      const room = await VerbfyTalkRoom.findById(data.roomId)
+        .populate('createdBy', 'name email avatar')
+        .populate('participants.userId', 'name email avatar');
+      
+      if (!room || !room.isActive) {
+        socket.emit('room:error', { message: 'Room not found or inactive' });
+        return;
+      }
+      
+      // Check if user is already in the room (active)
+      const existingParticipant = room.participants.find((p: any) => 
+        p.userId.toString() === socket.user?.id && p.isActive
+      );
+      
+      if (existingParticipant) {
+        socket.emit('room:error', { message: 'Already in room' });
+        return;
+      }
+      
+             // Check if user was previously in room but inactive (rejoin)
+       const inactiveParticipantIndex = room.participants.findIndex((p: any) => 
+         p.userId.toString() === socket.user?.id && !p.isActive
+       );
+       
+       if (inactiveParticipantIndex !== -1) {
+         // Reactivate existing participant
+         room.participants[inactiveParticipantIndex].isActive = true;
+         room.participants[inactiveParticipantIndex].joinedAt = new Date();
+         room.participants[inactiveParticipantIndex].leftAt = undefined;
+       } else {
+         // Add new participant
+         room.participants.push({
+           userId: socket.user?.id!,
+           joinedAt: new Date(),
+           isActive: true
+         });
+       }
+      
+      await room.save();
+      
+      // Join socket room
+      socket.join(data.roomId);
+      currentRoomId = data.roomId;
+      
+             // Get updated room with populated data
+       const updatedRoom = await VerbfyTalkRoom.findById(data.roomId)
+         .populate('createdBy', 'name email avatar')
+         .populate('participants.userId', 'name email avatar');
+       
+       // Send room joined confirmation
+       if (updatedRoom) {
+         socket.emit('room:joined', updatedRoom);
+       }
+      
+      // Notify other participants
+      socket.to(data.roomId).emit('participant:joined', {
+        id: socket.user?.id,
+        name: socket.user?.name,
+        isSpeaking: false,
+        isMuted: false,
+        isSpeaker: false
+      });
+      
+      // Send current participants list to the new user
+      const activeParticipants = updatedRoom.participants
+        .filter((p: any) => p.isActive)
+        .map((p: any) => ({
+          id: p.userId._id.toString(),
+          name: p.userId.name,
+          isSpeaking: false,
+          isMuted: false,
+          isSpeaker: false
+        }));
+      
+      socket.emit('participants:update', activeParticipants);
+      
+      console.log(`📋 User ${socket.user?.name} joined VerbfyTalk room: ${data.roomId}`);
+    } catch (error) {
+      console.error('Error joining room:', error);
+      socket.emit('room:error', { message: 'Failed to join room' });
+    }
+  });
+  
+  // Leave room
+  socket.on('room:leave', async (data: { roomId: string }) => {
+    try {
+      const room = await VerbfyTalkRoom.findById(data.roomId);
+      if (!room) {
+        return;
+      }
+      
+      // Find and deactivate user's participation
+      const participantIndex = room.participants.findIndex((p: any) => 
+        p.userId.toString() === socket.user?.id && p.isActive
+      );
+      
+      if (participantIndex !== -1) {
+        room.participants[participantIndex].isActive = false;
+        room.participants[participantIndex].leftAt = new Date();
+        
+        // If no active participants, end the room
+        const activeParticipants = room.participants.filter((p: any) => p.isActive).length;
+        if (activeParticipants === 0) {
+          room.endedAt = new Date();
+          room.isActive = false;
+          console.log(`🏁 Room ${room.name} (${data.roomId}) ended - no active participants`);
+        }
+        
+        await room.save();
+      }
+      
+      // Leave socket room
+      socket.leave(data.roomId);
+      currentRoomId = null;
+      
+      // Notify other participants
+      socket.to(data.roomId).emit('participant:left', socket.user?.id);
+      
+      // Send confirmation to user
+      socket.emit('room:left');
+      
+      console.log(`📋 User ${socket.user?.name} left VerbfyTalk room: ${data.roomId}`);
+    } catch (error) {
+      console.error('Error leaving room:', error);
+    }
+  });
+  
+  // Create room
+  socket.on('room:create', async (data: { name: string }, callback) => {
+    try {
+      const roomData = {
+        name: data.name,
+        createdBy: socket.user?.id,
+        participants: [{ userId: socket.user?.id, joinedAt: new Date(), isActive: true }]
+      };
+      
+      const room = new VerbfyTalkRoom(roomData);
+      await room.save();
+      
+      const populatedRoom = await VerbfyTalkRoom.findById(room._id)
+        .populate('createdBy', 'name email avatar')
+        .populate('participants.userId', 'name email avatar');
+      
+      callback({ success: true, roomId: room._id.toString() });
+      
+      // Join the created room
+      socket.emit('room:joined', populatedRoom);
+      socket.join(room._id.toString());
+      currentRoomId = room._id.toString();
+      
+      console.log(`📋 User ${socket.user?.name} created and joined room: ${data.name}`);
+    } catch (error) {
+      console.error('Error creating room:', error);
+      callback({ success: false });
+    }
+  });
+  
+  // Participant events
+  socket.on('participant:mute', (data: { roomId: string; isMuted: boolean }) => {
+    socket.to(data.roomId).emit('participant:mute', {
+      participantId: socket.user?.id,
+      isMuted: data.isMuted
     });
   });
   
-  socket.on('ice-candidate', (data: { roomId: string; candidate: any }) => {
-    socket.to(data.roomId).emit('ice-candidate', {
-      userId: socket.user?.id,
-      candidate: data.candidate
+  socket.on('participant:speaking', (data: { roomId: string; isSpeaking: boolean }) => {
+    socket.to(data.roomId).emit('participant:speaking', {
+      participantId: socket.user?.id,
+      isSpeaking: data.isSpeaking
     });
+  });
+  
+  socket.on('participant:speaker', (data: { roomId: string; isSpeaker: boolean }) => {
+    socket.to(data.roomId).emit('participant:speaker', {
+      participantId: socket.user?.id,
+      isSpeaker: data.isSpeaker
+    });
+  });
+  
+     // WebRTC signaling
+   socket.on('webrtc:offer', (data: { roomId: string; to: string; offer: any }) => {
+     socket.to(data.roomId).emit('webrtc:offer', {
+       from: socket.user?.id,
+       offer: data.offer
+     });
+   });
+   
+   socket.on('webrtc:answer', (data: { roomId: string; to: string; answer: any }) => {
+     socket.to(data.roomId).emit('webrtc:answer', {
+       from: socket.user?.id,
+       answer: data.answer
+     });
+   });
+   
+   socket.on('webrtc:ice-candidate', (data: { roomId: string; to: string; candidate: any }) => {
+     socket.to(data.roomId).emit('webrtc:ice-candidate', {
+       from: socket.user?.id,
+       candidate: data.candidate
+     });
+   });
+  
+  // Room messages
+  socket.on('send-room-message', (data: { roomId: string; content: string; timestamp: number }) => {
+    socket.to(data.roomId).emit('room-message', {
+      id: Date.now().toString(),
+      content: data.content,
+      sender: socket.user?.id,
+      senderName: socket.user?.name,
+      timestamp: data.timestamp
+    });
+  });
+  
+  // Handle disconnect
+  socket.on('disconnect', async () => {
+    console.log('🔌 VerbfyTalk namespace disconnected:', socket.user?.name);
+    
+    // Clean up user from room if they were in one
+    if (currentRoomId) {
+      try {
+        const room = await VerbfyTalkRoom.findById(currentRoomId);
+        if (room) {
+          const participantIndex = room.participants.findIndex((p: any) => 
+            p.userId.toString() === socket.user?.id && p.isActive
+          );
+          
+          if (participantIndex !== -1) {
+            room.participants[participantIndex].isActive = false;
+            room.participants[participantIndex].leftAt = new Date();
+            
+            // If no active participants, end the room
+            const activeParticipants = room.participants.filter((p: any) => p.isActive).length;
+            if (activeParticipants === 0) {
+              room.endedAt = new Date();
+              room.isActive = false;
+              console.log(`🏁 Room ${room.name} (${currentRoomId}) ended - no active participants`);
+            }
+            
+            await room.save();
+            
+            // Notify other participants
+            socket.to(currentRoomId).emit('participant:left', socket.user?.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error cleaning up user on disconnect:', error);
+      }
+    }
   });
 });
 
