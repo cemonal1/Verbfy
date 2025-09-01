@@ -109,6 +109,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
   const [remoteStreams, setRemoteStreams] = useState<{ [peerId: string]: MediaStream }>({});
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [messages, setMessages] = useState<VerbfyTalkMessage[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   // Refs
   const socketRef = useRef<Socket | null>(null);
@@ -215,6 +216,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
         setStatus('disconnected');
         setCurrentRoom(null);
         setParticipants([]);
+        setCurrentUserId(null);
         stopVAD();
         
         // Cleanup peer connections on disconnect
@@ -260,11 +262,21 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       
       socket.on('room:joined', (room: VerbfyTalkRoom) => {
         setCurrentRoom(room);
+        // Set current user ID from the room's participants
+        if (room.participants && room.participants.length > 0) {
+          const currentParticipant = room.participants.find((p: any) => 
+            p.userId && p.userId._id && p.isActive
+          );
+          if (currentParticipant) {
+            setCurrentUserId(currentParticipant.userId._id.toString());
+          }
+        }
       });
       
       socket.on('room:left', () => {
         setCurrentRoom(null);
         setParticipants([]);
+        setCurrentUserId(null);
         stopVAD();
       });
       
@@ -277,7 +289,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
         setParticipants(prev => [...prev, participant]);
         
         // Create WebRTC connection with new participant
-        if (localStreamRef.current && participant.id !== socketRef.current?.auth?.token) {
+        if (localStreamRef.current && participant.id !== currentUserId) {
           setTimeout(() => {
             createPeerConnection(participant.id);
           }, 500);
@@ -482,7 +494,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       setTimeout(() => {
         if (localStreamRef.current && participants.length > 0) {
           participants.forEach(participant => {
-            if (participant.id !== socketRef.current?.auth?.token) {
+            if (participant.id !== currentUserId) {
               createPeerConnection(participant.id);
             }
           });
@@ -495,7 +507,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       setConnectionError('Failed to join room');
       return false;
     }
-  }, [participants]);
+  }, [participants, currentUserId]);
 
   // Create peer connection and send offer
   const createPeerConnection = useCallback((participantId: string) => {
@@ -754,6 +766,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
     setReconnectionAttempts(0);
     setIsMuted(false);
     setIsSpeaker(false);
+    setCurrentUserId(null);
     isInitializedRef.current = false;
   }, [stopVAD]);
   
