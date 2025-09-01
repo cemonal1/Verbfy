@@ -144,7 +144,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
       // Socket event listeners
       socket.on('connect', () => {
-        console.log('🔌 Connected to chat server via', socket.io.engine.transport.name);
+        console.log('🔌 Connected to chat server via polling');
       });
 
       socket.on('disconnect', (reason) => {
