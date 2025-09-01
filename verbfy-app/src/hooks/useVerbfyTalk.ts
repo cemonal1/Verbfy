@@ -14,6 +14,7 @@ interface VerbfyTalkParticipant {
   name: string;
   isSpeaking: boolean;
   isMuted: boolean;
+  isSpeaker: boolean;
 }
 
 interface VerbfyTalkMessage {
@@ -87,6 +88,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
   const [currentRoom, setCurrentRoom] = useState<VerbfyTalkRoom | null>(null);
   const [participants, setParticipants] = useState<VerbfyTalkParticipant[]>([]);
   const [isMuted, setIsMuted] = useState(false);
+  const [isSpeaker, setIsSpeaker] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -590,6 +592,17 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
     });
   }, [isMuted, currentRoom]);
   
+  const toggleSpeaker = useCallback(() => {
+    const newSpeakerState = !isSpeaker;
+    setIsSpeaker(newSpeakerState);
+    
+    // Notify other participants
+    socketRef.current?.emit('participant:speaker', { 
+      roomId: currentRoom?.id, 
+      isSpeaker: newSpeakerState 
+    });
+  }, [isSpeaker, currentRoom]);
+  
   const sendMessage = useCallback((content: string) => {
     if (!socketRef.current || !currentRoom) return;
     
@@ -655,18 +668,19 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       socketRef.current = null;
     }
     
-         // Reset state
-     setIsConnected(false);
-     setIsConnecting(false);
-     setStatus('disconnected');
-     setCurrentRoom(null);
-     setParticipants([]);
-     setRemoteStreams({});
-     setMessages([]);
-     setConnectionError(null);
-     setReconnectionAttempts(0);
-     setIsMuted(false);
-     isInitializedRef.current = false;
+             // Reset state
+    setIsConnected(false);
+    setIsConnecting(false);
+    setStatus('disconnected');
+    setCurrentRoom(null);
+    setParticipants([]);
+    setRemoteStreams({});
+    setMessages([]);
+    setConnectionError(null);
+    setReconnectionAttempts(0);
+    setIsMuted(false);
+    setIsSpeaker(false);
+    isInitializedRef.current = false;
     
     console.log('✅ VerbfyTalk cleanup completed');
   }, [stopVAD]);
@@ -697,8 +711,10 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
     leaveRoom,
     createRoom,
     isMuted,
+    isSpeaker,
     isConnected,
     toggleMute,
+    toggleSpeaker,
     requestMicrophone,
     localStream: localStreamRef.current,
     remoteStreams,
