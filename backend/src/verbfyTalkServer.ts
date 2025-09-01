@@ -20,7 +20,7 @@ export class VerbfyTalkServer {
 
   constructor(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
-      path: '/verbfy-talk',
+      path: '/verbfy-talk/socket.io',
       cors: {
         origin: (origin, callback) => {
           const allowedOrigins = [
@@ -116,19 +116,51 @@ export class VerbfyTalkServer {
     this.io.on('connection', (socket) => {
       console.log('🔌 User connected to VerbfyTalk:', socket.id);
 
-      // Join VerbfyTalk room
-      socket.on('joinVerbfyTalkRoom', (data: { roomId: string }) => {
+      // Get rooms list
+      socket.on('rooms:get', () => {
+        this.handleGetRooms(socket);
+      });
+
+      // Join room
+      socket.on('room:join', (data: { roomId: string }) => {
         this.handleJoinRoom(socket, data.roomId);
       });
 
-      // Handle WebRTC signaling
-      socket.on('signal', (data: { to: string; signal: any; userName: string }) => {
-        this.handleSignal(socket, data);
+      // Create room
+      socket.on('room:create', (data: { name: string }, callback) => {
+        this.handleCreateRoom(socket, data.name, callback);
       });
 
       // Leave room
-      socket.on('leaveVerbfyTalkRoom', (data: { roomId: string }) => {
+      socket.on('room:leave', (data: { roomId: string }) => {
         this.handleLeaveRoom(socket, data.roomId);
+      });
+
+      // Handle WebRTC signaling
+      socket.on('webrtc:offer', (data: { to: string; offer: any; roomId: string }) => {
+        this.handleWebRTCOffer(socket, data);
+      });
+
+      socket.on('webrtc:answer', (data: { to: string; answer: any; roomId: string }) => {
+        this.handleWebRTCAnswer(socket, data);
+      });
+
+      socket.on('webrtc:ice-candidate', (data: { to: string; candidate: any; roomId: string }) => {
+        this.handleICECandidate(socket, data);
+      });
+
+      // Participant events
+      socket.on('participant:mute', (data: { roomId: string; isMuted: boolean }) => {
+        this.handleParticipantMute(socket, data);
+      });
+
+      socket.on('participant:speaking', (data: { roomId: string; isSpeaking: boolean }) => {
+        this.handleParticipantSpeaking(socket, data);
+      });
+
+      // Chat messages
+      socket.on('send-room-message', (data: { roomId: string; content: string; timestamp: number }) => {
+        this.handleRoomMessage(socket, data);
       });
 
       // Disconnect
@@ -182,15 +214,24 @@ export class VerbfyTalkServer {
 
       // Send room info to the joining user
       const roomUsers = Array.from(room.users).map(userId => ({
-        userId,
-        userName: 'User-' + userId.slice(-4)
+        id: userId,
+        name: 'User-' + userId.slice(-4),
+        isSpeaking: false,
+        isMuted: false,
+        isSpeaker: true
       }));
 
-      socket.emit('roomJoined', {
-        roomId,
-        users: roomUsers,
-        message: `Successfully joined room ${roomId}`
+      socket.emit('room:joined', {
+        _id: roomId,
+        name: `Room ${roomId}`,
+        maxParticipants: room.maxUsers,
+        participants: roomUsers,
+        isActive: true
       });
+
+      // Update participants list for all users in the room
+      socket.to(roomId).emit('participants:update', roomUsers);
+      socket.emit('participants:update', roomUsers);
 
       console.log(`✅ User ${socket.id} joined room ${roomId}. Total users: ${room.users.size}`);
 
@@ -200,20 +241,139 @@ export class VerbfyTalkServer {
     }
   }
 
-  private handleSignal(socket: any, data: { to: string; signal: any; userName: string }) {
+  private handleGetRooms(socket: any) {
     try {
-      const { to, signal, userName } = data;
-      console.log(`📡 Signal from ${socket.id} to ${to}`);
-
-      // Forward the signal to the target user
-      this.io.to(to).emit('signal', {
-        from: socket.id,
-        signal,
-        userName
-      });
-
+      const roomsList = Array.from(this.rooms.entries()).map(([id, room]) => ({
+        _id: id,
+        name: `Room ${id}`,
+        maxParticipants: room.maxUsers,
+        participants: Array.from(room.users).map(userId => ({
+          id: userId,
+          name: 'User-' + userId.slice(-4)
+        })),
+        isActive: true
+      }));
+      
+      socket.emit('rooms:list', roomsList);
+      console.log(`📋 Sent rooms list to ${socket.id}:`, roomsList.length, 'rooms');
     } catch (error) {
-      console.error('❌ Error handling signal:', error);
+      console.error('❌ Error getting rooms:', error);
+    }
+  }
+
+  private handleCreateRoom(socket: any, name: string, callback: (response: any) => void) {
+    try {
+      const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const room = {
+        id: roomId,
+        users: new Set([socket.id]),
+        maxUsers: 5
+      };
+      
+      this.rooms.set(roomId, room);
+      this.userRooms.set(socket.id, roomId);
+      
+      socket.join(roomId);
+      
+      console.log(`🏠 Created new room: ${roomId} by ${socket.id}`);
+      
+      callback({ success: true, roomId });
+    } catch (error) {
+      console.error('❌ Error creating room:', error);
+      callback({ success: false, error: 'Failed to create room' });
+    }
+  }
+
+  private handleWebRTCOffer(socket: any, data: { to: string; offer: any; roomId: string }) {
+    try {
+      const { to, offer, roomId } = data;
+      console.log(`📡 WebRTC offer from ${socket.id} to ${to}`);
+      
+      this.io.to(to).emit('webrtc:offer', {
+        from: socket.id,
+        offer
+      });
+    } catch (error) {
+      console.error('❌ Error handling WebRTC offer:', error);
+    }
+  }
+
+  private handleWebRTCAnswer(socket: any, data: { to: string; answer: any; roomId: string }) {
+    try {
+      const { to, answer, roomId } = data;
+      console.log(`📡 WebRTC answer from ${socket.id} to ${to}`);
+      
+      this.io.to(to).emit('webrtc:answer', {
+        from: socket.id,
+        answer
+      });
+    } catch (error) {
+      console.error('❌ Error handling WebRTC answer:', error);
+    }
+  }
+
+  private handleICECandidate(socket: any, data: { to: string; candidate: any; roomId: string }) {
+    try {
+      const { to, candidate, roomId } = data;
+      console.log(`📡 ICE candidate from ${socket.id} to ${to}`);
+      
+      this.io.to(to).emit('webrtc:ice-candidate', {
+        from: socket.id,
+        candidate
+      });
+    } catch (error) {
+      console.error('❌ Error handling ICE candidate:', error);
+    }
+  }
+
+  private handleParticipantMute(socket: any, data: { roomId: string; isMuted: boolean }) {
+    try {
+      const { roomId, isMuted } = data;
+      console.log(`🎤 User ${socket.id} ${isMuted ? 'muted' : 'unmuted'} in room ${roomId}`);
+      
+      socket.to(roomId).emit('participant:mute', {
+        participantId: socket.id,
+        isMuted
+      });
+    } catch (error) {
+      console.error('❌ Error handling participant mute:', error);
+    }
+  }
+
+  private handleParticipantSpeaking(socket: any, data: { roomId: string; isSpeaking: boolean }) {
+    try {
+      const { roomId, isSpeaking } = data;
+      console.log(`🗣️ User ${socket.id} ${isSpeaking ? 'started' : 'stopped'} speaking in room ${roomId}`);
+      
+      socket.to(roomId).emit('participant:speaking', {
+        participantId: socket.id,
+        isSpeaking
+      });
+    } catch (error) {
+      console.error('❌ Error handling participant speaking:', error);
+    }
+  }
+
+  private handleRoomMessage(socket: any, data: { roomId: string; content: string; timestamp: number }) {
+    try {
+      const { roomId, content, timestamp } = data;
+      const user = (socket as any).user;
+      
+      const message = {
+        id: Date.now().toString(),
+        content,
+        sender: user?.id || socket.id,
+        senderName: user?.name || 'User-' + socket.id.slice(-4),
+        timestamp
+      };
+      
+      console.log(`💬 Message in room ${roomId} from ${socket.id}: ${content}`);
+      
+      // Broadcast to all users in the room
+      this.io.to(roomId).emit('room:message', message);
+    } catch (error) {
+      console.error('❌ Error handling room message:', error);
     }
   }
 
@@ -226,7 +386,18 @@ export class VerbfyTalkServer {
         room.users.delete(socket.id);
         
         // Notify other users
-        socket.to(roomId).emit('userLeft', socket.id);
+        socket.to(roomId).emit('participant:left', socket.id);
+        
+        // Update participants list for remaining users
+        const remainingUsers = Array.from(room.users).map(userId => ({
+          id: userId,
+          name: 'User-' + userId.slice(-4),
+          isSpeaking: false,
+          isMuted: false,
+          isSpeaker: true
+        }));
+        
+        this.io.to(roomId).emit('participants:update', remainingUsers);
         
         // Remove room if empty
         if (room.users.size === 0) {
