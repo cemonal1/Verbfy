@@ -115,11 +115,11 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const token = useMemo(() => tokenStorage.getToken(), []);
 
   const socket = useMemo(() => {
-    if (!token || !isAuthenticated || !user) return null;
+    if (!token || !isAuthenticated || !user || socketRef.current) return socketRef.current;
     
-    console.log('🔌 Creating notification socket with token');
+    // Creating notification socket
     
-    return io(process.env.NEXT_PUBLIC_API_URL || 'https://api.verbfy.com', {
+    const newSocket = io(process.env.NEXT_PUBLIC_API_URL || 'https://api.verbfy.com', {
       path: '/socket.io',
       transports: ['polling'],
       forceNew: false,
@@ -130,6 +130,9 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         token: token
       }
     });
+    
+    socketRef.current = newSocket;
+    return newSocket;
   }, [token, isAuthenticated, user]);
 
 
@@ -278,11 +281,11 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   useEffect(() => {
     if (!isAuthenticated || !user || !socket) return;
 
-    console.log('🔌 Initiating notification socket connection...');
+    // Initiating notification socket connection
     
     // Set up event listeners
     socket.on('connect', () => {
-      console.log('🔌 Notification socket connected successfully via polling');
+      // Notification socket connected successfully
       
       // Join user's notification room
       if (user?._id) {
@@ -291,14 +294,14 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     });
 
     socket.on('connect_error', (error) => {
-      console.log('🔌 Socket connection error (expected during initial setup):', error.message);
+      // Socket connection error (expected during initial setup)
       // Don't show error to user, this is normal during connection setup
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('🔌 Socket disconnected:', reason);
+      // Socket disconnected
       if (reason === 'io server disconnect') {
-        console.log('🔄 Server disconnected, attempting reconnect...');
+        // Server disconnected, attempting reconnect
         setTimeout(() => {
           socket.connect();
         }, 1000);
@@ -306,7 +309,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     });
 
     socket.on('reconnect', (attemptNumber) => {
-      console.log('🔄 Notification socket reconnected after', attemptNumber, 'attempts');
+      // Notification socket reconnected
       if (user?._id) {
         socket.emit('joinNotificationRoom', user._id);
       }
