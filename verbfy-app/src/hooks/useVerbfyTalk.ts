@@ -35,8 +35,10 @@ interface UseVerbfyTalkReturn {
   
   // Audio controls
   isMuted: boolean;
+  isSpeaker: boolean;
   isConnected: boolean;
   toggleMute: () => void;
+  toggleSpeaker: () => void;
   requestMicrophone: () => Promise<boolean>;
   
   // Media streams
