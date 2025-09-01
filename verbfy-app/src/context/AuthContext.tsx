@@ -92,18 +92,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      console.log('Loading user with token: Token exists');
       const response = await authAPI.getCurrentUser();
-      
-      console.log('Auth response:', response);
-      console.log('Response structure:', response);
-      console.log('Response.data:', response.data);
-      console.log('Response.data.success:', response.data?.success);
-      console.log('Response.data.user:', response.data?.user);
 
       if (response.data?.success && response.data?.user) {
         setUser(response.data.user);
-        console.log('Setting user:', response.data.user);
       } else {
         console.warn('Unexpected auth response structure:', response);
         tokenStorage.clear();

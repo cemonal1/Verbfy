@@ -162,13 +162,13 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
 
   // Initialize Socket.IO connection
   const initializeSocket = useCallback(async () => {
-    if (!token || isInitializedRef.current) return;
+    if (!token || isInitializedRef.current || socketRef.current?.connected) return;
     
-         try {
-       setIsConnecting(true);
-       setStatus('connecting');
-       setConnectionError(null);
-       setReconnectionAttempts(0);
+    try {
+      setIsConnecting(true);
+      setStatus('connecting');
+      setConnectionError(null);
+      setReconnectionAttempts(0);
       
       // Cleanup existing socket if any
       if (socketRef.current) {
@@ -178,8 +178,8 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       
       const socket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.verbfy.com', {
         path: '/socket.io',
-        transports: ['websocket', 'polling'],
-        forceNew: false, // Changed from true to prevent socket recreation
+        transports: ['polling', 'websocket'], // Start with polling, upgrade to websocket
+        forceNew: true, // Force new connection for VerbfyTalk
         withCredentials: true,
         auth: { token },
         timeout: 20000,
@@ -190,57 +190,51 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
         rememberUpgrade: true
       });
       
-             socket.on('connect', () => {
-         console.log('🔌 VerbfyTalk connected:', socket.id);
-         setIsConnected(true);
-         setIsConnecting(false);
-         setStatus('connected');
-         setConnectionError(null);
-         setReconnectionAttempts(0);
-         isInitializedRef.current = true;
-       });
+                   socket.on('connect', () => {
+        setIsConnected(true);
+        setIsConnecting(false);
+        setStatus('connected');
+        setConnectionError(null);
+        setReconnectionAttempts(0);
+        isInitializedRef.current = true;
+      });
       
-             socket.on('disconnect', (reason) => {
-         console.log('🔌 VerbfyTalk disconnected:', reason);
-         setIsConnected(false);
-         setStatus('disconnected');
-         setCurrentRoom(null);
-         setParticipants([]);
-         stopVAD();
-         
-         // Cleanup peer connections on disconnect
-         peerConnectionsRef.current.forEach(connection => connection.close());
-         peerConnectionsRef.current.clear();
-         iceCandidateBufferRef.current.clear();
-       });
+                   socket.on('disconnect', (reason) => {
+        setIsConnected(false);
+        setStatus('disconnected');
+        setCurrentRoom(null);
+        setParticipants([]);
+        stopVAD();
+        
+        // Cleanup peer connections on disconnect
+        peerConnectionsRef.current.forEach(connection => connection.close());
+        peerConnectionsRef.current.clear();
+        iceCandidateBufferRef.current.clear();
+      });
       
-             socket.on('connect_error', (error) => {
-         console.error('🔌 VerbfyTalk connection error:', error);
-         setStatus('error');
-         setConnectionError(`Connection failed: ${error.message}`);
-         setIsConnecting(false);
-       });
+                   socket.on('connect_error', (error) => {
+        setStatus('error');
+        setConnectionError(`Connection failed: ${error.message}`);
+        setIsConnecting(false);
+      });
 
-             socket.on('reconnect_attempt', (attemptNumber) => {
-         console.log('🔄 VerbfyTalk reconnection attempt:', attemptNumber);
-         setStatus('connecting');
-         setReconnectionAttempts(attemptNumber);
-         setConnectionError(`Reconnecting... (Attempt ${attemptNumber}/5)`);
-       });
+      socket.on('reconnect_attempt', (attemptNumber) => {
+        setStatus('connecting');
+        setReconnectionAttempts(attemptNumber);
+        setConnectionError(`Reconnecting... (Attempt ${attemptNumber}/5)`);
+      });
 
-             socket.on('reconnect', (attemptNumber) => {
-         console.log('✅ VerbfyTalk reconnected after', attemptNumber, 'attempts');
-         setStatus('connected');
-         setConnectionError(null);
-         setReconnectionAttempts(0);
-       });
+      socket.on('reconnect', (attemptNumber) => {
+        setStatus('connected');
+        setConnectionError(null);
+        setReconnectionAttempts(0);
+      });
 
-             socket.on('reconnect_failed', () => {
-         console.error('❌ VerbfyTalk reconnection failed');
-         setStatus('error');
-         setConnectionError('Failed to reconnect. Please refresh the page.');
-         setIsConnecting(false);
-       });
+      socket.on('reconnect_failed', () => {
+        setStatus('error');
+        setConnectionError('Failed to reconnect. Please refresh the page.');
+        setIsConnecting(false);
+      });
       
       // Room events
       socket.on('rooms:list', (roomsList: VerbfyTalkRoom[]) => {
@@ -249,14 +243,12 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       
       socket.on('room:joined', (room: VerbfyTalkRoom) => {
         setCurrentRoom(room);
-        console.log('🎤 Joined room:', room.name);
       });
       
       socket.on('room:left', () => {
         setCurrentRoom(null);
         setParticipants([]);
         stopVAD();
-        console.log('🎤 Left room');
       });
       
       // Participant events with proper state management
@@ -265,12 +257,10 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       });
       
       socket.on('participant:joined', (participant: VerbfyTalkParticipant) => {
-        console.log('👤 Participant joined:', participant.name);
         setParticipants(prev => [...prev, participant]);
       });
       
       socket.on('participant:left', (participantId: string) => {
-        console.log('👤 Participant left:', participantId);
         setParticipants(prev => prev.filter(p => p.id !== participantId));
         
         // Cleanup peer connection for this participant
@@ -379,7 +369,6 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       };
 
       peerConnection.onconnectionstatechange = () => {
-        console.log(`🔗 Peer connection state (${from}):`, peerConnection.connectionState);
         if (peerConnection.connectionState === 'failed') {
           peerConnection.close();
           peerConnectionsRef.current.delete(from);
@@ -387,12 +376,11 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       };
 
       peerConnection.oniceconnectionstatechange = () => {
-        console.log(`🧊 ICE connection state (${from}):`, peerConnection.iceConnectionState);
+        // ICE connection state changed
       };
 
       // Handle incoming remote streams
       peerConnection.ontrack = (event) => {
-        console.log(`🎵 Received remote stream from ${from}`);
         setRemoteStreams(prev => ({
           ...prev,
           [from]: event.streams[0]
@@ -506,8 +494,6 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
   // Audio controls with unified mute logic
   const requestMicrophone = useCallback(async (): Promise<boolean> => {
     try {
-      console.log('🎤 Requesting microphone access...');
-      
       // Check if getUserMedia is supported
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('getUserMedia is not supported in this browser');
@@ -521,10 +507,9 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
             name: 'microphone' as PermissionName 
           });
           permissionStatus = result.state;
-          console.log('🔍 Microphone permission status:', permissionStatus);
         }
       } catch (error) {
-        console.log('⚠️ Could not check permission status, proceeding with getUserMedia');
+        // Could not check permission status, proceeding with getUserMedia
       }
 
       // Request microphone access
@@ -557,7 +542,6 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
       gainNode.gain.value = 0;
       setIsMuted(true);
       
-      console.log('✅ Microphone access granted');
       return true;
       
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -629,7 +613,6 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
   
   // Comprehensive cleanup
   const disconnect = useCallback(() => {
-    console.log('🧹 Cleaning up VerbfyTalk...');
     
     // Stop VAD
     stopVAD();
@@ -683,8 +666,6 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
     setIsMuted(false);
     setIsSpeaker(false);
     isInitializedRef.current = false;
-    
-    console.log('✅ VerbfyTalk cleanup completed');
   }, [stopVAD]);
   
   // Initialize on mount
