@@ -5,7 +5,6 @@ import { toast } from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
 import {
   MicrophoneIcon,
-  VideoCameraIcon,
   SpeakerWaveIcon,
   SpeakerXMarkIcon,
   ChatBubbleLeftRightIcon,
@@ -18,21 +17,7 @@ interface VoiceChatRoomProps {
   onLeave: () => void;
 }
 
-interface Participant {
-  id: string;
-  name: string;
-  isSpeaking: boolean;
-  isMuted: boolean;
-  isSpeaker: boolean;
-}
 
-interface RoomMessage {
-  id: string;
-  content: string;
-  sender: string;
-  senderName: string;
-  timestamp: number;
-}
 
 export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   const { user } = useAuthContext();
@@ -41,9 +26,6 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
   
   // Room state
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [messages, setMessages] = useState<RoomMessage[]>([]);
-  const [isSpeaker, setIsSpeaker] = useState(false);
   const [showChat, setShowChat] = useState(true);
   const [showParticipants, setShowParticipants] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
@@ -55,7 +37,9 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
     localStream,
     remoteStreams,
     isMuted,
+    isSpeaker,
     toggleMute,
+    toggleSpeaker,
     status,
     connectionError,
     isInitialized,
@@ -148,12 +132,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
     }
   };
 
-  const handleToggleSpeaker = () => {
-    setIsSpeaker(!isSpeaker);
-    if (socket) {
-      socket.emit('toggle-speaker', { roomId, isSpeaker: !isSpeaker });
-    }
-  };
+
 
   const handleLeaveRoom = () => {
     leaveVerbfyRoom();
@@ -371,7 +350,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
         </button>
 
         <button
-          onClick={handleToggleSpeaker}
+          onClick={toggleSpeaker}
           className={`p-3 rounded-full ${
             isSpeaker ? 'bg-blue-600 text-white' : 'bg-gray-600 text-white'
           } hover:opacity-80 transition-colors`}
