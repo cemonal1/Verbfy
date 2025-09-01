@@ -65,6 +65,9 @@ interface UseVerbfyTalkReturn {
   status: 'disconnected' | 'connecting' | 'connected' | 'error';
   isInitialized: boolean;
   
+  // Socket instance
+  socket: Socket | null;
+  
   // Cleanup
   disconnect: () => void;
 }
@@ -717,6 +720,7 @@ export const useVerbfyTalk = (token: string): UseVerbfyTalkReturn => {
     reconnectionAttempts,
     status,
     isInitialized: isInitializedRef.current,
+    socket: socketRef.current,
     disconnect
   };
 };

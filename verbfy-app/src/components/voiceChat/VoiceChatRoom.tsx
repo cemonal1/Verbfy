@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useVerbfyTalk } from '@/hooks/useVerbfyTalk';
 import { useAuthContext } from '@/context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { Socket } from 'socket.io-client';
+// Socket import removed - using from useVerbfyTalk hook
 import {
   MicrophoneIcon,
   SpeakerWaveIcon,
@@ -23,7 +23,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
   const { user } = useAuthContext();
   
   // Voice chat socket (using VerbfyTalk socket)
-  const [socket] = useState<Socket | null>(null);
+  // Socket is now provided by useVerbfyTalk hook
   
   // Room state
   const [showChat, setShowChat] = useState(true);
@@ -48,6 +48,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
     sendMessage: sendVerbfyMessage,
     joinRoom,
     leaveRoom: leaveVerbfyRoom,
+    socket: voiceSocket,
   } = useVerbfyTalk(localStorage.getItem('token') || '');
 
   // Refs
@@ -81,25 +82,11 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
       
       // Join room via VerbfyTalk
       await joinRoom(roomId);
-        
-      // Listen for room updates
-      voiceSocket.on('room-updated', (data) => {
-        setRoomInfo(data.room);
-      });
-
-      // Listen for participant updates
-      voiceSocket.on('participant-joined', (participant) => {
-        toast.success(`${participant.name} joined the room`);
-      });
-
-      voiceSocket.on('participant-left', (participantId) => {
-        toast('A participant left the room');
-      });
-
-      // Listen for room messages
-      voiceSocket.on('room-message', (message) => {
-        // Messages are handled by useVerbfyTalk hook
-      });
+      
+      // Set room info from current room
+      if (verbfyParticipants.length > 0) {
+        setRoomInfo({ name: `Room ${roomId}`, participants: verbfyParticipants.length });
+      }
 
     } catch (error) {
       console.error('Failed to initialize room:', error);
