@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useConversationRoomViewModel } from '@/features/conversation/viewmodel/useConversationRoomViewModel';
-import { useWebRTC } from '@/features/lessonRoom/webrtc/useWebRTC';
+
 import { useAuthContext } from '@/context/AuthContext';
 import { useChatViewModel } from '@/features/chat/viewmodel/useChatViewModel';
 import ChatBox from '@/features/chat/view/ChatBox';
@@ -27,27 +27,7 @@ function RoomPage() {
     if (roomId && typeof roomId === 'string') getRoomDetails(roomId);
   }, [roomId, getRoomDetails]);
 
-  // WebRTC: Use user.id and roomId for peerId
-  const peerIds = user && roomId ? {
-    self: `${user.id}-room-${roomId}`,
-    remote: undefined,
-  } : { self: '', remote: undefined };
-  const {
-    localStream,
-    remoteStreams,
-    isMicOn,
-    isCameraOn,
-    toggleMic,
-    toggleCamera,
-    reconnect,
-    status,
-    error,
-    muteStates,
-    videoStates,
-    toggleRemoteMute,
-    toggleRemoteVideo,
-    isInitialized,
-  } = useWebRTC(roomId as string, peerIds, participants.map(p => p.peerId));
+
 
   // Chat ViewModel
   const { messages, sendMessage } = useChatViewModel(roomId as string);

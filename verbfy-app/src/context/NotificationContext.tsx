@@ -115,22 +115,22 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const token = useMemo(() => tokenStorage.getToken(), []);
 
   const socket = useMemo(() => {
-    if (!token) return null;
+    if (!token || !isAuthenticated || !user) return null;
     
-    console.log('🔌 Creating socket with token');
+    console.log('🔌 Creating notification socket with token');
     
     return io(process.env.NEXT_PUBLIC_API_URL || 'https://api.verbfy.com', {
       path: '/socket.io',
-      transports: ['polling'], // Only use polling for now to avoid WebSocket issues
-      forceNew: false, // Don't force new connection
+      transports: ['polling'],
+      forceNew: false,
       withCredentials: true,
-      upgrade: false, // Disable upgrade for now
-      timeout: 30000, // Increase timeout
+      upgrade: false,
+      timeout: 30000,
       auth: {
         token: token
       }
     });
-  }, [token]);
+  }, [token, isAuthenticated, user]);
 
 
 
@@ -278,20 +278,11 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   useEffect(() => {
     if (!isAuthenticated || !user || !socket) return;
 
-    console.log('🔌 Initiating socket connection...');
+    console.log('🔌 Initiating notification socket connection...');
     
     // Set up event listeners
     socket.on('connect', () => {
-      console.log('🔌 Socket connected successfully via polling');
-      
-      // After successful connection, try to upgrade to websocket silently
-      setTimeout(() => {
-        try {
-          console.log('🔄 Socket connected and ready for real-time communication');
-        } catch (e) {
-          console.log('Socket setup completed');
-        }
-      }, 1000);
+      console.log('🔌 Notification socket connected successfully via polling');
       
       // Join user's notification room
       if (user?._id) {
@@ -315,7 +306,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     });
 
     socket.on('reconnect', (attemptNumber) => {
-      console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
+      console.log('🔄 Notification socket reconnected after', attemptNumber, 'attempts');
       if (user?._id) {
         socket.emit('joinNotificationRoom', user._id);
       }
