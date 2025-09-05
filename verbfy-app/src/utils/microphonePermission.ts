@@ -22,6 +22,7 @@ export interface MicrophonePermissionState {
 
 export interface MicrophoneConstraints {
   audio: {
+    deviceId?: { exact: string } | string;
     echoCancellation: boolean;
     noiseSuppression: boolean;
     autoGainControl: boolean;
@@ -162,7 +163,13 @@ export class MicrophonePermissionManager {
         video: false,
       };
 
-      const finalConstraints = { ...defaultConstraints, ...constraints };
+      const finalConstraints: MediaStreamConstraints = { 
+        audio: {
+          ...defaultConstraints.audio,
+          ...(constraints?.audio || {}),
+        },
+        video: constraints?.video ?? defaultConstraints.video,
+      };
       this.permissionState.isPrompted = true;
 
       console.log('🎤 Requesting microphone access with constraints:', finalConstraints);
@@ -228,7 +235,7 @@ export class MicrophonePermissionManager {
     quality: 'excellent' | 'good' | 'poor' | 'none';
   }> {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = new (window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -336,8 +343,8 @@ export class MicrophonePermissionManager {
     return {
       getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
       permissionsAPI: 'permissions' in navigator,
-      audioContext: !!(window.AudioContext || (window as any).webkitAudioContext),
-      webRTC: !!(window.RTCPeerConnection || (window as any).webkitRTCPeerConnection),
+      audioContext: !!(window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext),
+      webRTC: !!(window.RTCPeerConnection || (window as { webkitRTCPeerConnection?: typeof RTCPeerConnection }).webkitRTCPeerConnection),
       https: location.protocol === 'https:' || location.hostname === 'localhost',
     };
   }
