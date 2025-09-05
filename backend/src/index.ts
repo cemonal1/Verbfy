@@ -120,8 +120,8 @@ app.use(cors({
 
 // Add permission headers for WebRTC
 app.use((req, res, next) => {
-  res.setHeader('Permissions-Policy', 'microphone=*, camera=*, geolocation=*');
-  res.setHeader('Feature-Policy', 'microphone *; camera *; geolocation *');
+  res.setHeader('Permissions-Policy', 'microphone=(self "https://verbfy.com" "https://www.verbfy.com"), camera=(self "https://verbfy.com" "https://www.verbfy.com"), geolocation=(self "https://verbfy.com" "https://www.verbfy.com")');
+  res.setHeader('Feature-Policy', 'microphone self https://verbfy.com https://www.verbfy.com; camera self https://verbfy.com https://www.verbfy.com; geolocation self https://verbfy.com https://www.verbfy.com');
   next();
 });
 
@@ -153,12 +153,7 @@ try {
 const isDev = process.env.NODE_ENV !== 'production';
 const allowedFrames = (process.env.ALLOWED_FRAME_SRC || '').split(',').map(s => s.trim()).filter(Boolean);
 
-// Add microphone permission headers
-app.use((req, res, next) => {
-  res.setHeader('Permissions-Policy', 'microphone=*, camera=*, geolocation=*');
-  res.setHeader('Feature-Policy', 'microphone *; camera *; geolocation *');
-  next();
-});
+// Microphone permission headers already set above
 
 const cspDirectives: any = {
   defaultSrc: ["'self'"],
@@ -668,13 +663,7 @@ voiceChatNamespace.on('connection', (socket: AuthenticatedSocket) => {
 
 console.log('🔧 Socket.IO Setup - Main server initialized with namespaces');
 
-// Add permissions policy headers for microphone access
-app.use((req, res, next) => {
-  // Allow microphone access for VerbfyTalk
-  res.setHeader('Permissions-Policy', 'microphone=(self), camera=(self)');
-  res.setHeader('Feature-Policy', 'microphone self; camera self');
-  next();
-});
+// Permissions policy headers already set above
 
 // Enhanced Socket.IO middleware with better error handling
 mainIo.use((socket, next) => {
