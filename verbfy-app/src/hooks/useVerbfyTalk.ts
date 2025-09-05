@@ -111,6 +111,19 @@ export const useVerbfyTalk = () => {
         isSpeaker: false
       })));
       setError(null);
+      setIsLoading(false);
+      
+      // Initialize WebRTC connections with existing participants
+      setTimeout(() => {
+        if (localStreamRef.current && room.participants.length > 0) {
+          console.log('🔗 Initializing WebRTC connections with', room.participants.length, 'participants');
+          room.participants.forEach(participant => {
+            if (participant.userId._id !== user?.id) {
+              createPeerConnection(participant.userId._id);
+            }
+          });
+        }
+      }, 1000);
     });
 
     newSocket.on('room:error', (data: { message: string }) => {
@@ -121,11 +134,26 @@ export const useVerbfyTalk = () => {
     newSocket.on('participant:joined', (participant: Participant) => {
       console.log('👤 Participant joined:', participant.name);
       setParticipants(prev => [...prev, participant]);
+      
+      // Create WebRTC connection with new participant
+      if (localStreamRef.current && participant.id !== user?.id) {
+        setTimeout(() => {
+          createPeerConnection(participant.id);
+        }, 500);
+      }
     });
 
     newSocket.on('participant:left', (participantId: string) => {
       console.log('👋 Participant left:', participantId);
       setParticipants(prev => prev.filter(p => p.id !== participantId));
+      
+      // Close peer connection
+      const peerConnection = peerConnectionsRef.current.get(participantId);
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnectionsRef.current.delete(participantId);
+        console.log('🔌 Closed peer connection for:', participantId);
+      }
     });
 
     newSocket.on('message:received', (message: Message) => {
@@ -186,17 +214,36 @@ export const useVerbfyTalk = () => {
         return false;
       }
 
-      // Join room via Socket.IO
+      // First, join room via HTTP API
+      const response = await fetch(`/api/verbfy-talk/${roomId}/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({ password })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to join room');
+      }
+
+      const result = await response.json();
+      console.log('✅ HTTP API join successful:', result.data.name);
+
+      // Then, join room via Socket.IO
       socketRef.current.emit('room:join', { roomId, password });
       
       return true;
     } catch (error) {
       console.error('❌ Failed to join room:', error);
-      setError('Failed to join room');
+      setError(error instanceof Error ? error.message : 'Failed to join room');
       setIsLoading(false);
       return false;
     }
-  }, [getLocalStream]);
+  }, [getLocalStream, token]);
 
   // Leave room
   const leaveRoom = useCallback(() => {
@@ -238,6 +285,52 @@ export const useVerbfyTalk = () => {
         audioTrack.enabled = !audioTrack.enabled;
         setIsMuted(!audioTrack.enabled);
       }
+    }
+  }, []);
+
+  // Create peer connection
+  const createPeerConnection = useCallback(async (participantId: string) => {
+    try {
+      const peerConnection = new RTCPeerConnection(WEBRTC_CONFIG);
+      peerConnectionsRef.current.set(participantId, peerConnection);
+
+      // Add local stream
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStreamRef.current!);
+        });
+      }
+
+      // Handle ICE candidates
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate && socketRef.current?.connected) {
+          socketRef.current.emit('webrtc:ice-candidate', {
+            to: participantId,
+            candidate: event.candidate
+          });
+        }
+      };
+
+      // Handle remote stream
+      peerConnection.ontrack = (event) => {
+        console.log('🎵 Remote audio stream received from:', participantId);
+        // You can add audio element here to play remote audio
+      };
+
+      // Create and send offer
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('webrtc:offer', {
+          to: participantId,
+          offer: offer
+        });
+      }
+
+      console.log('🔗 Peer connection created for:', participantId);
+    } catch (error) {
+      console.error('❌ Failed to create peer connection:', error);
     }
   }, []);
 
@@ -326,6 +419,7 @@ export const useVerbfyTalk = () => {
     leaveRoom,
     sendMessage,
     toggleMute,
+    createPeerConnection,
     
     // Cleanup
     setError

@@ -16,6 +16,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
     participants,
     messages,
     isMuted,
+    isSpeaking,
     joinRoom,
     leaveRoom,
     sendMessage,
@@ -105,13 +106,18 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
         <div className="flex items-center gap-4">
           <button
             onClick={toggleMute}
-            className={`p-3 rounded-full transition-colors ${
+            className={`p-3 rounded-full transition-colors relative ${
               isMuted 
                 ? 'bg-red-600 hover:bg-red-700 text-white' 
+                : isSpeaking
+                ? 'bg-green-600 hover:bg-green-700 text-white animate-pulse'
                 : 'bg-green-600 hover:bg-green-700 text-white'
             }`}
           >
             <MicrophoneIcon className={`w-6 h-6 ${isMuted ? 'opacity-50' : ''}`} />
+            {isSpeaking && !isMuted && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+            )}
           </button>
         </div>
       </div>
@@ -125,14 +131,23 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
             {participants.map((participant) => (
               <div
                 key={participant.id}
-                className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg"
+                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                  participant.isSpeaking 
+                    ? 'bg-green-700 border border-green-500' 
+                    : 'bg-gray-700'
+                }`}
               >
-                <div className={`w-3 h-3 rounded-full ${
-                  participant.isSpeaking ? 'bg-green-500' : 'bg-gray-500'
+                <div className={`w-3 h-3 rounded-full transition-colors ${
+                  participant.isSpeaking ? 'bg-green-500 animate-pulse' : 'bg-gray-500'
                 }`}></div>
-                <span className="text-white">{participant.name}</span>
+                <span className="text-white font-medium">{participant.name}</span>
                 {participant.isMuted && (
                   <MicrophoneIcon className="w-4 h-4 text-red-400 opacity-50" />
+                )}
+                {participant.isSpeaking && (
+                  <div className="ml-auto">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  </div>
                 )}
               </div>
             ))}
