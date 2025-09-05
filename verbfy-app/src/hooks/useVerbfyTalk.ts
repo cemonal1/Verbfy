@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/context/AuthContext';
 import { tokenStorage } from '@/utils/secureStorage';
+import { microphonePermissionManager } from '@/utils/microphonePermission';
 
 interface VerbfyTalkRoom {
   _id: string;
@@ -191,47 +192,7 @@ export const useVerbfyTalk = () => {
     };
   }, [user, token]);
 
-  // Get user's microphone stream
-  const getLocalStream = useCallback(async () => {
-    try {
-      // Check if getUserMedia is supported
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('getUserMedia is not supported in this browser');
-      }
-
-      // Request microphone access with proper constraints
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 44100
-        },
-        video: false
-      });
-      
-      localStreamRef.current = stream;
-      console.log('✅ Microphone access granted');
-      return stream;
-    } catch (error: any) {
-      console.error('❌ Failed to get microphone access:', error);
-      
-      // Provide specific error messages
-      let errorMessage = 'Microphone access denied';
-      if (error.name === 'NotAllowedError') {
-        errorMessage = 'Microphone permission denied. Please allow microphone access in your browser settings.';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage = 'No microphone found. Please connect a microphone and try again.';
-      } else if (error.name === 'NotSupportedError') {
-        errorMessage = 'Microphone not supported in this browser.';
-      } else if (error.name === 'NotReadableError') {
-        errorMessage = 'Microphone is already in use by another application.';
-      }
-      
-      setError(errorMessage);
-      return null;
-    }
-  }, []);
+  // Microphone access is now handled by MicrophonePermissionScreen component
 
   // Join room
   const joinRoom = useCallback(async (roomId: string, password?: string) => {
@@ -244,7 +205,8 @@ export const useVerbfyTalk = () => {
       setIsLoading(true);
       setError(null);
 
-      // Microphone access is now handled in the component
+      // Microphone access is now handled by MicrophonePermissionScreen component
+      // The stream should already be available in localStreamRef.current
 
       // First, join room via HTTP API
       const response = await fetch(`/api/verbfy-talk/${roomId}/join`, {
@@ -275,7 +237,13 @@ export const useVerbfyTalk = () => {
       setIsLoading(false);
       return false;
     }
-  }, [getLocalStream, token]);
+  }, [token]);
+
+  // Set microphone stream (called from MicrophonePermissionScreen)
+  const setMicrophoneStream = useCallback((stream: MediaStream) => {
+    localStreamRef.current = stream;
+    console.log('✅ Microphone stream set in useVerbfyTalk');
+  }, []);
 
   // Leave room
   const leaveRoom = useCallback(() => {
@@ -452,6 +420,7 @@ export const useVerbfyTalk = () => {
     sendMessage,
     toggleMute,
     createPeerConnection,
+    setMicrophoneStream,
     
     // Cleanup
     setError

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useVerbfyTalk } from '@/hooks/useVerbfyTalk';
+import MicrophonePermissionScreen from './MicrophonePermissionScreen';
 import { ArrowLeftIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
 
 interface VoiceChatRoomProps {
@@ -21,49 +22,32 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
     leaveRoom,
     sendMessage,
     toggleMute,
+    setMicrophoneStream,
     setError
   } = useVerbfyTalk();
 
   const [microphoneGranted, setMicrophoneGranted] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
 
-  // Request microphone access
-  const requestMicrophone = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 44100
-        },
-        video: false
-      });
-      
-      setMicrophoneGranted(true);
-      console.log('✅ Microphone access granted');
-      
-      // Now join the room
-      if (roomId && isConnected) {
-        joinRoom(roomId);
-      }
-    } catch (error: any) {
-      console.error('❌ Failed to get microphone access:', error);
-      let errorMessage = 'Microphone access denied';
-      if (error.name === 'NotAllowedError') {
-        errorMessage = 'Microphone permission denied. Please allow microphone access in your browser settings.';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage = 'No microphone found. Please connect a microphone and try again.';
-      } else if (error.name === 'NotSupportedError') {
-        errorMessage = 'Microphone not supported in this browser.';
-      } else if (error.name === 'NotReadableError') {
-        errorMessage = 'Microphone is already in use by another application.';
-      }
-      setError(errorMessage);
+  // Handle microphone permission granted
+  const handleMicrophonePermissionGranted = (stream: MediaStream) => {
+    console.log('✅ Microphone permission granted, setting stream...');
+    setMicrophoneStream(stream);
+    setMicrophoneGranted(true);
+    
+    // Join room after microphone permission is granted
+    if (roomId && isConnected) {
+      joinRoom(roomId);
     }
   };
 
-  // Join room when component mounts
+  // Handle microphone permission cancelled
+  const handleMicrophonePermissionCancelled = () => {
+    console.log('❌ Microphone permission cancelled');
+    onLeave();
+  };
+
+  // Join room when component mounts and microphone is granted
   useEffect(() => {
     if (roomId && isConnected && microphoneGranted) {
       joinRoom(roomId);
@@ -96,38 +80,11 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
 
   if (!microphoneGranted) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-900">
-        <div className="text-center max-w-md mx-auto p-6">
-          <div className="mb-6">
-            <MicrophoneIcon className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-white mb-2">Microphone Access Required</h2>
-            <p className="text-gray-300 mb-6">
-              VerbfyTalk needs access to your microphone to enable voice chat. 
-              Click the button below to grant permission.
-            </p>
-          </div>
-          
-          <button
-            onClick={requestMicrophone}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors mb-4"
-          >
-            Allow Microphone Access
-          </button>
-          
-          <div className="text-sm text-gray-400">
-            <p>• Your microphone will only be used for voice chat</p>
-            <p>• You can mute/unmute anytime during the conversation</p>
-            <p>• No audio is recorded or stored</p>
-          </div>
-          
-          <button
-            onClick={handleLeave}
-            className="mt-6 text-gray-400 hover:text-white transition-colors"
-          >
-            ← Back to Rooms
-          </button>
-        </div>
-      </div>
+      <MicrophonePermissionScreen
+        onPermissionGranted={handleMicrophonePermissionGranted}
+        onCancel={handleMicrophonePermissionCancelled}
+        roomName={currentRoom?.name || `Room ${roomId}`}
+      />
     );
   }
 
