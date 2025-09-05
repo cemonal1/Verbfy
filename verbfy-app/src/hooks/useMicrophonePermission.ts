@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { microphonePermissionManager, MicrophoneDevice, MicrophonePermissionState } from '@/utils/microphonePermission';
+import { microphonePermissionManager, MicrophoneDevice, MicrophonePermissionState, MicrophoneConstraints } from '@/utils/microphonePermission';
 
 export interface UseMicrophonePermissionReturn {
   // Permission state
@@ -26,7 +26,7 @@ export interface UseMicrophonePermissionReturn {
   };
   
   // Actions
-  requestPermission: (constraints?: any) => Promise<{ success: boolean; stream?: MediaStream; error?: string }>;
+  requestPermission: (constraints?: Partial<MicrophoneConstraints>) => Promise<{ success: boolean; stream?: MediaStream; error?: string }>;
   stopMicrophone: () => void;
   testQuality: () => Promise<void>;
   refreshDevices: () => Promise<void>;
@@ -93,7 +93,7 @@ export const useMicrophonePermission = (): UseMicrophonePermissionReturn => {
   }, [currentStream]);
 
   // Request microphone permission
-  const requestPermission = useCallback(async (constraints?: any) => {
+  const requestPermission = useCallback(async (constraints?: Partial<MicrophoneConstraints>) => {
     try {
       setError(null);
       const result = await microphonePermissionManager.requestMicrophonePermission(constraints);
@@ -111,8 +111,8 @@ export const useMicrophonePermission = (): UseMicrophonePermissionReturn => {
       
       updatePermissionState();
       return result;
-    } catch (error: any) {
-      const errorMessage = error.message || 'Unknown error occurred';
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setError(errorMessage);
       updatePermissionState();
       return { success: false, error: errorMessage };
