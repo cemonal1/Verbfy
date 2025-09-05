@@ -1,143 +1,78 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVerbfyTalk } from '@/hooks/useVerbfyTalk';
-import { useAuthContext } from '@/context/AuthContext';
-import { toast } from 'react-hot-toast';
-// Socket import removed - using from useVerbfyTalk hook
-import {
-  MicrophoneIcon,
-  SpeakerWaveIcon,
-  SpeakerXMarkIcon,
-  ChatBubbleLeftRightIcon,
-  UsersIcon,
-  ArrowLeftIcon
-} from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
 
 interface VoiceChatRoomProps {
   roomId: string;
   onLeave: () => void;
 }
 
-
-
 export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
-  const { user } = useAuthContext();
-  
-  // Voice chat socket (using VerbfyTalk socket)
-  // Socket is now provided by useVerbfyTalk hook
-  
-  // Room state
-  const [showChat, setShowChat] = useState(true);
-  const [showParticipants, setShowParticipants] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
-  const [roomInfo, setRoomInfo] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // VerbfyTalk setup
   const {
-    localStream,
-    remoteStreams,
+    isConnected,
+    isLoading,
+    error,
+    currentRoom,
+    participants,
+    messages,
     isMuted,
-    isSpeaker,
-    toggleMute,
-    toggleSpeaker,
-    status,
-    connectionError,
-    isInitialized,
-    participants: verbfyParticipants,
-    messages: verbfyMessages,
-    sendMessage: sendVerbfyMessage,
     joinRoom,
-    leaveRoom: leaveVerbfyRoom,
-    socket: voiceSocket,
-  } = useVerbfyTalk(localStorage.getItem('token') || '');
+    leaveRoom,
+    sendMessage,
+    toggleMute,
+    setError
+  } = useVerbfyTalk();
 
-  // Refs
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [chatMessage, setChatMessage] = useState('');
 
-  // Initialize room
+  // Join room when component mounts
   useEffect(() => {
-    if (user && roomId) {
-      initializeRoom();
+    if (roomId && isConnected) {
+      joinRoom(roomId);
     }
-  }, [user, roomId]);
+  }, [roomId, isConnected, joinRoom]);
 
-  // Update local video stream
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
-
-  // Auto-scroll chat
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
-  }, [verbfyMessages]);
-
-  // Update room info when participants change
-  useEffect(() => {
-    if (verbfyParticipants.length > 0) {
-      setRoomInfo({ 
-        name: `Room ${roomId}`, 
-        participants: verbfyParticipants.length 
-      });
-    }
-  }, [verbfyParticipants, roomId]);
-
-  const initializeRoom = async () => {
-    try {
-      console.log('🏠 Initializing room:', roomId);
-      setIsLoading(true);
-      
-      // Join room via VerbfyTalk
-      console.log('📡 Calling joinRoom from useVerbfyTalk hook');
-      await joinRoom(roomId);
-      console.log('✅ Room join request sent successfully');
-
-    } catch (error) {
-      console.error('❌ Failed to initialize room:', error);
-      toast.error('Failed to join room');
-    } finally {
-      setIsLoading(false);
-    }
+  const handleLeave = () => {
+    leaveRoom();
+    onLeave();
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (chatMessage.trim()) {
-      sendVerbfyMessage(chatMessage);
+      sendMessage(chatMessage);
       setChatMessage('');
     }
   };
 
-
-
-  const handleLeaveRoom = () => {
-    leaveVerbfyRoom();
-    onLeave();
-  };
-
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Joining room...</p>
+          <p className="mt-4 text-white">Joining room...</p>
         </div>
       </div>
     );
   }
 
-  if (connectionError) {
+  if (error) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-gray-900">
         <div className="text-center">
-          <p className="text-red-500 mb-4">Failed to join room: {connectionError}</p>
+          <p className="text-red-400 mb-4">{error}</p>
           <button
-            onClick={handleLeaveRoom}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg"
+            onClick={() => {
+              setError(null);
+              joinRoom(roomId);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg mr-4"
+          >
+            Retry
+          </button>
+          <button
+            onClick={handleLeave}
+            className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg"
           >
             Leave Room
           </button>
@@ -152,202 +87,102 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
       <div className="bg-gray-800 p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={handleLeaveRoom}
+            onClick={handleLeave}
             className="text-gray-300 hover:text-white p-2 rounded-lg hover:bg-gray-700"
           >
             <ArrowLeftIcon className="w-6 h-6" />
           </button>
           <div>
-            <h1 className="text-white font-semibold text-lg">
-              {roomInfo?.name || `Room ${roomId}`}
+            <h1 className="text-xl font-bold text-white">
+              {currentRoom?.name || `Room ${roomId}`}
             </h1>
             <p className="text-gray-400 text-sm">
-              {verbfyParticipants.length} participants
+              {participants.length} participant{participants.length !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <button
-            onClick={() => setShowParticipants(!showParticipants)}
-            className={`p-2 rounded-lg ${
-              showParticipants ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'
+            onClick={toggleMute}
+            className={`p-3 rounded-full transition-colors ${
+              isMuted 
+                ? 'bg-red-600 hover:bg-red-700 text-white' 
+                : 'bg-green-600 hover:bg-green-700 text-white'
             }`}
           >
-            <UsersIcon className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => setShowChat(!showChat)}
-            className={`p-2 rounded-lg ${
-              showChat ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white hover:bg-gray-700'
-            }`}
-          >
-            <ChatBubbleLeftRightIcon className="w-5 h-5" />
+            <MicrophoneIcon className={`w-6 h-6 ${isMuted ? 'opacity-50' : ''}`} />
           </button>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex">
-        {/* Video Grid */}
-        <div className="flex-1 p-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 h-full">
-            {/* Local Video */}
-            <div className="relative bg-gray-800 rounded-lg overflow-hidden">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                {user?.name} (You)
-              </div>
-              {isMuted && (
-                <div className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded">
-                  <MicrophoneIcon className="w-4 h-4" />
-                </div>
-              )}
-            </div>
-
-            {/* Remote Videos */}
-            {verbfyParticipants.filter(p => p.id !== user?.id).map((participant) => (
-              <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden">
-                <div className="w-full h-full flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-2">
-                      <span className="text-white text-lg font-semibold">
-                        {participant.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <p className="text-white text-sm">{participant.name}</p>
-                    {participant.isSpeaking && (
-                      <div className="mt-1">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mx-auto animate-pulse"></div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+        {/* Participants */}
+        <div className="w-1/3 bg-gray-800 p-4">
+          <h2 className="text-lg font-semibold text-white mb-4">Participants</h2>
+          <div className="space-y-2">
+            {participants.map((participant) => (
+              <div
+                key={participant.id}
+                className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg"
+              >
+                <div className={`w-3 h-3 rounded-full ${
+                  participant.isSpeaking ? 'bg-green-500' : 'bg-gray-500'
+                }`}></div>
+                <span className="text-white">{participant.name}</span>
                 {participant.isMuted && (
-                  <div className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded">
-                    <MicrophoneIcon className="w-4 h-4" />
-                  </div>
+                  <MicrophoneIcon className="w-4 h-4 text-red-400 opacity-50" />
                 )}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="w-80 bg-gray-800 border-l border-gray-700">
-          {/* Participants */}
-          {showParticipants && (
-            <div className="p-4 border-b border-gray-700">
-              <h3 className="text-white font-semibold mb-3">Participants</h3>
-              <div className="space-y-2">
-                {verbfyParticipants.map((participant) => (
-                  <div key={participant.id} className="flex items-center gap-3 p-2 rounded bg-gray-700">
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-semibold">
-                        {participant.name.charAt(0).toUpperCase()}
+        {/* Chat */}
+        <div className="flex-1 flex flex-col">
+          {/* Messages */}
+          <div className="flex-1 p-4 overflow-y-auto">
+            <div className="space-y-4">
+              {messages.map((message) => (
+                <div key={message.id} className="flex gap-3">
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                    {message.userName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-white font-semibold">{message.userName}</span>
+                      <span className="text-gray-400 text-sm">
+                        {new Date(message.timestamp).toLocaleTimeString()}
                       </span>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-white text-sm">
-                        {participant.name}
-                        {participant.id === user?.id && ' (You)'}
-                      </p>
-                      <p className="text-gray-400 text-xs">
-                        {participant.isSpeaker ? 'Speaker' : 'Listener'}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      <MicrophoneIcon className={`w-4 h-4 ${!participant.isMuted ? 'text-green-500' : 'text-red-500'}`} />
-                    </div>
+                    <p className="text-gray-300">{message.message}</p>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Chat */}
-          {showChat && (
-            <div className="flex-1 flex flex-col h-full">
-              <div className="p-4 border-b border-gray-700">
-                <h3 className="text-white font-semibold">Chat</h3>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-4" ref={chatContainerRef}>
-                <div className="space-y-3">
-                  {verbfyMessages.map((message, index) => (
-                    <div key={index} className="bg-gray-700 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-blue-400 text-sm font-semibold">
-                          {message.sender === user?.id ? 'You' : message.senderName}
-                        </span>
-                        <span className="text-gray-400 text-xs">
-                          {new Date(message.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <p className="text-white text-sm">{message.content}</p>
-                    </div>
-                  ))}
                 </div>
-              </div>
-
-              <div className="p-4 border-t border-gray-700">
-                <form onSubmit={handleSendMessage} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1 bg-gray-700 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-                  >
-                    Send
-                  </button>
-                </form>
-              </div>
+              ))}
             </div>
-          )}
+          </div>
+
+          {/* Message Input */}
+          <div className="p-4 border-t border-gray-700">
+            <form onSubmit={handleSendMessage} className="flex gap-3">
+              <input
+                type="text"
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                placeholder="Type a message..."
+                className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              />
+              <button
+                type="submit"
+                disabled={!chatMessage.trim()}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg transition-colors"
+              >
+                Send
+              </button>
+            </form>
+          </div>
         </div>
-      </div>
-
-      {/* Controls */}
-      <div className="bg-gray-800 p-4 flex items-center justify-center gap-4">
-        <button
-          onClick={toggleMute}
-          className={`p-3 rounded-full ${
-            !isMuted ? 'bg-gray-600 text-white' : 'bg-red-500 text-white'
-          } hover:opacity-80 transition-colors`}
-        >
-          <MicrophoneIcon className="w-6 h-6" />
-        </button>
-
-        <button
-          onClick={toggleSpeaker}
-          className={`p-3 rounded-full ${
-            isSpeaker ? 'bg-blue-600 text-white' : 'bg-gray-600 text-white'
-          } hover:opacity-80 transition-colors`}
-        >
-          {isSpeaker ? (
-            <SpeakerWaveIcon className="w-6 h-6" />
-          ) : (
-            <SpeakerXMarkIcon className="w-6 h-6" />
-          )}
-        </button>
-
-        <button
-          onClick={handleLeaveRoom}
-          className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-        >
-          Leave Room
-        </button>
       </div>
     </div>
   );
