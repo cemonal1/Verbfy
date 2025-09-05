@@ -68,7 +68,10 @@ export default function MicrophonePermissionScreen({
         noiseSuppression: true,
         autoGainControl: true,
         sampleRate: 44100,
+        channelCount: 1,
+        latency: 0.01,
       },
+      video: false,
     } : undefined;
 
     const result = await requestPermission(constraints);
