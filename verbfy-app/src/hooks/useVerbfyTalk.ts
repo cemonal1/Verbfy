@@ -47,7 +47,6 @@ interface Message {
 export const useVerbfyTalk = () => {
   const { user } = useAuth();
   const token = tokenStorage.getToken();
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<VerbfyTalkRoom | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -55,7 +54,7 @@ export const useVerbfyTalk = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isSpeaking] = useState(false); // Read-only, managed by VAD
   
   const socketRef = useRef<Socket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -86,13 +85,11 @@ export const useVerbfyTalk = () => {
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      maxReconnectionAttempts: 5,
       autoConnect: true,
       withCredentials: true
     });
 
     socketRef.current = newSocket;
-    setSocket(newSocket);
 
     // Connection events
     newSocket.on('connect', () => {
@@ -301,18 +298,18 @@ export const useVerbfyTalk = () => {
         });
       }
 
-      // Handle ICE candidates
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate && socketRef.current?.connected) {
-          socketRef.current.emit('webrtc:ice-candidate', {
-            to: participantId,
-            candidate: event.candidate
-          });
-        }
-      };
+                  // Handle ICE candidates
+            peerConnection.onicecandidate = (event) => {
+              if (event.candidate && socketRef.current?.connected) {
+                socketRef.current.emit('webrtc:ice-candidate', {
+                  to: participantId,
+                  candidate: event.candidate
+                });
+              }
+            };
 
       // Handle remote stream
-      peerConnection.ontrack = (event) => {
+      peerConnection.ontrack = () => {
         console.log('🎵 Remote audio stream received from:', participantId);
         // You can add audio element here to play remote audio
       };
@@ -357,10 +354,10 @@ export const useVerbfyTalk = () => {
         }
       };
 
-      // Handle remote stream
-      peerConnection.ontrack = (event) => {
-        console.log('🎵 Remote audio stream received from:', from);
-      };
+                  // Handle remote stream
+            peerConnection.ontrack = () => {
+              console.log('🎵 Remote audio stream received from:', from);
+            };
 
       await peerConnection.setRemoteDescription(offer);
       const answer = await peerConnection.createAnswer();

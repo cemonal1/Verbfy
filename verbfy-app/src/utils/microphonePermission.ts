@@ -181,7 +181,7 @@ export class MicrophonePermissionManager {
       await this.getMicrophoneDevices();
 
       return { success: true, stream };
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.permissionState.isGranted = false;
       this.permissionState.lastChecked = Date.now();
       
@@ -197,21 +197,25 @@ export class MicrophonePermissionManager {
   /**
    * Get detailed error message based on error type
    */
-  private getDetailedErrorMessage(error: any): string {
-    const errorMessages = {
-      NotAllowedError: 'Microphone access was denied. Please click "Allow" when prompted, or enable microphone access in your browser settings.',
-      NotFoundError: 'No microphone device found. Please connect a microphone and try again.',
-      NotSupportedError: 'Microphone access is not supported in this browser. Please use a modern browser.',
-      NotReadableError: 'Microphone is already in use by another application. Please close other applications using the microphone and try again.',
-      AbortError: 'Microphone access request was cancelled. Please try again.',
-      SecurityError: 'Microphone access is blocked due to security restrictions. Please ensure you are using HTTPS.',
-      InvalidStateError: 'Microphone is in an invalid state. Please refresh the page and try again.',
-      TypeError: 'Invalid microphone constraints. Please try again.',
-      UnknownError: 'An unknown error occurred while accessing the microphone. Please try again.',
-    };
+  private getDetailedErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      const errorMessages = {
+        NotAllowedError: 'Microphone access was denied. Please click "Allow" when prompted, or enable microphone access in your browser settings.',
+        NotFoundError: 'No microphone device found. Please connect a microphone and try again.',
+        NotSupportedError: 'Microphone access is not supported in this browser. Please use a modern browser.',
+        NotReadableError: 'Microphone is already in use by another application. Please close other applications using the microphone and try again.',
+        AbortError: 'Microphone access request was cancelled. Please try again.',
+        SecurityError: 'Microphone access is blocked due to security restrictions. Please ensure you are using HTTPS.',
+        InvalidStateError: 'Microphone is in an invalid state. Please refresh the page and try again.',
+        TypeError: 'Invalid microphone constraints. Please try again.',
+        UnknownError: 'An unknown error occurred while accessing the microphone. Please try again.',
+      };
 
-    return errorMessages[error.name as keyof typeof errorMessages] || 
-           `Microphone access failed: ${error.message || 'Unknown error'}`;
+      return errorMessages[error.name as keyof typeof errorMessages] || 
+             `Microphone access failed: ${error.message || 'Unknown error'}`;
+    }
+    
+    return 'Microphone access failed: Unknown error';
   }
 
   /**
