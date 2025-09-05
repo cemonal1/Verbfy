@@ -76,7 +76,18 @@ export const useVerbfyTalk = () => {
       auth: {
         token: token
       },
-      transports: ['polling', 'websocket']
+      transports: ['polling'], // Start with polling only for stability
+      upgrade: true, // Allow upgrade to websocket
+      rememberUpgrade: true, // Remember successful upgrades
+      timeout: 20000, // 20 second timeout
+      forceNew: true, // Force new connection
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      maxReconnectionAttempts: 5,
+      autoConnect: true,
+      withCredentials: true
     });
 
     socketRef.current = newSocket;
@@ -183,15 +194,41 @@ export const useVerbfyTalk = () => {
   // Get user's microphone stream
   const getLocalStream = useCallback(async () => {
     try {
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('getUserMedia is not supported in this browser');
+      }
+
+      // Request microphone access with proper constraints
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100
+        },
         video: false
       });
+      
       localStreamRef.current = stream;
+      console.log('✅ Microphone access granted');
       return stream;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Failed to get microphone access:', error);
-      setError('Microphone access denied');
+      
+      // Provide specific error messages
+      let errorMessage = 'Microphone access denied';
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Microphone permission denied. Please allow microphone access in your browser settings.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'No microphone found. Please connect a microphone and try again.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = 'Microphone not supported in this browser.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = 'Microphone is already in use by another application.';
+      }
+      
+      setError(errorMessage);
       return null;
     }
   }, []);
@@ -207,12 +244,7 @@ export const useVerbfyTalk = () => {
       setIsLoading(true);
       setError(null);
 
-      // Get microphone access
-      const stream = await getLocalStream();
-      if (!stream) {
-        setIsLoading(false);
-        return false;
-      }
+      // Microphone access is now handled in the component
 
       // First, join room via HTTP API
       const response = await fetch(`/api/verbfy-talk/${roomId}/join`, {
