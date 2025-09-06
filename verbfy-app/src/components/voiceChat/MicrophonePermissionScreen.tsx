@@ -41,20 +41,7 @@ export default function MicrophonePermissionScreen({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<string>('');
 
-  // Auto-request permission if supported and not denied
-  useEffect(() => {
-    if (isSupported && canRequest && !isGranted && !isDenied) {
-      handleRequestPermission();
-    }
-  }, [isSupported, canRequest, isGranted, isDenied, handleRequestPermission]);
-
-  // Call onPermissionGranted when stream is available
-  useEffect(() => {
-    if (currentStream && isActive && quality.isWorking) {
-      onPermissionGranted(currentStream);
-    }
-  }, [currentStream, isActive, quality.isWorking, onPermissionGranted]);
-
+  // Define handleRequestPermission first to avoid hoisting issues
   const handleRequestPermission = async () => {
     setIsRequesting(true);
     clearError();
@@ -92,6 +79,20 @@ export default function MicrophonePermissionScreen({
   const handleTestQuality = async () => {
     await testQuality();
   };
+
+  // Auto-request permission if supported and not denied
+  useEffect(() => {
+    if (isSupported && canRequest && !isGranted && !isDenied) {
+      handleRequestPermission();
+    }
+  }, [isSupported, canRequest, isGranted, isDenied, handleRequestPermission]);
+
+  // Call onPermissionGranted when stream is available
+  useEffect(() => {
+    if (currentStream && isActive && quality.isWorking) {
+      onPermissionGranted(currentStream);
+    }
+  }, [currentStream, isActive, quality.isWorking, onPermissionGranted]);
 
   const getStatusIcon = () => {
     if (isRequesting) {
