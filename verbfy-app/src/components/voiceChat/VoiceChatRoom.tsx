@@ -31,26 +31,42 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
 
   // Handle microphone permission granted
   const handleMicrophonePermissionGranted = (stream: MediaStream) => {
-    console.log('✅ Microphone permission granted, setting stream...');
-    setMicrophoneStream(stream);
-    setMicrophoneGranted(true);
-    
-    // Join room after microphone permission is granted
-    if (roomId && isConnected) {
-      joinRoom(roomId);
+    try {
+      console.log('✅ Microphone permission granted, setting stream...');
+      setMicrophoneStream(stream);
+      setMicrophoneGranted(true);
+      
+      // Join room after microphone permission is granted
+      if (roomId && isConnected) {
+        joinRoom(roomId).catch((error) => {
+          console.error('❌ Failed to join room:', error);
+          setError('Failed to join room. Please try again.');
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error handling microphone permission:', error);
+      setError('Failed to initialize microphone. Please try again.');
     }
   };
 
   // Handle microphone permission cancelled
   const handleMicrophonePermissionCancelled = () => {
-    console.log('❌ Microphone permission cancelled');
-    onLeave();
+    try {
+      console.log('❌ Microphone permission cancelled');
+      onLeave();
+    } catch (error) {
+      console.error('❌ Error handling microphone cancellation:', error);
+      onLeave(); // Still try to leave even if there's an error
+    }
   };
 
   // Join room when component mounts and microphone is granted
   useEffect(() => {
     if (roomId && isConnected && microphoneGranted) {
-      joinRoom(roomId);
+      joinRoom(roomId).catch((error) => {
+        console.error('❌ Failed to join room in useEffect:', error);
+        setError('Failed to join room. Please try again.');
+      });
     }
   }, [roomId, isConnected, microphoneGranted, joinRoom]);
 
