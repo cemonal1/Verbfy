@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/context/AuthContext';
 import { tokenStorage } from '@/utils/secureStorage';
-import { microphonePermissionManager } from '@/utils/microphonePermission';
 
 interface VerbfyTalkRoom {
   _id: string;
@@ -187,7 +186,7 @@ export const useVerbfyTalk = () => {
       newSocket.disconnect();
       socketRef.current = null;
     };
-  }, [user, token]);
+  }, [user, token, createPeerConnection, handleOffer]);
 
   // Microphone access is now handled by MicrophonePermissionScreen component
 
@@ -329,7 +328,7 @@ export const useVerbfyTalk = () => {
     } catch (error) {
       console.error('❌ Failed to create peer connection:', error);
     }
-  }, []);
+  }, [WEBRTC_CONFIG]);
 
   // WebRTC handlers
   const handleOffer = async (from: string, offer: RTCSessionDescriptionInit) => {

@@ -117,7 +117,7 @@ export const useMicrophonePermission = (): UseMicrophonePermissionReturn => {
       updatePermissionState();
       return { success: false, error: errorMessage };
     }
-  }, [refreshDevices, updatePermissionState]);
+  }, [refreshDevices, updatePermissionState, startQualityMonitoring]);
 
   // Stop microphone
   const stopMicrophone = useCallback(() => {

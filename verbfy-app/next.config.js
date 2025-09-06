@@ -98,8 +98,8 @@ try {
     silent: true,
     // Hide source maps in production to avoid code exposure in devtools
     widenClientFileUpload: true,
-    org: process.env.SENTRY_ORG,
-    project: process.env.SENTRY_PROJECT,
+    org: process.env.SENTRY_ORG || 'verbfy',
+    project: process.env.SENTRY_PROJECT || 'verbfy-frontend',
     // The following option mirrors hiding sourcemaps guidance
     // Actual sourcemap type is configured by Sentry plugin automatically
     hideSourceMaps: true,

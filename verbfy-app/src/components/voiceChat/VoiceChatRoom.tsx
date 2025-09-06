@@ -68,7 +68,7 @@ export default function VoiceChatRoom({ roomId, onLeave }: VoiceChatRoomProps) {
         setError('Failed to join room. Please try again.');
       });
     }
-  }, [roomId, isConnected, microphoneGranted, joinRoom]);
+  }, [roomId, isConnected, microphoneGranted, joinRoom, setError]);
 
   const handleLeave = () => {
     leaveRoom();
