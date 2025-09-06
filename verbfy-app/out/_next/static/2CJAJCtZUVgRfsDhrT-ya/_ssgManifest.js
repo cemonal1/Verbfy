@@ -1,0 +1,1 @@
+self.__SSG_MANIFEST=new Set(["\u002Flanding","\u002Fverbfy-talk\u002F[roomId]"]);self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()
