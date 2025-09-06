@@ -5,7 +5,6 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   XCircleIcon,
-  InformationCircleIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 
@@ -21,7 +20,6 @@ export default function MicrophonePermissionScreen({
   roomName = 'VerbfyTalk Room',
 }: MicrophonePermissionScreenProps) {
   const {
-    permissionState,
     isSupported,
     isGranted,
     isDenied,
@@ -48,7 +46,7 @@ export default function MicrophonePermissionScreen({
     if (isSupported && canRequest && !isGranted && !isDenied) {
       handleRequestPermission();
     }
-  }, [isSupported, canRequest, isGranted, isDenied]);
+  }, [isSupported, canRequest, isGranted, isDenied, handleRequestPermission]);
 
   // Call onPermissionGranted when stream is available
   useEffect(() => {
