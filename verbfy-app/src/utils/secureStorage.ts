@@ -86,11 +86,12 @@ class SessionStorage implements SecureStorage {
     
     try {
       sessionStorage.setItem(key, value);
-    } catch (error) {
+    } catch {
       console.warn('SessionStorage not available, falling back to memory storage');
       // Fallback to memory storage (will be lost on page refresh)
-      (window as any).__verbfy_memory_storage = (window as any).__verbfy_memory_storage || {};
-      (window as any).__verbfy_memory_storage[key] = value;
+      (window as { __verbfy_memory_storage?: Record<string, string> }).__verbfy_memory_storage = 
+        (window as { __verbfy_memory_storage?: Record<string, string> }).__verbfy_memory_storage || {};
+      (window as { __verbfy_memory_storage?: Record<string, string> }).__verbfy_memory_storage![key] = value;
     }
   }
   
@@ -99,9 +100,9 @@ class SessionStorage implements SecureStorage {
     
     try {
       return sessionStorage.getItem(key);
-    } catch (error) {
+    } catch {
       // Fallback to memory storage
-      return (window as any).__verbfy_memory_storage?.[key] || null;
+      return (window as { __verbfy_memory_storage?: Record<string, string> }).__verbfy_memory_storage?.[key] || null;
     }
   }
   
@@ -110,10 +111,10 @@ class SessionStorage implements SecureStorage {
     
     try {
       sessionStorage.removeItem(key);
-    } catch (error) {
+    } catch {
       // Fallback to memory storage
-      if ((window as any).__verbfy_memory_storage) {
-        delete (window as any).__verbfy_memory_storage[key];
+      if ((window as { __verbfy_memory_storage?: Record<string, string> }).__verbfy_memory_storage) {
+        delete (window as { __verbfy_memory_storage?: Record<string, string> }).__verbfy_memory_storage![key];
       }
     }
   }
@@ -123,9 +124,9 @@ class SessionStorage implements SecureStorage {
     
     try {
       sessionStorage.clear();
-    } catch (error) {
+    } catch {
       // Fallback to memory storage
-      (window as any).__verbfy_memory_storage = {};
+      (window as { __verbfy_memory_storage?: Record<string, string> }).__verbfy_memory_storage = {};
     }
   }
 }
@@ -147,11 +148,11 @@ export const tokenStorage = {
     storage.removeItem(TOKEN_KEY);
   },
   
-  setUser: (user: any): void => {
+  setUser: (user: Record<string, unknown>): void => {
     storage.setItem(USER_KEY, JSON.stringify(user));
   },
   
-  getUser: (): any => {
+  getUser: (): Record<string, unknown> | null => {
     const userStr = storage.getItem(USER_KEY);
     if (!userStr) return null;
     
