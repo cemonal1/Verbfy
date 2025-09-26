@@ -4,7 +4,7 @@ import api, { authAPI } from '../lib/api';
 import { tokenStorage } from '../utils/secureStorage';
 
 // User interface
-export interface User {
+export interface User extends Record<string, unknown> {
   _id: string;
   id: string; // Alias for backward compatibility
   name: string;
@@ -95,7 +95,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         setUser(userWithId);
         // Update stored user data
-        tokenStorage.setUser(userWithId);
+        tokenStorage.setUser({ ...userWithId });
       } else {
         // Invalid token, clear it
         tokenStorage.clear();
@@ -127,7 +127,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         // Store token and user data securely
         tokenStorage.setToken(token);
-        tokenStorage.setUser(userWithId);
+        tokenStorage.setUser({ ...userWithId });
         
         // Set user in state
         setUser(userWithId);
@@ -162,7 +162,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         // Store token and user data securely
         tokenStorage.setToken(token);
-        tokenStorage.setUser(userWithId);
+        tokenStorage.setUser({ ...userWithId });
         
         // Set user in state
         setUser(userWithId);
@@ -218,7 +218,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
         
         setUser(userWithId);
-        tokenStorage.setUser(userWithId);
+        tokenStorage.setUser({ ...userWithId });
       }
     } catch (error) {
       console.error('Error refreshing user:', error);

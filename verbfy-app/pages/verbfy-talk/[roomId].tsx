@@ -54,6 +54,7 @@ function VerbfyTalkRoomPage() {
     videoStates,
     toggleRemoteMute,
     toggleRemoteVideo,
+    isInitializing,
   } = useWebRTC(roomId as string, peerIds, participants);
 
   // Chat setup
@@ -120,13 +121,20 @@ function VerbfyTalkRoomPage() {
     }
   };
 
-  if (loading) {
+  if (loading || isInitializing) {
     return (
       <DashboardLayout allowedRoles={['student', 'teacher']}>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading room...</p>
+            <p className="mt-4 text-gray-600">
+              {loading ? 'Loading room...' : 'Requesting microphone and camera access...'}
+            </p>
+            {isInitializing && (
+              <p className="mt-2 text-sm text-gray-500">
+                Please allow access to your microphone and camera when prompted
+              </p>
+            )}
           </div>
         </div>
       </DashboardLayout>
@@ -145,6 +153,45 @@ function VerbfyTalkRoomPage() {
             >
               Back to Rooms
             </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show media access error
+  if (error && status === 'error') {
+    return (
+      <DashboardLayout allowedRoles={['student', 'teacher']}>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center max-w-md">
+            <div className="text-red-500 mb-4">
+              <MicrophoneIcon className="w-16 h-16 mx-auto mb-4" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Media Access Required</h3>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <div className="space-y-3">
+              <button
+                onClick={reconnect}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => router.push('/verbfy-talk')}
+                className="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded transition-colors"
+              >
+                Back to Rooms
+              </button>
+            </div>
+            <div className="mt-6 text-sm text-gray-500">
+              <p className="font-medium mb-2">To fix this issue:</p>
+              <ul className="text-left space-y-1">
+                <li>• Click the camera/microphone icon in your browser's address bar</li>
+                <li>• Select "Allow" for both camera and microphone</li>
+                <li>• Refresh the page and try again</li>
+              </ul>
+            </div>
           </div>
         </div>
       </DashboardLayout>
@@ -225,8 +272,18 @@ function VerbfyTalkRoomPage() {
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                    You {!isCameraOn && '(Camera Off)'}
+                    You {!isCameraOn && '(Camera Off)'} {!isMicOn && '(Mic Off)'}
                   </div>
+                  {status === 'connecting' && (
+                    <div className="absolute top-2 right-2 bg-yellow-500 text-white px-2 py-1 rounded text-xs">
+                      Connecting...
+                    </div>
+                  )}
+                  {status === 'connected' && (
+                    <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs">
+                      Connected
+                    </div>
+                  )}
                 </div>
 
                 {/* Remote Videos */}
