@@ -40,7 +40,7 @@ dotenv.config();
 try {
   validateEnvironment();
 } catch (error) {
-  console.error('❌ Environment validation failed:', error.message);
+  console.error('❌ Environment validation failed:', error instanceof Error ? error.message : String(error));
   process.exit(1);
 }
 

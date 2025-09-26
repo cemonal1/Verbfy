@@ -3,6 +3,9 @@
  * Uses httpOnly cookies when possible, falls back to sessionStorage for client-side
  */
 
+// Import User type for type safety
+import type { User } from '../context/AuthContext';
+
 const TOKEN_KEY = 'verbfy_token';
 const USER_KEY = 'verbfy_user';
 
@@ -147,16 +150,16 @@ export const tokenStorage = {
     storage.removeItem(TOKEN_KEY);
   },
   
-  setUser: (user: any): void => {
+  setUser: (user: User | Record<string, unknown>): void => {
     storage.setItem(USER_KEY, JSON.stringify(user));
   },
   
-  getUser: (): any => {
+  getUser: (): User | null => {
     const userStr = storage.getItem(USER_KEY);
     if (!userStr) return null;
     
     try {
-      return JSON.parse(userStr);
+      return JSON.parse(userStr) as User;
     } catch {
       return null;
     }

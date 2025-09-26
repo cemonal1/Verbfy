@@ -152,13 +152,21 @@ function VerbfyTalkPage() {
             </h1>
             <p className="text-gray-600 mt-2">Join conversation rooms with up to 5 people</p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
-          >
-            <PlusIcon className="w-5 h-5" />
-            Create Room
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => router.push('/verbfy-talk/test-media')}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
+            >
+              Test Media
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
+            >
+              <PlusIcon className="w-5 h-5" />
+              Create Room
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
