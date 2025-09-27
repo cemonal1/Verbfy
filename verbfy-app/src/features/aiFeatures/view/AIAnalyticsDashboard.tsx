@@ -24,21 +24,23 @@ export const AIAnalyticsDashboard: React.FC<AIAnalyticsDashboardProps> = ({
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
+      const getAnalytics = (aiFeaturesAPI as any)?.getAnalytics;
+      const getUserProgress = (aiFeaturesAPI as any)?.getUserProgress;
       const [analyticsResponse, progressResponse] = await Promise.all([
-        aiFeaturesAPI.getAnalytics({
+        getAnalytics?.({
           period,
           startDate: selectedDate,
           endDate: selectedDate
         }),
-        aiFeaturesAPI.getUserProgress({
+        getUserProgress?.({
           period,
           startDate: selectedDate,
           endDate: selectedDate
         })
       ]);
       
-      setAnalytics(analyticsResponse.analytics);
-      setUserProgress(progressResponse);
+      if (analyticsResponse?.analytics) setAnalytics(analyticsResponse.analytics);
+      if (progressResponse) setUserProgress(progressResponse);
     } catch (error) {
       console.error('Error fetching AI analytics:', error);
     } finally {

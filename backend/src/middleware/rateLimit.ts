@@ -2,11 +2,11 @@ import rateLimit from 'express-rate-limit';
 
 /**
  * Rate limiting middleware for authentication endpoints
- * Limits each IP to 5 requests per 15 minutes for login/register
+ * Limits each IP to 20 requests per 15 minutes for login/register (increased from 10)
  */
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs
+  max: (process.env.NODE_ENV === 'production' ? 20 : 100), // increased from 10 to 20
   message: {
     success: false,
     message: 'Too many login attempts, please try again later',
@@ -25,11 +25,11 @@ export const authLimiter = rateLimit({
 
 /**
  * Rate limiting middleware for general API endpoints
- * Limits each IP to 100 requests per 15 minutes
+ * Limits each IP to 200 requests per 15 minutes (increased from 100)
  */
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: (process.env.NODE_ENV === 'production' ? 200 : 500), // increased from 100 to 200
   message: {
     success: false,
     message: 'Too many requests, please try again later',

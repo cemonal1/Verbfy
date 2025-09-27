@@ -1,0 +1,101 @@
+name: Deploy API to Hetzner
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'nginx/**'
+      - 'docker-compose.hetzner.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Backend build check
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          APP_DIR: ${{ secrets.HETZNER_PATH }}
+          GIT_REPO: ${{ secrets.GIT_REPO }}
+          HETZNER_BACKEND_ENV: ${{ secrets.HETZNER_BACKEND_ENV }}
+          DOMAIN_NAME: ${{ secrets.HETZNER_DOMAIN }}
+          CERTBOT_EMAIL: ${{ secrets.HETZNER_CERTBOT_EMAIL }}
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          envs: APP_DIR,GIT_REPO,HETZNER_BACKEND_ENV,DOMAIN_NAME,CERTBOT_EMAIL
+          script: |
+            set -e
+
+            # Ensure base requirements
+            if ! command -v docker >/dev/null 2>&1; then
+              echo "Installing Docker..."
+              if command -v apt >/dev/null 2>&1; then
+                sudo apt update -y
+                sudo apt install -y docker.io docker-compose-plugin git
+                sudo systemctl enable --now docker
+              else
+                echo "Please install Docker manually on the target host" >&2
+                exit 1
+              fi
+            fi
+
+            # Prepare app directory
+            if [ ! -d "$APP_DIR" ]; then sudo mkdir -p "$APP_DIR"; sudo chown -R $USER:$USER "$APP_DIR"; fi
+            cd "$APP_DIR"
+
+            # Clone/update repository
+            if [ ! -d .git ]; then
+              git clone "$GIT_REPO" .
+            fi
+            git fetch --all --prune
+            git reset --hard origin/main
+
+            # Create backend .env if provided via secret and missing
+            if [ ! -f backend/.env ] && [ -n "$HETZNER_BACKEND_ENV" ]; then
+              echo "Writing backend/.env from secret"
+              mkdir -p backend
+              printf "%s" "$HETZNER_BACKEND_ENV" > backend/.env
+            fi
+
+            # Ensure uploads directories exist
+            mkdir -p backend/uploads/avatars backend/uploads/materials
+
+            # Attempt to obtain/renew TLS certs if none exist (best-effort)
+            if [ -n "$DOMAIN_NAME" ] && [ -n "$CERTBOT_EMAIL" ]; then
+              if [ ! -f "/etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem" ]; then
+                echo "Attempting to obtain Let's Encrypt certificate for $DOMAIN_NAME"
+                sudo docker run --rm -p 80:80 \
+                  -v /etc/letsencrypt:/etc/letsencrypt \
+                  -v /var/www/html:/var/www/html \
+                  certbot/certbot certonly --standalone \
+                  -d "$DOMAIN_NAME" -m "$CERTBOT_EMAIL" --agree-tos --no-eff-email -n || true
+              fi
+            fi
+
+            # Show docker and compose versions for debugging
+            docker --version || true
+            docker compose version || true
+
+            # Build and start services
+            docker compose -f docker-compose.hetzner.yml up -d --build
+
+            # Optional cleanup
+            docker system prune -f || true
+
+

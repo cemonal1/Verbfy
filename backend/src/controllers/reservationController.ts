@@ -432,6 +432,53 @@ export const getUpcomingReservations = async (req: AuthRequest, res: Response) =
   }
 }; 
 
+// Get student reservations (for dashboard)
+export const getStudentReservations = async (req: AuthRequest, res: Response) => {
+  try {
+    const studentId = req.user!.id;
+    const { page = 1, limit = 10 } = req.query;
+    
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    const reservations = await Reservation.find({ student: studentId })
+      .populate('teacher', 'name email avatar')
+      .sort({ actualDate: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+    
+    const total = await Reservation.countDocuments({ student: studentId });
+    
+    res.json({
+      success: true,
+      data: {
+        bookings: reservations.map(reservation => ({
+          id: reservation._id,
+          teacher: reservation.teacher,
+          date: reservation.actualDate,
+          startTime: reservation.startTime,
+          endTime: reservation.endTime,
+          status: reservation.status,
+          lessonType: reservation.lessonType,
+          lessonLevel: reservation.lessonLevel,
+          createdAt: reservation.createdAt
+        })),
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          pages: Math.ceil(total / Number(limit))
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error getting student reservations:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get reservations'
+    });
+  }
+};
+
 // Get reservation by ID
 export const getReservationById = async (req: AuthRequest, res: Response) => {
   try {

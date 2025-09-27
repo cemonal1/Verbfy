@@ -3,6 +3,10 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   
+  // Enable static export for Cloudflare Pages
+  output: 'export',
+  trailingSlash: true,
+  
   // Security headers
   async headers() {
     return [
@@ -19,25 +23,16 @@ const nextConfig = {
           },
           {
             key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin',
+            value: 'strict-origin-when-cross-origin',
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
-          },
-        ],
-      },
-      {
-        source: '/api/(.*)',
-        headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
+            value: 'microphone=*, camera=*, geolocation=*',
           },
           {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
+            key: 'Access-Control-Allow-Origin',
+            value: '*'
+          }
         ],
       },
     ];
@@ -48,10 +43,19 @@ const nextConfig = {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
 
-  // Image optimization
+  // Image optimization (disabled for static export)
   images: {
-    domains: ['localhost', 'verbfy.com', 'api.verbfy.com'],
-    formats: ['image/webp', 'image/avif'],
+    domains: [
+      'localhost',
+      'verbfy.com',
+      'api.verbfy.com',
+      'cdn.verbfy.com',
+      'images.unsplash.com',
+      'plus.unsplash.com',
+      'picsum.photos',
+      'i.pravatar.cc'
+    ],
+    unoptimized: true, // Required for static export
   },
 
   // Webpack configuration
@@ -87,4 +91,19 @@ const nextConfig = {
   // },
 };
 
-module.exports = nextConfig; 
+let exported = nextConfig;
+try {
+  const { withSentryConfig } = require('@sentry/nextjs');
+  exported = withSentryConfig(nextConfig, {
+    silent: true,
+    // Hide source maps in production to avoid code exposure in devtools
+    widenClientFileUpload: true,
+    org: process.env.SENTRY_ORG || 'verbfy',
+    project: process.env.SENTRY_PROJECT || 'verbfy-frontend',
+    // The following option mirrors hiding sourcemaps guidance
+    // Actual sourcemap type is configured by Sentry plugin automatically
+    hideSourceMaps: true,
+  });
+} catch (_) {}
+
+module.exports = exported;

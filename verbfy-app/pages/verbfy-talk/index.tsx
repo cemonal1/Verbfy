@@ -18,7 +18,6 @@ function VerbfyTalkPage() {
   const [rooms, setRooms] = useState<VerbfyTalkRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState<{ roomId: string; isPrivate: boolean } | null>(null);
   const [filters, setFilters] = useState<RoomFilters>({
     level: 'All',
     isPrivate: false,
@@ -40,7 +39,6 @@ function VerbfyTalkPage() {
     level: 'Mixed',
     maxParticipants: 5
   });
-  const [joinPassword, setJoinPassword] = useState('');
 
   useEffect(() => {
     loadRooms();
@@ -50,10 +48,23 @@ function VerbfyTalkPage() {
     try {
       setLoading(true);
       const response = await verbfyTalkAPI.getRooms(filters);
-      setRooms(response.data);
-      setPagination(response.pagination);
+      setRooms(response?.data || []);
+      setPagination(response?.pagination || {
+        page: 1,
+        limit: 10,
+        total: 0,
+        pages: 0
+      });
     } catch (error) {
+      console.error('Error loading rooms:', error);
       toast.error('Failed to load rooms');
+      setRooms([]);
+      setPagination({
+        page: 1,
+        limit: 10,
+        total: 0,
+        pages: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -88,29 +99,23 @@ function VerbfyTalkPage() {
     }
   };
 
-  const handleJoinRoom = async (roomId: string, isPrivate: boolean) => {
-    if (isPrivate) {
-      setShowJoinModal({ roomId, isPrivate });
+  const handleJoinRoom = (room: VerbfyTalkRoom) => {
+    if (room.isPrivate) {
+      const password = prompt('Enter room password:');
+      if (password) {
+        joinRoom(room._id, password);
+      }
     } else {
-      await joinRoom(roomId);
+      joinRoom(room._id);
     }
   };
 
   const joinRoom = async (roomId: string, password?: string) => {
     try {
-      await verbfyTalkAPI.joinRoom(roomId, password ? { password } : undefined);
-      toast.success('Joined room successfully!');
-      setShowJoinModal(null);
-      setJoinPassword('');
+      // Direct navigation - room joining will be handled by the room page
       router.push(`/verbfy-talk/${roomId}`);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to join room');
-    }
-  };
-
-  const handleJoinWithPassword = async () => {
-    if (showJoinModal) {
-      await joinRoom(showJoinModal.roomId, joinPassword);
+      toast.error('Failed to join room');
     }
   };
 
@@ -141,8 +146,8 @@ function VerbfyTalkPage() {
   };
 
   return (
-    <DashboardLayout allowedRoles={['student', 'teacher']}>
-      <div className="max-w-6xl mx-auto p-6">
+    <DashboardLayout>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -174,7 +179,7 @@ function VerbfyTalkPage() {
           <div className="flex flex-wrap gap-4">
             <select
               value={filters.level}
-              onChange={(e) => setFilters({ ...filters, level: e.target.value })}
+              onChange={(e) => setFilters({ ...filters, level: e.target.value as any })}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="All">All Levels</option>
@@ -209,7 +214,7 @@ function VerbfyTalkPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rooms.map((room) => (
+            {rooms?.map((room) => (
               <div key={room._id} className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-3">
                   <h3 className="font-semibold text-lg text-gray-900 truncate">{room.name}</h3>
@@ -238,38 +243,40 @@ function VerbfyTalkPage() {
                   
                   <div className="flex items-center gap-1 text-sm text-gray-500">
                     <UsersIcon className="w-4 h-4" />
-                    <span>{room.currentParticipants || room.participants.filter(p => p.isActive).length}/{room.maxParticipants}</span>
+                    <span>{room.activeParticipantCount || 0}/{room.maxParticipants}</span>
                   </div>
                 </div>
                 
-                <div className="text-xs text-gray-400 mb-4">
-                  Created by {room.createdBy.name}
-                </div>
+                                 <div className="text-xs text-gray-400 mb-4">
+                   Created by {typeof room.createdBy === 'string' ? 'Unknown' : room.createdBy?.name || 'Unknown'}
+                 </div>
                 
                 <button
-                  onClick={() => handleJoinRoom(room._id, room.isPrivate)}
-                  disabled={(room.currentParticipants || room.participants.filter(p => p.isActive).length) >= room.maxParticipants}
-                  className={`w-full py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                    (room.currentParticipants || room.participants.filter(p => p.isActive).length) >= room.maxParticipants
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                  }`}
+                  onClick={() => handleJoinRoom(room)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
                 >
-                  {(room.currentParticipants || room.participants.filter(p => p.isActive).length) >= room.maxParticipants
-                    ? 'Room Full'
-                    : 'Join Room'
-                  }
+                  Join Room
                 </button>
               </div>
             ))}
           </div>
         )}
 
+        {/* Empty State */}
         {!loading && rooms.length === 0 && (
           <div className="text-center py-12">
-            <ChatBubbleLeftRightIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No rooms available</h3>
-            <p className="text-gray-500">Be the first to create a conversation room!</p>
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ChatBubbleLeftRightIcon className="w-12 h-12 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No rooms available</h3>
+            <p className="text-gray-600 mb-6">Be the first to create a conversation room!</p>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 mx-auto transition-colors"
+            >
+              <PlusIcon className="w-5 h-5" />
+              Create Room
+            </button>
           </div>
         )}
 
@@ -277,14 +284,14 @@ function VerbfyTalkPage() {
         {pagination.pages > 1 && (
           <div className="flex justify-center mt-8">
             <div className="flex gap-2">
-              {[...Array(pagination.pages)].map((_, i) => (
+              {Array.from({ length: pagination.pages }, (_, i) => (
                 <button
                   key={i}
                   onClick={() => setFilters({ ...filters, page: i + 1 })}
-                  className={`px-3 py-2 rounded-md text-sm ${
-                    pagination.page === i + 1
+                  className={`px-3 py-2 rounded-md ${
+                    filters.page === i + 1
                       ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-700 border hover:bg-gray-50'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
                   {i + 1}
@@ -400,38 +407,6 @@ function VerbfyTalkPage() {
                     </button>
                   </div>
                 </form>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Join Room Password Modal */}
-        {showJoinModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Enter Room Password</h3>
-                <input
-                  type="password"
-                  placeholder="Enter password"
-                  value={joinPassword}
-                  onChange={(e) => setJoinPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-                />
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleJoinWithPassword}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
-                  >
-                    Join Room
-                  </button>
-                  <button
-                    onClick={() => setShowJoinModal(null)}
-                    className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
               </div>
             </div>
           </div>

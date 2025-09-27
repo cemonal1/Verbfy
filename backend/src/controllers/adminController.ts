@@ -3,6 +3,7 @@ import User from '../models/User';
 import { Material } from '../models/Material';
 import { Reservation } from '../models/Reservation';
 import { Notification } from '../models/Notification';
+import AuditLog from '../models/AuditLog';
 
 // User Management
 export const getUsers = async (req: Request, res: Response) => {
@@ -198,6 +199,107 @@ export const deleteUser = async (req: Request, res: Response) => {
       success: false,
       message: 'Failed to delete user'
     });
+  }
+};
+
+// Teacher approval workflow
+export const listPendingTeachers = async (_req: Request, res: Response) => {
+  try {
+    const users = await User.find({ role: 'teacher', approvalStatus: 'pending' })
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ success: true, data: users });
+  } catch (error) {
+    console.error('Error listing pending teachers:', error);
+    res.status(500).json({ success: false, message: 'Failed to list pending teachers' });
+  }
+};
+
+export const approveTeacher = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findOneAndUpdate(
+      { _id: id, role: 'teacher' },
+      { isApproved: true, approvalStatus: 'approved' },
+      { new: true }
+    ).select('-password');
+    if (!user) return res.status(404).json({ success: false, message: 'Teacher not found' });
+    try {
+      await AuditLog.create({
+        userId: (req as any).user?.id,
+        event: {
+          type: 'user.approval',
+          category: 'authorization',
+          action: 'approve',
+          resource: 'teacher',
+          resourceId: id,
+          description: `Teacher ${id} approved`,
+          severity: 'medium'
+        },
+        request: { method: req.method, url: req.originalUrl, ip: req.ip, userAgent: req.get('user-agent') || '' },
+        response: { statusCode: 200, statusMessage: 'OK', responseTime: 0 },
+        metadata: { tags: ['teacher', 'approval'] }
+      } as any);
+    } catch (e) { /* non-blocking */ }
+    // Notify teacher
+    try {
+      await Notification.createNotification({
+        recipient: id,
+        type: 'admin',
+        title: 'Teacher application approved',
+        body: 'Congratulations! Your teacher account has been approved. You now have full teacher access.',
+        link: '/teacher/dashboard'
+      });
+    } catch (e) { /* non-blocking */ }
+    res.json({ success: true, data: user, message: 'Teacher approved' });
+  } catch (error) {
+    console.error('Error approving teacher:', error);
+    res.status(500).json({ success: false, message: 'Failed to approve teacher' });
+  }
+};
+
+export const rejectTeacher = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const user = await User.findOneAndUpdate(
+      { _id: id, role: 'teacher' },
+      { isApproved: false, approvalStatus: 'rejected' },
+      { new: true }
+    ).select('-password');
+    if (!user) return res.status(404).json({ success: false, message: 'Teacher not found' });
+    try {
+      await AuditLog.create({
+        userId: (req as any).user?.id,
+        event: {
+          type: 'user.approval',
+          category: 'authorization',
+          action: 'reject',
+          resource: 'teacher',
+          resourceId: id,
+          description: `Teacher ${id} rejected`,
+          severity: 'medium'
+        },
+        request: { method: req.method, url: req.originalUrl, ip: req.ip, userAgent: req.get('user-agent') || '' },
+        response: { statusCode: 200, statusMessage: 'OK', responseTime: 0 },
+        metadata: { tags: ['teacher', 'approval'] }
+      } as any);
+    } catch (e) { /* non-blocking */ }
+    // Notify teacher
+    try {
+      await Notification.createNotification({
+        recipient: id,
+        type: 'admin',
+        title: 'Teacher application rejected',
+        body: `Your teacher application has been rejected${reason ? `: ${reason}` : ''}.`,
+        link: '/profile'
+      });
+    } catch (e) { /* non-blocking */ }
+    res.json({ success: true, data: user, message: `Teacher rejected${reason ? ': ' + reason : ''}` });
+  } catch (error) {
+    console.error('Error rejecting teacher:', error);
+    res.status(500).json({ success: false, message: 'Failed to reject teacher' });
   }
 };
 

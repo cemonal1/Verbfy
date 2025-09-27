@@ -1,0 +1,22 @@
+User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /teacher/
+Disallow: /student/
+
+# Allow public content
+Allow: /
+Allow: /landing
+Allow: /teachers
+Allow: /free-materials
+Allow: /materials
+Allow: /verbfy-talk
+Allow: /privacy
+Allow: /terms
+Allow: /help
+
+# Sitemap
+Sitemap: https://verbfy.com/sitemap.xml

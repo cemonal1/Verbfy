@@ -141,11 +141,21 @@ const validateRoomAccess = async (userId: string, reservationId: string): Promis
 
 export const setupSocketServer = (server: HTTPServer) => {
   const io = new SocketIOServer(server, {
+    transports: ['polling', 'websocket'],
+    allowEIO3: true,
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    upgradeTimeout: 30000,
+    maxHttpBufferSize: 1e6,
+    allowUpgrades: true,
+    perMessageDeflate: false, // Disable compression for better compatibility
+    httpCompression: true,
     cors: {
       origin: process.env.NODE_ENV === 'production' 
-        ? process.env.NEXT_PUBLIC_API_URL 
+        ? process.env.FRONTEND_URL 
         : "http://localhost:3000",
-      credentials: true
+      credentials: true,
+      methods: ["GET", "POST"]
     }
   });
 

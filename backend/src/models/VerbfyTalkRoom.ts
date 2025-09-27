@@ -8,6 +8,7 @@ export interface IVerbfyTalkRoom extends Document {
     userId: mongoose.Types.ObjectId;
     joinedAt: Date;
     isActive: boolean;
+    leftAt?: Date; // Add leftAt as optional property
   }>;
   maxParticipants: number;
   isPrivate: boolean;
@@ -52,6 +53,9 @@ const VerbfyTalkRoomSchema = new Schema<IVerbfyTalkRoom>({
     isActive: {
       type: Boolean,
       default: true
+    },
+    leftAt: {
+      type: Date
     }
   }],
   maxParticipants: {

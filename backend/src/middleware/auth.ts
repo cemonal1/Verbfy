@@ -11,27 +11,40 @@ export interface AuthRequest extends Request {
 }
 
 export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
+  let token = req.header('Authorization')?.replace('Bearer ', '');
+  if (!token && (req as any).cookies) {
+    token = (req as any).cookies.accessToken;
+  }
+  
+  console.log('Auth middleware - Token found:', token ? 'Yes' : 'No');
+  console.log('Auth middleware - Request path:', req.path);
+  console.log('Auth middleware - Request method:', req.method);
+  
+  if (!token) {
+    console.log('Auth middleware - No token provided');
+    return res.status(401).json({ success: false, message: 'No token, authorization denied' });
+  }
   
   try {
     const decoded = verifyToken(token);
+    console.log('Auth middleware - Token decoded successfully:', decoded);
     req.user = decoded as any;
     next();
   } catch (err) {
-    res.status(401).json({ message: 'Token is not valid' });
+    console.error('Auth middleware - Token verification failed:', err);
+    res.status(401).json({ success: false, message: 'Token is not valid' });
   }
 };
 
 export const requireRole = (roles: 'student' | 'teacher' | 'admin' | ('student' | 'teacher' | 'admin')[]) => (req: AuthRequest, res: Response, next: NextFunction) => {
   if (!req.user) {
-    return res.status(403).json({ message: 'Forbidden: authentication required' });
+    return res.status(403).json({ success: false, message: 'Forbidden: authentication required' });
   }
   
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
   
   if (!allowedRoles.includes(req.user.role)) {
-    return res.status(403).json({ message: 'Forbidden: insufficient role' });
+    return res.status(403).json({ success: false, message: 'Forbidden: insufficient role' });
   }
   next();
 }; 

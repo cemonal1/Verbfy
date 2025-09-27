@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { FreeMaterialController } from '../controllers/freeMaterialController';
 import { auth } from '../middleware/auth';
+import { idempotencyMiddleware } from '../middleware/idempotency';
 
 const router = Router();
 
@@ -23,15 +24,15 @@ router.get('/:id', FreeMaterialController.getMaterial);
 router.get('/:id/download', FreeMaterialController.downloadMaterial);
 
 // Upload material (authenticated)
-router.post('/', auth, FreeMaterialController.uploadMaterial);
+router.post('/', auth, idempotencyMiddleware, FreeMaterialController.uploadMaterial);
 
 // Rate material (authenticated)
-router.post('/:id/rate', auth, FreeMaterialController.rateMaterial);
+router.post('/:id/rate', auth, idempotencyMiddleware, FreeMaterialController.rateMaterial);
 
 // Update material (authenticated, owner only)
-router.put('/:id', auth, FreeMaterialController.updateMaterial);
+router.put('/:id', auth, idempotencyMiddleware, FreeMaterialController.updateMaterial);
 
 // Delete material (authenticated, owner only)
-router.delete('/:id', auth, FreeMaterialController.deleteMaterial);
+router.delete('/:id', auth, idempotencyMiddleware, FreeMaterialController.deleteMaterial);
 
 export default router; 

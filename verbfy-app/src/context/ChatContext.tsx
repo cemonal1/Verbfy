@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useReducer, useRef, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { tokenStorage } from '../utils/secureStorage';
 import { useAuth } from './AuthContext';
 import { useToast } from '../components/common/Toast';
 import api from '../lib/api';
@@ -117,10 +118,25 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
   // Initialize Socket.IO connection
   useEffect(() => {
+    // Prevent multiple socket connections
+    if (socketRef.current) {
+      return;
+    }
+
     if (isAuthenticated && user) {
-      const socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000', {
+      const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.verbfy.com').replace(/\/$/, '');
+      const socket = io(base, {
+        path: '/socket.io',
+        transports: ['polling'], // Only use polling for now to avoid WebSocket issues
+        withCredentials: true,
+        reconnectionAttempts: 3, // Reduce reconnection attempts
+        reconnectionDelay: 2000, // Increase delay
+        reconnectionDelayMax: 10000, // Increase max delay
+        forceNew: false, // Don't force new connection
+        upgrade: false, // Disable upgrade for now
+        timeout: 30000, // Increase timeout
         auth: {
-          token: localStorage.getItem('verbfy_token')
+          token: tokenStorage.getToken() || undefined
         }
       });
 
@@ -128,11 +144,15 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
       // Socket event listeners
       socket.on('connect', () => {
-        console.log('🔌 Connected to chat server');
+        console.log('🔌 Connected to chat server via polling');
       });
 
-      socket.on('disconnect', () => {
-        console.log('🔌 Disconnected from chat server');
+      socket.on('disconnect', (reason) => {
+        console.log('🔌 Disconnected from chat server:', reason);
+        if (reason === 'io server disconnect') {
+          // Server disconnected us, try to reconnect
+          socket.connect();
+        }
       });
 
       socket.on('receiveMessage', (message: Message) => {
@@ -151,15 +171,30 @@ export function ChatProvider({ children }: ChatProviderProps) {
       });
 
       socket.on('connect_error', (error: any) => {
-        console.error('Socket connection error:', error);
+        console.error('🔌 Socket connection error:', error?.message || error);
+        console.log('🔌 Transport type:', socket.io.engine.transport.name);
         showError('Failed to connect to chat server');
+      });
+
+      socket.on('reconnect', (attemptNumber) => {
+        console.log('🔌 Reconnected to chat server after', attemptNumber, 'attempts');
+        showSuccess('Reconnected to chat server');
+      });
+
+      socket.on('reconnect_attempt', (attemptNumber) => {
+        console.log('🔌 Attempting to reconnect:', attemptNumber);
+      });
+
+      socket.on('reconnect_failed', () => {
+        console.log('🔌 Failed to reconnect after maximum attempts');
+        showError('Failed to reconnect to chat server');
       });
 
       return () => {
         socket.disconnect();
       };
     }
-  }, [isAuthenticated, user, showError]);
+  }, [isAuthenticated, user, showError, showSuccess]);
 
   // Load conversations
   const loadConversations = async () => {
@@ -198,7 +233,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
 
-      const response = await api.get(`/api/chat/conversations/${conversationId}/messages?page=${page}&limit=50`);
+      const response = await api.get(`/chat/conversations/${conversationId}/messages?page=${page}&limit=50`);
       
       if (response.data.success) {
         if (page === 1) {

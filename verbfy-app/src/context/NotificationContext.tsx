@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode, useRef } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
+import { tokenStorage } from '../utils/secureStorage';
 import api from '../lib/api';
+import { authAPI } from '../lib/api';
 import { useAuth } from './AuthContext';
 import {
   Notification,
@@ -109,6 +111,31 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const [state, dispatch] = useReducer(notificationReducer, initialState);
   const { user, isAuthenticated } = useAuth();
   const socketRef = useRef<Socket | null>(null);
+
+  const token = useMemo(() => tokenStorage.getToken(), []);
+
+  const socket = useMemo(() => {
+    if (!token || !isAuthenticated || !user || socketRef.current) return socketRef.current;
+    
+    // Creating notification socket
+    
+    const newSocket = io(process.env.NEXT_PUBLIC_API_URL || 'https://api.verbfy.com', {
+      path: '/socket.io',
+      transports: ['polling'],
+      forceNew: false,
+      withCredentials: true,
+      upgrade: false,
+      timeout: 30000,
+      auth: {
+        token: token
+      }
+    });
+    
+    socketRef.current = newSocket;
+    return newSocket;
+  }, [token, isAuthenticated, user]);
+
+
 
   // Fetch notifications from API
   const fetchNotifications = async (filters: NotificationFilters = {}) => {
@@ -252,17 +279,41 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
   // Socket.IO connection and event listeners for real-time notifications
   useEffect(() => {
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated || !user || !socket) return;
 
-    // Connect to Socket.IO server
-    const socketUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    socketRef.current = io(socketUrl, {
-      auth: {
-        token: localStorage.getItem('verbfy_token')
+    // Initiating notification socket connection
+    
+    // Set up event listeners
+    socket.on('connect', () => {
+      // Notification socket connected successfully
+      
+      // Join user's notification room
+      if (user?._id) {
+        socket.emit('joinNotificationRoom', user._id);
       }
     });
 
-    const socket = socketRef.current;
+    socket.on('connect_error', (error) => {
+      // Socket connection error (expected during initial setup)
+      // Don't show error to user, this is normal during connection setup
+    });
+
+    socket.on('disconnect', (reason) => {
+      // Socket disconnected
+      if (reason === 'io server disconnect') {
+        // Server disconnected, attempting reconnect
+        setTimeout(() => {
+          socket.connect();
+        }, 1000);
+      }
+    });
+
+    socket.on('reconnect', (attemptNumber) => {
+      // Notification socket reconnected
+      if (user?._id) {
+        socket.emit('joinNotificationRoom', user._id);
+      }
+    });
 
     // Listen for new notifications
     socket.on('notification:new', (data: { notification: Notification }) => {
@@ -285,16 +336,28 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       });
     });
 
-    // Join user's notification room
-    socket.emit('joinNotificationRoom', user._id);
+    // Connect the socket
+    socket.connect();
+    
+    // Store reference
+    socketRef.current = socket;
 
     return () => {
-      socket.off('notification:new');
-      socket.off('notification:updated');
-      socket.off('notification:deleted');
-      socket.disconnect();
+      if (socket) {
+        socket.off('connect');
+        socket.off('connect_error');
+        socket.off('disconnect');
+        socket.off('reconnect');
+        socket.off('reconnect_error');
+        socket.off('reconnect_failed');
+        socket.off('notification:new');
+        socket.off('notification:updated');
+        socket.off('notification:deleted');
+        socket.disconnect();
+      }
+      socketRef.current = null;
     };
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, socket]);
 
   // Initial load - only when user is authenticated
   useEffect(() => {

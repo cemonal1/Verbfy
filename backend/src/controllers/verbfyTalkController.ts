@@ -22,11 +22,20 @@ export class VerbfyTalkController {
         .skip(skip)
         .limit(Number(limit));
 
+      // Add active participant count to each room
+      const roomsWithActiveCount = rooms.map(room => {
+        const activeCount = room.participants.filter((p: any) => p.isActive).length;
+        return {
+          ...room.toObject(),
+          activeParticipantCount: activeCount
+        };
+      });
+
       const total = await VerbfyTalkRoom.countDocuments(filter);
 
       res.json({
         success: true,
-        data: rooms,
+        data: roomsWithActiveCount,
         pagination: {
           page: Number(page),
           limit: Number(limit),
@@ -105,18 +114,10 @@ export class VerbfyTalkController {
         return res.status(400).json({ success: false, message: 'Room is full' });
       }
 
-      // Check if user is already in the room
-      const existingParticipant = room.participants.find((p: any) =>
-        p.userId.toString() === userId
-      );
-      if (existingParticipant) {
-        return res.status(400).json({ success: false, message: 'Already in room' });
-      }
-
       // Check password for private rooms
       if (room.isPrivate && room.password) {
         if (!password) {
-          return res.status(400).json({ success: false, message: 'Password required' });
+          return res.status(400).json({ success: false, message: 'Password required for private room' });
         }
         const isValidPassword = await bcrypt.compare(password, room.password);
         if (!isValidPassword) {
@@ -124,26 +125,47 @@ export class VerbfyTalkController {
         }
       }
 
-      // Add user to room
-      room.participants.push({
-        userId,
-        joinedAt: new Date(),
-        isActive: true
-      });
+      // Check if user is already in the room (active)
+      const existingParticipant = room.participants.find((p: any) => 
+        p.userId.toString() === userId && p.isActive
+      );
+      
+      if (existingParticipant) {
+        return res.status(400).json({ success: false, message: 'Already in room' });
+      }
 
-      // Start room if it's the first participant
-      if (activeParticipants === 0) {
-        room.startedAt = new Date();
+      // Check if user was previously in room but inactive (rejoin)
+      const inactiveParticipantIndex = room.participants.findIndex((p: any) => 
+        p.userId.toString() === userId && !p.isActive
+      );
+      
+      if (inactiveParticipantIndex !== -1) {
+        // Reactivate existing participant - update the existing one instead of creating duplicate
+        room.participants[inactiveParticipantIndex].isActive = true;
+        room.participants[inactiveParticipantIndex].joinedAt = new Date();
+        room.participants[inactiveParticipantIndex].leftAt = undefined;
+      } else {
+        // Add new participant only if they don't exist at all
+        room.participants.push({
+          userId,
+          joinedAt: new Date(),
+          isActive: true
+        });
       }
 
       await room.save();
 
+      const updatedRoom = await VerbfyTalkRoom.findById(roomId)
+        .populate('createdBy', 'name email avatar')
+        .populate('participants.userId', 'name email avatar');
+
       res.json({
         success: true,
-        data: room,
+        data: updatedRoom,
         message: 'Joined room successfully'
       });
     } catch (error) {
+      console.error('Error joining room:', error);
       res.status(500).json({ success: false, message: 'Failed to join room' });
     }
   }
@@ -168,13 +190,16 @@ export class VerbfyTalkController {
         return res.status(400).json({ success: false, message: 'Not in room' });
       }
 
+      // Mark participant as inactive and set leave time
       room.participants[participantIndex].isActive = false;
+      room.participants[participantIndex].leftAt = new Date();
 
       // If no active participants, end the room
       const activeParticipants = room.participants.filter((p: any) => p.isActive).length;
       if (activeParticipants === 0) {
         room.endedAt = new Date();
         room.isActive = false;
+        console.log(`🏁 Room ${room.name} (${roomId}) ended - no active participants`);
       }
 
       await room.save();
@@ -184,6 +209,7 @@ export class VerbfyTalkController {
         message: 'Left room successfully'
       });
     } catch (error) {
+      console.error('Error leaving room:', error);
       res.status(500).json({ success: false, message: 'Failed to leave room' });
     }
   }
@@ -201,11 +227,33 @@ export class VerbfyTalkController {
         return res.status(404).json({ success: false, message: 'Room not found' });
       }
 
+      // Clean up duplicate participants before sending response
+      const uniqueParticipants = room.participants.reduce((acc: any[], participant: any) => {
+        const existingIndex = acc.findIndex(p => p.userId.toString() === participant.userId.toString());
+        if (existingIndex === -1) {
+          acc.push(participant);
+        } else {
+          // If duplicate found, keep the most recent active one
+          if (participant.isActive && !acc[existingIndex].isActive) {
+            acc[existingIndex] = participant;
+          }
+        }
+        return acc;
+      }, []);
+
+      // Update room if duplicates were found
+      if (uniqueParticipants.length !== room.participants.length) {
+        room.participants = uniqueParticipants;
+        await room.save();
+        console.log(`🧹 Cleaned up duplicate participants in room ${room.name}`);
+      }
+
       res.json({
         success: true,
         data: room
       });
     } catch (error) {
+      console.error('Error getting room details:', error);
       res.status(500).json({ success: false, message: 'Failed to get room details' });
     }
   }
@@ -310,6 +358,29 @@ export class VerbfyTalkController {
       });
     } catch (error) {
       res.status(500).json({ success: false, message: 'Failed to fetch user rooms' });
+    }
+  }
+
+
+
+  // Clean up empty rooms (cron job)
+  static async cleanupEmptyRooms() {
+    try {
+      const emptyRooms = await VerbfyTalkRoom.find({
+        isActive: true,
+        $expr: { $eq: [{ $size: "$participants" }, 0] }
+      });
+
+      for (const room of emptyRooms) {
+        room.isActive = false;
+        room.endedAt = new Date();
+        await room.save();
+        console.log(`🧹 Cleaned up empty room: ${room.name} (${room._id})`);
+      }
+
+      console.log(`🧹 Cleaned up ${emptyRooms.length} empty rooms`);
+    } catch (error) {
+      console.error('❌ Failed to cleanup empty rooms:', error);
     }
   }
 } 
