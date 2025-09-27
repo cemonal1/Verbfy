@@ -9,6 +9,22 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    
+    env:
+      # Default environment variables for CI validation
+      MONGO_ROOT_USERNAME: admin
+      MONGO_ROOT_PASSWORD: password
+      REDIS_PASSWORD: password
+      LIVEKIT_API_KEY: placeholder-key
+      LIVEKIT_API_SECRET: placeholder-secret
+      FRONTEND_URL: https://verbfy.com
+      CORS_ORIGIN: https://verbfy.com
+      NEXT_PUBLIC_API_URL: https://api.verbfy.com
+      NEXT_PUBLIC_LIVEKIT_URL: wss://livekit.verbfy.com
+      NEXT_PUBLIC_LIVEKIT_CLOUD_URL: wss://placeholder.livekit.cloud
+      CERTBOT_EMAIL: admin@verbfy.com
+      DOMAIN_NAME: verbfy.com
+    
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -36,5 +52,15 @@ jobs:
 
       - name: Validate production compose
         run: docker compose -f docker-compose.production.yml config
+
+      - name: Run backend tests (if available)
+        working-directory: backend
+        run: npm test --if-present
+        continue-on-error: true
+
+      - name: Run frontend tests (if available)
+        working-directory: verbfy-app
+        run: npm test --if-present
+        continue-on-error: true
 
 
