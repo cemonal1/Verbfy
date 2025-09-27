@@ -298,13 +298,13 @@ export function useRoleGuard(allowedRoles: ('student' | 'teacher' | 'admin')[]) 
         // Redirect to appropriate dashboard based on user role
         switch (user.role) {
           case 'student':
-            router.push('/dashboard/student');
+            router.push('/dashboard');
             break;
           case 'teacher':
-            router.push('/dashboard/teacher');
+            router.push('/teacher/dashboard');
             break;
           case 'admin':
-            router.push('/dashboard/admin');
+            router.push('/admin');
             break;
           default:
             router.push('/login');

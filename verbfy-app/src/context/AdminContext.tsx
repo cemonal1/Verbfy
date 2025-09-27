@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from '../components/common/Toast';
 import { adminAPI } from '../lib/api';
 import {
   AdminUser,
@@ -22,6 +22,7 @@ interface AdminState {
   // Overview data
   overview: AdminOverview | null;
   overviewLoading: boolean;
+  overviewError: string | null;
   
   // Users
   users: AdminUser[];
@@ -77,6 +78,7 @@ interface AdminState {
 type AdminAction =
   | { type: 'SET_OVERVIEW'; payload: AdminOverview }
   | { type: 'SET_OVERVIEW_LOADING'; payload: boolean }
+  | { type: 'SET_OVERVIEW_ERROR'; payload: string | null }
   | { type: 'SET_USERS'; payload: { users: AdminUser[]; pagination: any } }
   | { type: 'SET_USERS_LOADING'; payload: boolean }
   | { type: 'SET_SELECTED_USER'; payload: AdminUser | null }
@@ -102,6 +104,7 @@ type AdminAction =
 const initialState: AdminState = {
   overview: null,
   overviewLoading: false,
+  overviewError: null,
   users: [],
   usersLoading: false,
   usersPagination: null,
@@ -127,9 +130,11 @@ const initialState: AdminState = {
 function adminReducer(state: AdminState, action: AdminAction): AdminState {
   switch (action.type) {
     case 'SET_OVERVIEW':
-      return { ...state, overview: action.payload };
+      return { ...state, overview: action.payload, overviewError: null };
     case 'SET_OVERVIEW_LOADING':
       return { ...state, overviewLoading: action.payload };
+    case 'SET_OVERVIEW_ERROR':
+      return { ...state, overviewError: action.payload, overviewLoading: false };
     case 'SET_USERS':
       return { 
         ...state, 
@@ -272,13 +277,19 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
   const loadOverview = async () => {
     try {
       dispatch({ type: 'SET_OVERVIEW_LOADING', payload: true });
+      dispatch({ type: 'SET_OVERVIEW_ERROR', payload: null });
+      
       const response = await adminAPI.getOverview();
       if (response.data.success) {
         dispatch({ type: 'SET_OVERVIEW', payload: response.data.data });
+      } else {
+        throw new Error(response.data.message || 'Failed to load overview data');
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load overview data';
       console.error('Error loading overview:', error);
-      toast.error('Failed to load overview data');
+      dispatch({ type: 'SET_OVERVIEW_ERROR', payload: errorMessage });
+      toast.error(errorMessage);
     } finally {
       dispatch({ type: 'SET_OVERVIEW_LOADING', payload: false });
     }
