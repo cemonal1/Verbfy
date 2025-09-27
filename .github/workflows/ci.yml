@@ -34,6 +34,13 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Verify environment files exist
+        run: |
+          echo "Checking for required environment files..."
+          ls -la backend/.env.production || echo "❌ backend/.env.production missing"
+          ls -la verbfy-app/.env.production || echo "❌ verbfy-app/.env.production missing"
+          echo "✅ Environment file check complete"
+
       - name: Install backend deps
         working-directory: backend
         run: npm ci
