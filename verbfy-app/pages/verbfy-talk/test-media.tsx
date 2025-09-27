@@ -83,19 +83,21 @@ function MediaTestPage() {
 
       console.log('✅ Media access test completed:', { hasVideo, hasAudio });
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ Media access test failed:', err);
       
       let errorMessage = 'Failed to access media devices';
-      let cameraStatus: 'granted' | 'denied' = 'denied';
-      let microphoneStatus: 'granted' | 'denied' = 'denied';
+      const cameraStatus: 'granted' | 'denied' = 'denied';
+      const microphoneStatus: 'granted' | 'denied' = 'denied';
 
-      if (err.name === 'NotAllowedError') {
-        errorMessage = 'Camera and microphone access denied. Please allow access and try again.';
-      } else if (err.name === 'NotFoundError') {
-        errorMessage = 'No camera or microphone found. Please check your devices.';
-      } else if (err.name === 'NotReadableError') {
-        errorMessage = 'Camera or microphone is already in use by another application.';
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError') {
+          errorMessage = 'Camera and microphone access denied. Please allow access and try again.';
+        } else if (err.name === 'NotFoundError') {
+          errorMessage = 'No camera or microphone found. Please check your devices.';
+        } else if (err.name === 'NotReadableError') {
+          errorMessage = 'Camera or microphone is already in use by another application.';
+        }
       }
 
       setError(errorMessage);

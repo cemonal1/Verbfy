@@ -92,6 +92,26 @@ export const useMicrophonePermission = (): UseMicrophonePermissionReturn => {
     }
   }, [currentStream]);
 
+  // Start quality monitoring
+  const startQualityMonitoring = useCallback((stream: MediaStream) => {
+    if (qualityTestIntervalRef.current) {
+      clearInterval(qualityTestIntervalRef.current);
+    }
+
+    qualityTestIntervalRef.current = setInterval(async () => {
+      try {
+        const qualityResult = await microphonePermissionManager.testMicrophoneQuality(stream);
+        setQuality(qualityResult);
+        
+        // Update active state based on quality
+        setIsActive(qualityResult.isWorking);
+      } catch (error) {
+        console.error('Quality monitoring failed:', error);
+        setIsActive(false);
+      }
+    }, 2000); // Test every 2 seconds
+  }, []);
+
   // Request microphone permission
   const requestPermission = useCallback(async (constraints?: Partial<MicrophoneConstraints>) => {
     try {
@@ -150,26 +170,6 @@ export const useMicrophonePermission = (): UseMicrophonePermissionReturn => {
       }
     }
   }, [currentStream]);
-
-  // Start quality monitoring
-  const startQualityMonitoring = useCallback((stream: MediaStream) => {
-    if (qualityTestIntervalRef.current) {
-      clearInterval(qualityTestIntervalRef.current);
-    }
-
-    qualityTestIntervalRef.current = setInterval(async () => {
-      try {
-        const qualityResult = await microphonePermissionManager.testMicrophoneQuality(stream);
-        setQuality(qualityResult);
-        
-        // Update active state based on quality
-        setIsActive(qualityResult.isWorking);
-      } catch (error) {
-        console.error('Quality monitoring failed:', error);
-        setIsActive(false);
-      }
-    }, 2000); // Test every 2 seconds
-  }, []);
 
   // Clear error
   const clearError = useCallback(() => {

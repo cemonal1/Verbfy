@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { verbfyTalkAPI } from '@/lib/api';
@@ -40,11 +40,7 @@ function VerbfyTalkPage() {
     maxParticipants: 5
   });
 
-  useEffect(() => {
-    loadRooms();
-  }, [filters]);
-
-  const loadRooms = async () => {
+  const loadRooms = useCallback(async () => {
     try {
       setLoading(true);
       const response = await verbfyTalkAPI.getRooms(filters);
@@ -68,7 +64,11 @@ function VerbfyTalkPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    loadRooms();
+  }, [loadRooms]);
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,8 +94,14 @@ function VerbfyTalkPage() {
       
       // Navigate to the new room
       router.push(`/verbfy-talk/${response.data._id}`);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create room');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error && 'response' in error && 
+        typeof error.response === 'object' && error.response !== null &&
+        'data' in error.response && typeof error.response.data === 'object' &&
+        error.response.data !== null && 'message' in error.response.data
+        ? String(error.response.data.message)
+        : 'Failed to create room';
+      toast.error(errorMessage);
     }
   };
 
@@ -114,7 +120,8 @@ function VerbfyTalkPage() {
     try {
       // Direct navigation - room joining will be handled by the room page
       router.push(`/verbfy-talk/${roomId}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      console.error('Failed to join room:', error);
       toast.error('Failed to join room');
     }
   };
