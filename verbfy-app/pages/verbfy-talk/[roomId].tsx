@@ -38,7 +38,7 @@ function VerbfyTalkRoomPage() {
     remote: undefined,
   } : { self: '', remote: undefined };
 
-  const participants = room?.participants.filter(p => p.isActive).map(p => p.userId._id) || [];
+  const participants: string[] = []; // TODO: Implement participant tracking
   
   const {
     localStream,
@@ -58,7 +58,7 @@ function VerbfyTalkRoomPage() {
   } = useWebRTC(roomId as string, peerIds, participants);
 
   // Chat setup
-  const { messages, sendMessage } = useChatViewModel(roomId as string);
+  const { messages, sendMessage, isConnected } = useChatViewModel(roomId as string);
 
   // Video refs
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -198,8 +198,8 @@ function VerbfyTalkRoomPage() {
     );
   }
 
-  const activeParticipants = room.participants.filter(p => p.isActive);
-  const isCreator = room.createdBy._id === user?.id;
+  const activeParticipants: any[] = []; // TODO: Implement participant tracking
+  const isCreator = typeof room.createdBy === 'object' ? room.createdBy._id === user?.id : room.createdBy === user?.id;
 
   return (
     <DashboardLayout allowedRoles={['student', 'teacher']}>
@@ -394,7 +394,8 @@ function VerbfyTalkRoomPage() {
               <div className="flex-1 overflow-hidden">
                 <ChatBox
                   messages={messages}
-                  sendMessage={sendMessage}
+                  onSendMessage={sendMessage}
+                  isConnected={isConnected}
 
 
                 />

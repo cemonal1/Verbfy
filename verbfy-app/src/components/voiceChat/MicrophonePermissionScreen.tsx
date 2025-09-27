@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useMicrophonePermission } from '@/hooks/useMicrophonePermission';
 import {
   MicrophoneIcon,
@@ -42,7 +42,7 @@ export default function MicrophonePermissionScreen({
   const [selectedDevice, setSelectedDevice] = useState<string>('');
 
   // Define handleRequestPermission first to avoid hoisting issues
-  const handleRequestPermission = async () => {
+  const handleRequestPermission = useCallback(async () => {
     setIsRequesting(true);
     clearError();
     
@@ -68,7 +68,7 @@ export default function MicrophonePermissionScreen({
     }
     
     setIsRequesting(false);
-  };
+  }, [selectedDevice, clearError, requestPermission]);
 
   const handleRetry = async () => {
     stopMicrophone();
