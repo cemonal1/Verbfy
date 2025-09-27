@@ -5,7 +5,6 @@ import {
   HomeIcon, 
   UsersIcon, 
   DocumentTextIcon, 
-  CreditCardIcon, 
   ClockIcon,
   ChartBarIcon
 } from '@heroicons/react/24/outline';

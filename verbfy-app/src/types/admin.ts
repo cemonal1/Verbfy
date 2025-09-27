@@ -105,7 +105,7 @@ export interface AdminOverview {
   recent: {
     users: AdminUser[];
     materials: AdminMaterial[];
-    payments: AdminPayment[];
+    reservations: AdminPayment[];
   };
 }
 
