@@ -24,6 +24,13 @@ node_modules/
 .env.production.local
 .env*.local
 
+# Production environment files with real secrets (DO NOT COMMIT)
+# Note: .env.production files with placeholder values are committed for CI validation
+# Real production secrets should be managed via environment variable injection
+.env.production.real
+backend/.env.production.real
+verbfy-app/.env.production.real
+
 # Debug logs
 npm-debug.log*
 yarn-debug.log*

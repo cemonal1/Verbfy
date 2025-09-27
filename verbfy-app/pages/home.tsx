@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
@@ -10,35 +10,40 @@ export default function HomePage() {
   const { t } = useI18n();
 
   const [unread, setUnread] = useState<number>(0);
-  const [featured, setFeatured] = useState<any[]>([]);
-  const [rooms, setRooms] = useState<any[]>([]);
-  const [upcoming, setUpcoming] = useState<any[]>([]);
+  const [featured, setFeatured] = useState<unknown[]>([]);
+  const [rooms, setRooms] = useState<unknown[]>([]);
+  const [upcoming, setUpcoming] = useState<unknown[]>([]);
+
+  const load = useCallback(async () => {
+    try {
+      const [n, f, r] = await Promise.all([
+        notificationAPI.getNotifications(),
+        freeMaterialsAPI.getFeaturedMaterials(),
+        verbfyTalkAPI.getRooms({ 
+          level: 'All', 
+          isPrivate: false, 
+          page: 1, 
+          limit: 4 
+        }),
+      ]);
+      setUnread(n.data?.data?.unreadCount ?? 0);
+      setFeatured((f as { data?: unknown[] }).data ?? []);
+      setRooms((r as { data?: { rooms?: unknown[] } }).data?.rooms ?? []);
+    } catch (error) {
+      console.error('Failed to load home data:', error);
+    }
+
+    try {
+      const res = await reservationAPI.getReservations({ status: 'upcoming', limit: 5 });
+      setUpcoming(res.data?.data ?? []);
+    } catch (error) {
+      console.error('Failed to load upcoming reservations:', error);
+    }
+  }, []);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [n, f, r] = await Promise.all([
-          notificationAPI.getNotifications(),
-          freeMaterialsAPI.getFeaturedMaterials(),
-          verbfyTalkAPI.getRooms({ 
-            level: 'All', 
-            isPrivate: false, 
-            page: 1, 
-            limit: 4 
-          }),
-        ]);
-        setUnread(n.data?.data?.unreadCount ?? 0);
-        setFeatured((f as any).data ?? []);
-        setRooms((r as any).data?.rooms ?? (r as any).rooms ?? []);
-      } catch {}
-
-      try {
-        const res = await reservationAPI.getReservations({ status: 'upcoming', limit: 5 });
-        setUpcoming(res.data?.data ?? []);
-      } catch {}
-    };
     load();
-  }, []);
+  }, [load]);
 
   return (
     <DashboardLayout title={t('home.title', 'Home')}>
