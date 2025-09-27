@@ -107,18 +107,13 @@ export default function ChatInterface({ conversationId, otherParticipant }: Chat
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center space-x-3 p-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-          {otherParticipant.avatar ? (
-            <img
-              src={otherParticipant.avatar}
-              alt={otherParticipant.name}
-              className="w-10 h-10 rounded-full object-cover"
-            />
-          ) : (
-            <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-              {otherParticipant.name.charAt(0).toUpperCase()}
-            </span>
-          )}
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-blue-50 dark:bg-blue-900">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={otherParticipant.avatar || '/images/default-avatar.png'}
+            alt={otherParticipant.name}
+            className="w-10 h-10 object-cover"
+          />
         </div>
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">
@@ -231,20 +226,13 @@ function MessageItem({ message, isOwnMessage }: MessageItemProps) {
       </div>
       
       {/* Avatar */}
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isOwnMessage ? 'order-1 ml-2' : 'order-2 mr-2'}`}>
-        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-          {message.sender.avatar ? (
-            <img
-              src={message.sender.avatar}
-              alt={message.sender.name}
-              className="w-8 h-8 rounded-full object-cover"
-            />
-          ) : (
-            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-              {message.sender.name.charAt(0).toUpperCase()}
-            </span>
-          )}
-        </div>
+      <div className={`w-8 h-8 rounded-full overflow-hidden ${isOwnMessage ? 'order-1 ml-2' : 'order-2 mr-2'}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={message.sender.avatar || '/images/default-avatar.png'}
+          alt={message.sender.name}
+          className="w-8 h-8 object-cover"
+        />
       </div>
     </div>
   );

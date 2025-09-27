@@ -86,10 +86,10 @@ function TeacherDashboardPage() {
         
         // Fetch bookings, upcoming reservations, and notifications in parallel
         const [bookingsResponse, upcomingResponse, notificationsResponse, unreadCountResponse] = await Promise.all([
-          api.get('/api/reservations/teacher'),
-          api.get('/api/reservations/upcoming'),
-          api.get('/api/notifications?limit=5'),
-          api.get('/api/notifications/unread-count')
+                  api.get('/api/reservations/teacher'),
+        api.get('/api/reservations/upcoming'),
+        api.get('/api/notifications?limit=5'),
+        api.get('/api/notifications/unread-count')
         ]);
 
         setBookings(bookingsResponse.data.bookings || []);
@@ -211,6 +211,18 @@ function TeacherDashboardPage() {
       <DashboardLayout allowedRoles={['teacher']}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Pending approval notice
+  if ((user as any)?.approvalStatus === 'pending' || (user as any)?.isApproved === false) {
+    return (
+      <DashboardLayout allowedRoles={['teacher']}>
+        <div className="max-w-2xl mx-auto bg-yellow-50 border border-yellow-200 rounded-xl p-6 mt-6">
+          <h2 className="text-lg font-semibold text-yellow-800">Your teacher account is awaiting approval</h2>
+          <p className="text-yellow-700 mt-2">Our team will review your application shortly. You will receive a notification once approved. You can continue exploring as a student in the meantime.</p>
         </div>
       </DashboardLayout>
     );

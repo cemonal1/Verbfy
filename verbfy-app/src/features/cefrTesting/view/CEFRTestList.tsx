@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { CEFRTest, TestFilters } from '@/types/cefrTests';
 import { cefrTestsAPI } from '@/lib/api';
+import { useAuthContext } from '@/context/AuthContext';
 
 interface CEFRTestListProps {
   onTestSelect?: (test: CEFRTest) => void;
@@ -15,6 +16,7 @@ export const CEFRTestList: React.FC<CEFRTestListProps> = ({
   limit = 10
 }) => {
   const router = useRouter();
+  const { user } = useAuthContext();
   const [tests, setTests] = useState<CEFRTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<TestFilters>({
@@ -33,6 +35,18 @@ export const CEFRTestList: React.FC<CEFRTestListProps> = ({
       setTests(response.tests);
     } catch (error) {
       console.error('Error fetching tests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSeedGlobal = async () => {
+    try {
+      setLoading(true);
+      await cefrTestsAPI.seedGlobalPlacement();
+      await fetchTests();
+    } catch (e) {
+      console.error('Seed error', e);
     } finally {
       setLoading(false);
     }
@@ -89,7 +103,25 @@ export const CEFRTestList: React.FC<CEFRTestListProps> = ({
     <div className="space-y-6">
       {showFilters && (
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold mb-4">Filter Tests</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Filter Tests</h3>
+            {user?.role === 'admin' && (
+              <div className="flex gap-2">
+                <button onClick={handleSeedGlobal} className="px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700">
+                  Seed 50Q Global Placement
+                </button>
+                <button onClick={async()=>{setLoading(true);try{await cefrTestsAPI.seedKidsA1B1();await fetchTests();}finally{setLoading(false);}}} className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                  Seed Kids A1–B1
+                </button>
+                <button onClick={async()=>{setLoading(true);try{await cefrTestsAPI.seedAdultsA1B2();await fetchTests();}finally{setLoading(false);}}} className="px-3 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                  Seed Adults A1–B2
+                </button>
+                <button onClick={async()=>{setLoading(true);try{await cefrTestsAPI.seedAdvancedB1C2();await fetchTests();}finally{setLoading(false);}}} className="px-3 py-2 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700">
+                  Seed Advanced B1–C2
+                </button>
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <select
               value={filters.cefrLevel || ''}

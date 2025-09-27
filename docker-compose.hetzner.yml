@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  verbfy-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+    container_name: verbfy-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+    volumes:
+      - ./backend/uploads:/app/uploads
+    networks:
+      - verbfy
+
+  nginx:
+    image: nginx:alpine
+    container_name: verbfy-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/log/nginx:/var/log/nginx
+    depends_on:
+      - verbfy-backend
+    networks:
+      - verbfy
+
+networks:
+  verbfy:
+    driver: bridge
+
+

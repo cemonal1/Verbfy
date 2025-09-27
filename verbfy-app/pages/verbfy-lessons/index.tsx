@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import DashboardLayout from '../../src/components/layout/DashboardLayout';
-import { verbfyLessonsAPI } from '../../src/lib/api';
-import { VerbfyLesson, LessonFilters } from '../../src/types/verbfyLessons';
-import { useToast } from '../../src/components/common/Toast';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { verbfyLessonsAPI } from '@/lib/api';
+import { VerbfyLesson, LessonFilters } from '@/types/verbfyLessons';
+import { useToast } from '@/components/common/Toast';
 
 export default function VerbfyLessonsPage() {
   const router = useRouter();

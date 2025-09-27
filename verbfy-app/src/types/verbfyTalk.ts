@@ -2,61 +2,34 @@ export interface VerbfyTalkRoom {
   _id: string;
   name: string;
   description: string;
-  createdBy: {
-    _id: string;
-    name: string;
-    email: string;
-    avatar?: string;
-  };
-  participants: Array<{
-    userId: {
-      _id: string;
-      name: string;
-      email: string;
-      avatar?: string;
-    };
-    joinedAt: string;
-    isActive: boolean;
-  }>;
-  maxParticipants: number;
-  isPrivate: boolean;
-  topic?: string;
-  language: string;
+  topic: string;
   level: 'Beginner' | 'Intermediate' | 'Advanced' | 'Mixed';
+  isPrivate: boolean;
+  password?: string;
+  maxParticipants: number;
+  currentParticipants: number;
+  activeParticipantCount?: number; // Added by backend
   isActive: boolean;
-  startedAt?: string;
-  endedAt?: string;
+  createdBy: string | { _id: string; name: string; email: string; avatar?: string }; // Can be populated
   createdAt: string;
   updatedAt: string;
-  currentParticipants?: number;
-  status?: 'waiting' | 'active' | 'ended';
 }
 
 export interface CreateRoomData {
   name: string;
   description: string;
+  topic: string;
+  level: 'Beginner' | 'Intermediate' | 'Advanced' | 'Mixed';
   isPrivate: boolean;
   password?: string;
-  topic?: string;
-  level: 'Beginner' | 'Intermediate' | 'Advanced' | 'Mixed';
   maxParticipants: number;
 }
 
-export interface JoinRoomData {
-  password?: string;
-}
-
 export interface RoomFilters {
-  level?: string;
-  isPrivate?: boolean;
-  page?: number;
-  limit?: number;
-}
-
-export interface RoomResponse {
-  success: boolean;
-  data: VerbfyTalkRoom;
-  message?: string;
+  level: 'All' | 'Beginner' | 'Intermediate' | 'Advanced' | 'Mixed';
+  isPrivate: boolean;
+  page: number;
+  limit: number;
 }
 
 export interface RoomsResponse {
@@ -68,4 +41,40 @@ export interface RoomsResponse {
     total: number;
     pages: number;
   };
+}
+
+export interface RoomResponse {
+  success: boolean;
+  data: VerbfyTalkRoom;
+}
+
+export interface JoinRoomData {
+  roomId: string;
+  password?: string;
+}
+
+export interface VerbfyTalkParticipant {
+  id: string;
+  name: string;
+  isSpeaking: boolean;
+  isMuted: boolean;
+  isSpeaker: boolean;
+  joinedAt?: string;
+}
+
+export interface VerbfyTalkMessage {
+  id: string;
+  roomId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: string;
+  type: 'text' | 'system';
+}
+
+export interface VerbfyTalkStats {
+  totalRooms: number;
+  activeRooms: number;
+  totalParticipants: number;
+  averageSessionDuration: number;
 } 

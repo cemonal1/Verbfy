@@ -45,9 +45,22 @@ const StudentReservePage: React.FC = () => {
     setLoadingTeachers(true);
     try {
       const response = await api.get('/api/users/teachers');
-      setTeachers(response.data);
+      console.log('🔍 Teachers API Response:', response);
+      
+      // Check if response has the expected structure
+      if (response.data && response.data.success && Array.isArray(response.data.teachers)) {
+        setTeachers(response.data.teachers);
+      } else if (Array.isArray(response.data)) {
+        // Fallback: if response.data is directly an array
+        setTeachers(response.data);
+      } else {
+        console.error('❌ Unexpected teachers API response structure:', response.data);
+        setTeachers([]);
+        toastError('Invalid response format from teachers API');
+      }
     } catch (error) {
-      console.error('Error loading teachers:', error);
+      console.error('❌ Error loading teachers:', error);
+      setTeachers([]);
       toastError('Failed to load teachers');
     } finally {
       setLoadingTeachers(false);

@@ -9,7 +9,7 @@ services:
       - "7881:7881"  # HTTP port
       - "7882:7882/udp"  # UDP port for media
     environment:
-      - LIVEKIT_KEYS=uc4eRZW1iYWcX2UXeoQ/v1JJ/ackt/qelbFiatS/WwM=:1M2k3w3MV/PMZIvB2tANCZ0ZXcw93hhkV4N7eyW+QNQ=
+      - LIVEKIT_KEYS=${LIVEKIT_KEYS}
     command: --dev --node-ip=0.0.0.0
     restart: unless-stopped
     networks:
@@ -21,18 +21,18 @@ services:
     ports:
       - "5001:5001"
     environment:
-      - MONGO_URI=mongodb+srv://Verbfy:VerbfyDataBack@verbfy.kxzpcit.mongodb.net/verbfy?retryWrites=true&w=majority&appName=Verbfy
       - PORT=5001
       - NODE_ENV=development
-      - JWT_SECRET=ddb2070e412a4e227a233c3ed275d1cc6603ce9f9a0bfda81ecbbbbab81fd491
-      - JWT_REFRESH_SECRET=ddb2070e412a4e227a233c3ed275d1cc6603ce9f9a0bfda81ecbbbbab81fd491_refresh
-      - FRONTEND_URL=http://localhost:3000
-      - LIVEKIT_CLOUD_API_KEY=uc4eRZW1iYWcX2UXeoQ/v1JJ/ackt/qelbFiatS/WwM=
-      - LIVEKIT_CLOUD_API_SECRET=1M2k3w3MV/PMZIvB2tANCZ0ZXcw93hhkV4N7eyW+QNQ=
-      - LIVEKIT_CLOUD_URL=wss://localhost:7880
-      - LIVEKIT_SELF_API_KEY=uc4eRZW1iYWcX2UXeoQ/v1JJ/ackt/qelbFiatS/WwM=
-      - LIVEKIT_SELF_API_SECRET=1M2k3w3MV/PMZIvB2tANCZ0ZXcw93hhkV4N7eyW+QNQ=
-      - LIVEKIT_SELF_URL=wss://localhost:7880
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - MONGO_URI=${MONGO_URI}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - LIVEKIT_CLOUD_API_KEY=${LIVEKIT_CLOUD_API_KEY}
+      - LIVEKIT_CLOUD_API_SECRET=${LIVEKIT_CLOUD_API_SECRET}
+      - LIVEKIT_CLOUD_URL=${LIVEKIT_CLOUD_URL:-wss://localhost:7880}
+      - LIVEKIT_SELF_API_KEY=${LIVEKIT_SELF_API_KEY}
+      - LIVEKIT_SELF_API_SECRET=${LIVEKIT_SELF_API_SECRET}
+      - LIVEKIT_SELF_URL=${LIVEKIT_SELF_URL:-wss://localhost:7880}
     depends_on:
       - livekit
     networks:
@@ -44,9 +44,9 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:5001
-      - NEXT_PUBLIC_LIVEKIT_URL=wss://localhost:7880
-      - NEXT_PUBLIC_LIVEKIT_CLOUD_URL=wss://localhost:7880
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5001}
+      - NEXT_PUBLIC_LIVEKIT_URL=${NEXT_PUBLIC_LIVEKIT_URL:-wss://localhost:7880}
+      - NEXT_PUBLIC_LIVEKIT_CLOUD_URL=${NEXT_PUBLIC_LIVEKIT_CLOUD_URL:-wss://localhost:7880}
     depends_on:
       - backend
     networks:

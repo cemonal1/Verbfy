@@ -1,217 +1,238 @@
-# 🚀 Verbfy Deployment Checklist
+# 🚀 Verbfy Production Deployment Checklist
 
-## ✅ Pre-Deployment Security Fixes (COMPLETED)
+## ✅ Pre-Deployment Checklist
 
-### 🔐 Security Issues Fixed
-- [x] **JWT Secret Vulnerability** - Removed hardcoded fallback secrets
-- [x] **Environment Validation** - Added comprehensive environment validation
-- [x] **Rate Limiting** - Implemented rate limiting for auth and API endpoints
-- [x] **Security Headers** - Added Helmet for security headers
-- [x] **Secure Token Storage** - Replaced localStorage with secure storage utility
-- [x] **Error Handling** - Improved error handling and logging
-- [x] **Database Connection** - Enhanced with proper pooling and error handling
+### 1. **Environment Configuration**
+- [ ] Copy `backend/env.production.example` to `backend/.env`
+- [ ] Set all required environment variables:
+  - [ ] `MONGO_URI` - MongoDB connection string
+  - [ ] `JWT_SECRET` - Secure 64-character hex string
+  - [ ] `JWT_REFRESH_SECRET` - Different secure 64-character hex string
+  - [ ] `FRONTEND_URL` - https://verbfy.com
+  - [ ] `BACKEND_URL` - https://api.verbfy.com
+  - [ ] LiveKit configuration (Cloud or Self-hosted)
+  - [ ] SMTP email configuration
+  - [ ] Stripe payment configuration (if needed)
+  - [ ] AWS S3 configuration (for file uploads)
 
-### 🛡️ Security Enhancements Added
-- [x] **Rate Limiting Middleware** - Protection against brute force attacks
-- [x] **Helmet Security Headers** - XSS, CSRF, and other security protections
-- [x] **Secure Storage Utility** - Cookie-based storage with fallbacks
-- [x] **Environment Validation Script** - Pre-deployment validation
-- [x] **Enhanced Error Handling** - Better error responses and logging
+### 2. **SSL Certificates**
+- [ ] SSL certificate for `api.verbfy.com` exists in `/etc/letsencrypt/live/api.verbfy.com/`
+- [ ] Certificate is valid and not expired
+- [ ] Auto-renewal is configured
 
-## 🔧 Pre-Deployment Steps (REQUIRED)
+### 3. **Server Requirements**
+- [ ] Node.js 18+ installed
+- [ ] Docker and Docker Compose installed
+- [ ] Nginx installed (for SSL termination)
+- [ ] MongoDB accessible (Atlas or self-hosted)
+- [ ] Sufficient disk space (minimum 10GB free)
+- [ ] Sufficient RAM (minimum 2GB)
 
-### 1. Environment Configuration
-```bash
-# Generate secure JWT secrets
-cd backend
-npm run generate-secrets
+### 4. **Security**
+- [ ] Firewall configured (ports 80, 443 open)
+- [ ] All secrets are cryptographically secure
+- [ ] No default/example values in production environment
+- [ ] SSH key authentication enabled
+- [ ] Root login disabled
+- [ ] Regular security updates enabled
 
-# Copy the generated secrets to your .env file
-# JWT_SECRET=<generated-secret>
-# JWT_REFRESH_SECRET=<generated-secret>
-```
+## 🛠️ Deployment Steps
 
-### 2. Environment Variables Setup
-Create/update the following environment files:
-
-#### Backend (.env)
-```bash
-# Required
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/verbfy?retryWrites=true&w=majority
-JWT_SECRET=<your-generated-jwt-secret>
-JWT_REFRESH_SECRET=<your-generated-refresh-secret>
-FRONTEND_URL=https://verbfy.com
-
-# Optional
-PORT=5000
-NODE_ENV=production
-```
-
-#### Frontend (.env.local)
-```bash
-# Required
-NEXT_PUBLIC_API_URL=https://api.verbfy.com
-
-# Optional
-NEXT_PUBLIC_APP_URL=https://verbfy.com
-NEXT_PUBLIC_LIVEKIT_URL=https://livekit.verbfy.com
-```
-
-### 3. Database Setup
-- [ ] **MongoDB Atlas Cluster** - Set up production MongoDB cluster
-- [ ] **Database Indexes** - Create indexes for performance
-- [ ] **Backup Strategy** - Configure automated backups
-- [ ] **Connection Pooling** - Verify connection limits
-
-### 4. SSL/TLS Certificates
-- [ ] **Domain Certificates** - Obtain SSL certificates for all domains
-- [ ] **Wildcard Certificate** - For subdomains (api.verbfy.com, livekit.verbfy.com)
-- [ ] **Certificate Renewal** - Set up automatic renewal
-
-## 🚀 Deployment Steps
-
-### 1. Server Preparation
+### Step 1: Server Preparation
 ```bash
 # Update system
 sudo apt update && sudo apt upgrade -y
 
-# Install Docker and Docker Compose
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
+# Install required packages
+sudo apt install -y nodejs npm docker.io docker-compose nginx certbot
+
+# Add user to docker group
 sudo usermod -aG docker $USER
-
-# Install Nginx
-sudo apt install -y nginx certbot python3-certbot-nginx
-
-# Configure firewall
-sudo ufw allow 22
-sudo ufw allow 80
-sudo ufw allow 443
-sudo ufw enable
 ```
 
-### 2. Domain Configuration
-- [ ] **DNS Records** - Configure A records for all domains
-- [ ] **Subdomain Setup** - api.verbfy.com, livekit.verbfy.com
-- [ ] **SSL Certificates** - Obtain and install certificates
+### Step 2: SSL Certificate Setup
+```bash
+# Stop nginx temporarily
+sudo systemctl stop nginx
 
-### 3. Docker Deployment
+# Get SSL certificate
+sudo certbot certonly --standalone -d api.verbfy.com
+
+# Start nginx
+sudo systemctl start nginx
+```
+
+### Step 3: Clone and Setup Project
 ```bash
 # Clone repository
-git clone <repository-url>
-cd Verbfy
+git clone <your-repo-url> /opt/verbfy
+cd /opt/verbfy
 
-# Copy environment files
-cp backend/env.example backend/.env
-cp verbfy-app/env.local.example verbfy-app/.env.local
-
-# Update environment variables with production values
-
-# Build and deploy
-docker-compose -f docker-compose.production.yml up -d --build
+# Set proper permissions
+sudo chown -R $USER:$USER /opt/verbfy
 ```
 
-### 4. Nginx Configuration
-- [ ] **Reverse Proxy** - Configure Nginx for frontend and backend
-- [ ] **SSL Termination** - Handle SSL certificates
-- [ ] **Load Balancing** - If multiple backend instances
-- [ ] **Caching** - Configure static file caching
+### Step 4: Environment Configuration
+```bash
+# Create production environment file
+cp backend/env.production.example backend/.env
 
-### 5. Monitoring Setup
-- [ ] **Health Checks** - Configure monitoring endpoints
-- [ ] **Logging** - Set up centralized logging
-- [ ] **Metrics** - Configure application metrics
-- [ ] **Alerts** - Set up monitoring alerts
+# Edit environment variables
+nano backend/.env
+
+# Generate secure JWT secrets
+node -e "console.log('JWT_SECRET=' + require('crypto').randomBytes(32).toString('hex'))"
+node -e "console.log('JWT_REFRESH_SECRET=' + require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### Step 5: Build and Deploy
+```bash
+# Run setup script
+./setup-production.sh
+
+# Deploy with Docker
+docker-compose -f docker-compose.hetzner.yml up -d --build
+
+# Check status
+docker ps
+docker-compose -f docker-compose.hetzner.yml logs
+```
 
 ## 🔍 Post-Deployment Verification
 
-### 1. Security Testing
-```bash
-# Run security checks
-cd backend
-npm run security-check
+### Health Checks
+- [ ] Backend health check: `curl https://api.verbfy.com/api/health`
+- [ ] Database connection working
+- [ ] SSL certificate valid
+- [ ] All containers running: `docker ps`
+- [ ] No error logs: `docker-compose -f docker-compose.hetzner.yml logs`
 
-# Test rate limiting
-curl -X POST https://api.verbfy.com/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"password"}' \
-  -w "%{http_code}\n"
+### Functional Tests
+- [ ] User registration works
+- [ ] User login works
+- [ ] Email sending works (password reset)
+- [ ] File upload works
+- [ ] LiveKit video calls work (if configured)
+- [ ] Payment processing works (if configured)
+
+### Performance Tests
+- [ ] Response time < 2 seconds
+- [ ] Memory usage stable
+- [ ] CPU usage reasonable
+- [ ] Disk space sufficient
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### 1. **502 Bad Gateway**
+```bash
+# Check backend container
+docker logs verbfy-backend
+
+# Check nginx configuration
+sudo nginx -t
+
+# Restart services
+docker-compose -f docker-compose.hetzner.yml restart
 ```
 
-### 2. Functionality Testing
-- [ ] **Authentication** - Test login/logout flows
-- [ ] **API Endpoints** - Verify all API endpoints work
-- [ ] **Real-time Features** - Test Socket.IO connections
-- [ ] **File Uploads** - Test material upload functionality
-- [ ] **Payment Integration** - Test Stripe integration
-
-### 3. Performance Testing
-- [ ] **Load Testing** - Test under load
-- [ ] **Database Performance** - Monitor query performance
-- [ ] **Response Times** - Verify acceptable response times
-- [ ] **Memory Usage** - Monitor memory consumption
-
-### 4. Monitoring Verification
-- [ ] **Health Endpoints** - Verify /api/health returns 200
-- [ ] **Error Logging** - Check error logs
-- [ ] **Performance Metrics** - Monitor key metrics
-- [ ] **Uptime Monitoring** - Set up uptime monitoring
-
-## 🚨 Critical Security Checklist
-
-### Before Deployment
-- [ ] **JWT Secrets** - Generated and configured
-- [ ] **Environment Variables** - All required vars set
-- [ ] **Database Security** - MongoDB access restricted
-- [ ] **SSL Certificates** - Installed and configured
-- [ ] **Firewall Rules** - Properly configured
-- [ ] **Rate Limiting** - Enabled and tested
-- [ ] **Security Headers** - Helmet configured
-- [ ] **Error Handling** - No sensitive data in errors
-
-### After Deployment
-- [ ] **Security Headers** - Verified in browser dev tools
-- [ ] **Rate Limiting** - Tested and working
-- [ ] **Authentication** - Secure token storage
-- [ ] **API Security** - All endpoints protected
-- [ ] **Database Access** - Restricted to application only
-- [ ] **SSL/TLS** - All traffic encrypted
-- [ ] **Monitoring** - Security events logged
-
-## 📞 Emergency Contacts
-
-### Technical Issues
-- **Backend Issues**: Check logs in `/var/log/verbfy/`
-- **Database Issues**: MongoDB Atlas dashboard
-- **SSL Issues**: Certbot logs in `/var/log/letsencrypt/`
-
-### Rollback Plan
+#### 2. **Database Connection Failed**
 ```bash
-# Rollback to previous version
-docker-compose -f docker-compose.production.yml down
-git checkout <previous-tag>
-docker-compose -f docker-compose.production.yml up -d --build
+# Check environment variables
+grep MONGO_URI backend/.env
+
+# Test connection from container
+docker exec verbfy-backend node -e "require('mongoose').connect(process.env.MONGO_URI).then(() => console.log('Connected')).catch(console.error)"
+```
+
+#### 3. **SSL Certificate Issues**
+```bash
+# Check certificate validity
+sudo certbot certificates
+
+# Renew certificate
+sudo certbot renew
+
+# Restart nginx
+sudo systemctl restart nginx
+```
+
+#### 4. **LiveKit Connection Issues**
+- [ ] Check LiveKit configuration in environment variables
+- [ ] Verify LiveKit service is accessible
+- [ ] Check firewall rules for WebSocket connections
+
+### Log Locations
+- Backend logs: `docker logs verbfy-backend`
+- Nginx logs: `/var/log/nginx/error.log`
+- System logs: `journalctl -u docker`
+
+## 🔄 Maintenance
+
+### Regular Tasks
+- [ ] **Weekly**: Check logs for errors
+- [ ] **Weekly**: Monitor resource usage
+- [ ] **Monthly**: Update Docker images
+- [ ] **Monthly**: Review security logs
+- [ ] **Quarterly**: Rotate JWT secrets
+- [ ] **Quarterly**: Update SSL certificates
+
+### Backup Strategy
+- [ ] Database backups configured
+- [ ] File uploads backed up
+- [ ] Environment variables backed up (securely)
+- [ ] SSL certificates backed up
+
+### Monitoring Setup
+- [ ] Set up monitoring dashboard
+- [ ] Configure alerts for downtime
+- [ ] Monitor resource usage
+- [ ] Set up log aggregation
+
+## 📞 Support
+
+### Emergency Contacts
+- Server Administrator: [Your Contact]
+- Database Administrator: [Your Contact]
+- Security Team: [Your Contact]
+
+### Useful Commands
+```bash
+# View all containers
+docker ps -a
+
+# View logs in real-time
+docker-compose -f docker-compose.hetzner.yml logs -f
+
+# Restart specific service
+docker-compose -f docker-compose.hetzner.yml restart verbfy-backend
+
+# Update and redeploy
+git pull origin main
+docker-compose -f docker-compose.hetzner.yml up -d --build
+
+# Backup database
+docker exec verbfy-backend mongodump --uri="$MONGO_URI" --out=/backup
+
+# Check disk usage
+df -h
+docker system df
 ```
 
 ## 🎯 Success Criteria
 
-### Performance
-- [ ] **Response Time** - < 200ms for API endpoints
-- [ ] **Uptime** - > 99.9% availability
-- [ ] **Error Rate** - < 0.1% error rate
-
-### Security
-- [ ] **Security Scan** - No critical vulnerabilities
-- [ ] **Authentication** - All endpoints properly protected
-- [ ] **Data Protection** - Sensitive data encrypted
-
-### Functionality
-- [ ] **Core Features** - All features working
-- [ ] **User Experience** - Smooth user flows
-- [ ] **Integration** - All third-party services working
+The deployment is considered successful when:
+- [ ] All health checks pass
+- [ ] SSL certificate is valid and auto-renewing
+- [ ] All core features work as expected
+- [ ] Performance meets requirements
+- [ ] Monitoring and alerts are configured
+- [ ] Backup strategy is implemented
+- [ ] Documentation is up to date
 
 ---
 
-**Last Updated**: December 2024
-**Version**: 1.0.0
-**Status**: Ready for Deployment ✅ 
+**Last Updated**: $(date)
+**Deployed By**: [Your Name]
+**Environment**: Production

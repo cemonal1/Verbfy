@@ -11,6 +11,12 @@ export interface User extends Record<string, unknown> {
   email: string;
   role: 'student' | 'teacher' | 'admin';
   avatar?: string;
+  profileImage?: string;
+  bio?: string;
+  phone?: string;
+  emailVerified?: boolean;
+  isApproved?: boolean;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
   // Learning progress fields
   cefrLevel?: string;
   overallProgress?: number;
@@ -51,7 +57,7 @@ interface RegisterData {
 }
 
 // Create context
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Provider component
 interface AuthProviderProps {
@@ -66,22 +72,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Check if user is authenticated
   const isAuthenticated = !!user;
 
-  // Load user on mount
+  // Load user on mount and when route changes
   useEffect(() => {
+    const publicAuthPages = ['/login', '/register', '/forgot-password', '/reset-password', '/landing'];
+    if (publicAuthPages.includes(router.pathname)) {
+      setIsLoading(false);
+      return;
+    }
     loadUser();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.pathname]);
 
   // Load user from token
   const loadUser = async () => {
     try {
       const token = tokenStorage.getToken();
-      
       if (!token) {
         setIsLoading(false);
         return;
       }
 
-      // Verify token and get user data
       const response = await authAPI.getCurrentUser();
       
       if (response.data.success) {
@@ -97,13 +107,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Update stored user data
         tokenStorage.setUser({ ...userWithId });
       } else {
-        // Invalid token, clear it
+        console.warn('Unexpected auth response structure:', response);
         tokenStorage.clear();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading user:', error);
-      // Clear invalid token
+      
+      // Handle rate limiting specifically
+      if (error.response?.status === 429) {
+        const retryAfter = error.response?.data?.retryAfter || 15;
+        console.warn(`⚠️ Rate limited while loading user. Retry after ${retryAfter} minutes.`);
+        // Don't redirect to login for rate limiting, just show message
+        return;
+      }
+      
+      // For other errors, redirect to login
+      console.log('Error loading user, redirecting to login');
       tokenStorage.clear();
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     } finally {
       setIsLoading(false);
     }
@@ -113,31 +136,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setIsLoading(true);
-      
       const response = await authAPI.login({ email, password });
-      
-      if (response.data.success) {
-        const { token, user: userData } = response.data;
+      if (response.data?.success || response.success) {
+        const responseData = response.data || response;
+        const { accessToken, user: userData, token } = responseData;
         
         // Add id alias for backward compatibility
         const userWithId = {
           ...userData,
           id: userData._id
-        };
+        } as User;
         
         // Store token and user data securely
-        tokenStorage.setToken(token);
+        const provided = accessToken || token;
+        if (provided) tokenStorage.setToken(provided);
         tokenStorage.setUser({ ...userWithId });
         
         // Set user in state
         setUser(userWithId);
-        
         return true;
       }
-      
       return false;
-    } catch (error: any) {
-      console.error('Login error:', error);
+    } catch (_error) {
       return false;
     } finally {
       setIsLoading(false);
@@ -148,31 +168,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const register = async (userData: RegisterData): Promise<boolean> => {
     try {
       setIsLoading(true);
-      
       const response = await authAPI.register(userData);
       
-      if (response.data.success) {
-        const { token, user: newUser } = response.data;
+      if (response.data?.success || response.success) {
+        const responseData = response.data || response;
+        const { accessToken, user: newUser, token } = responseData;
         
         // Add id alias for backward compatibility
         const userWithId = {
           ...newUser,
           id: newUser._id
-        };
+        } as User;
         
         // Store token and user data securely
-        tokenStorage.setToken(token);
+        const provided = accessToken || token;
+        if (provided) tokenStorage.setToken(provided);
         tokenStorage.setUser({ ...userWithId });
         
         // Set user in state
         setUser(userWithId);
-        
         return true;
       }
-      
       return false;
-    } catch (error: any) {
-      console.error('Register error:', error);
+    } catch (_error) {
       return false;
     } finally {
       setIsLoading(false);

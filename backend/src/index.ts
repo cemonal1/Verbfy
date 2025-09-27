@@ -4,11 +4,19 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import { createServer } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
+import path from 'path';
+import fs from 'fs';
+import { Server as SocketIOServer, Socket } from 'socket.io';
 import { connectDB } from './config/db';
 import { validateEnvironment } from './config/env';
 import { apiLimiter, authLimiter } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { setCsrfCookie, verifyCsrf } from './middleware/csrf';
+import pinoHttp from 'pino-http';
+import UserModel from './models/User';
+import { VerbfyTalkRoom } from './models/VerbfyTalkRoom';
+import { verifyToken } from './utils/jwt';
+import { Types } from 'mongoose';
 import livekitRoutes from './routes/livekitRoutes';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/userRoutes';
@@ -16,6 +24,7 @@ import reservationRoutes from './routes/reservationRoutes';
 import availabilityRoutes from './routes/availabilityRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import lessonMaterialRoutes from './routes/lessonMaterialRoutes';
+import lessonRoutes from './routes/lessons';
 import adminRoutes from './routes/adminRoutes';
 import messagesRoutes from './routes/messages';
 import analyticsRoutes from './routes/analytics';
@@ -32,9 +41,18 @@ import teacherAnalyticsRoutes from './routes/teacherAnalytics';
 import aiContentGenerationRoutes from './routes/aiContentGeneration';
 import organizationRoutes from './routes/organization';
 import rolesRoutes from './routes/roles';
+import gameRoutes from './routes/gameRoutes';
+import { VerbfyTalkController } from './controllers/verbfyTalkController';
 
-// Load environment variables
+// Load environment variables and initialize Sentry
 dotenv.config();
+
+// Initialize Sentry with CommonJS require
+try {
+  require('./instrument.js');
+} catch (error: any) {
+  console.warn('⚠️ Sentry initialization failed:', error?.message || 'Unknown error');
+}
 
 // Validate environment variables before starting the application
 try {
@@ -48,71 +66,694 @@ try {
 const app = express();
 const server = createServer(app);
 
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      connectSrc: ["'self'", "wss:", "https:"],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-      upgradeInsecureRequests: []
-    }
-  },
-  crossOriginEmbedderPolicy: false
-}));
+// Behind proxy (nginx) trust X-Forwarded-* for secure cookies and IPs
+app.set('trust proxy', 1);
 
-// Initialize Socket.IO
-const io = new SocketIOServer(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
-});
+// CORS middleware - MUST BE FIRST, before any other middleware
+// Allow both apex and www domains in production
+const defaultOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+const extraOrigins = (process.env.CORS_EXTRA_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+// Add production domains explicitly
+const productionOrigins = [
+  'https://verbfy.com',
+  'https://www.verbfy.com',
+  'https://api.verbfy.com'
+];
+const allowedOrigins = [
+  defaultOrigin, 
+  ...extraOrigins,
+  ...(process.env.NODE_ENV === 'production' ? productionOrigins : [])
+];
 
-// Connect to MongoDB
-connectDB();
-
-// Rate limiting middleware
-app.use('/api/auth', authLimiter); // Stricter rate limiting for auth endpoints
-app.use('/api', apiLimiter); // General rate limiting for all API endpoints
-
-// CORS middleware
+// Enhanced CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    console.log('❌ CORS blocked origin:', origin);
+    console.log('✅ Allowed origins:', allowedOrigins);
+    return callback(new Error('Not allowed by CORS'), false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'x-csrf-token', 
+    'X-CSRF-Token',
+    'Idempotency-Key',
+    'idempotency-key',
+    'Accept',
+    'Origin',
+    'User-Agent',
+    'Cache-Control'
+  ],
+  exposedHeaders: ['set-cookie', 'X-CSRF-Token']
 }));
+
+// Add permission headers for WebRTC
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'microphone=(self "https://verbfy.com" "https://www.verbfy.com"), camera=(self "https://verbfy.com" "https://www.verbfy.com"), geolocation=(self "https://verbfy.com" "https://www.verbfy.com")');
+  res.setHeader('Feature-Policy', 'microphone self https://verbfy.com https://www.verbfy.com; camera self https://verbfy.com https://www.verbfy.com; geolocation self https://verbfy.com https://www.verbfy.com');
+  next();
+});
+
+// CORS setup completed
+
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  // Request logged
+  next();
+});
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
+// Sentry init (non-blocking if DSN missing)
+try {
+  const Sentry = require('@sentry/node');
+  Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0.0 });
+  // Support both v7 (Handlers) and guard types
+  const reqHandler = Sentry.Handlers?.requestHandler?.();
+  if (reqHandler) app.use(reqHandler);
+} catch (error: any) {
+  console.warn('⚠️ Sentry request handler not available:', error?.message || 'Unknown error');
+}
+
+// Security middleware
+const isDev = process.env.NODE_ENV !== 'production';
+const allowedFrames = (process.env.ALLOWED_FRAME_SRC || '').split(',').map(s => s.trim()).filter(Boolean);
+
+// Microphone permission headers already set above
+
+const cspDirectives: any = {
+  defaultSrc: ["'self'"],
+  styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+  fontSrc: ["'self'", "https://fonts.gstatic.com"],
+  imgSrc: ["'self'", "data:", "https:"],
+  scriptSrc: isDev ? ["'self'", "'unsafe-inline'", "'unsafe-eval'"] : ["'self'"],
+  connectSrc: [
+    "'self'",
+    "https:",
+    "wss:",
+    process.env.LIVEKIT_CLOUD_URL || '',
+    process.env.LIVEKIT_SELF_URL || ''
+  ].filter(Boolean),
+  // Allow embedding trusted frames for VerbfyGames (iframe-based games)
+  frameSrc: isDev ? ["'self'", "https:", "http:", ...allowedFrames] : ["'self'", ...allowedFrames],
+  objectSrc: ["'none'"]
+};
+app.use(helmet({
+  contentSecurityPolicy: { directives: cspDirectives },
+  crossOriginEmbedderPolicy: false
+}));
+
+// Relax CSP specifically for OAuth callback pages to avoid inline/CSP issues from providers
+app.use('/api/auth/oauth', (req, res, next) => {
+  try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self'; object-src 'none'");
+  next();
+});
+
+// Structured logging (pretty print only in development, not in tests)
+app.use(pinoHttp({
+  transport: process.env.NODE_ENV === 'development' ? {
+    target: 'pino-pretty',
+    options: { colorize: true, singleLine: true }
+  } : undefined
+}));
+
+// Serve static uploads (avatars, materials, etc.)
+const uploadsRoot = path.resolve(__dirname, '../uploads');
+try {
+  if (!fs.existsSync(uploadsRoot)) {
+    fs.mkdirSync(uploadsRoot, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Could not ensure uploads directory exists:', e);
+}
+app.use('/uploads', express.static(uploadsRoot));
+
+// Initialize Socket.IO server
+const mainIo = new SocketIOServer(server, {
+  path: '/socket.io',
+  cors: {
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        process.env.FRONTEND_URL || "http://localhost:3000",
+        "https://www.verbfy.com",
+        "https://verbfy.com",
+        "https://api.verbfy.com"
+      ];
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      console.log('❌ Main Socket.IO CORS blocked origin:', origin);
+      console.log('✅ Allowed origins:', allowedOrigins);
+      return callback(new Error('Not allowed by CORS'), false);
+    },
+    methods: ["GET", "POST", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: [
+      "Origin",
+      "X-Requested-With",
+      "Content-Type",
+      "Accept",
+      "Authorization",
+      "X-CSRF-Token",
+      "Cache-Control"
+    ]
+  },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  allowEIO3: true,
+  maxHttpBufferSize: 1e6,
+  allowUpgrades: true,
+  upgradeTimeout: 10000,
+  connectTimeout: 45000,
+  // Better WebSocket handling
+  perMessageDeflate: false
+});
+
+// Socket interface with user property
+interface AuthenticatedSocket extends Socket {
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+}
+
+// Authentication middleware for all namespaces
+const authMiddleware = async (socket: AuthenticatedSocket, next: any) => {
+  const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    return next(new Error('Authentication failed: No token provided'));
+  }
+
+  try {
+    const decoded = verifyToken(token) as any;
+    if (!decoded || !decoded.id) {
+      return next(new Error('Authentication failed: Invalid token'));
+    }
+    
+    // Verify user exists in database
+    const user = await UserModel.findById(decoded.id);
+    if (!user) {
+      return next(new Error('Authentication failed: User not found'));
+    }
+
+    socket.user = {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role
+    };
+
+    next();
+  } catch (error) {
+    return next(new Error('Authentication failed: Token verification failed'));
+  }
+};
+
+// Create namespaces for different features
+const chatNamespace = mainIo.of('/chat');
+const notificationNamespace = mainIo.of('/notifications');
+const verbfyTalkNamespace = mainIo.of('/verbfy-talk');
+const voiceChatNamespace = mainIo.of('/voice-chat');
+
+// Apply authentication to all namespaces
+chatNamespace.use(authMiddleware);
+notificationNamespace.use(authMiddleware);
+verbfyTalkNamespace.use(authMiddleware);
+voiceChatNamespace.use(authMiddleware);
+
+// Chat namespace events
+chatNamespace.on('connection', (socket: AuthenticatedSocket) => {
+  console.log('🔌 Chat namespace connected:', socket.user?.name);
+  
+  socket.on('join-room', (data: { roomId: string }) => {
+    socket.join(data.roomId);
+    console.log(`📋 User ${socket.user?.name} joined chat room: ${data.roomId}`);
+  });
+  
+  socket.on('leave-room', (data: { roomId: string }) => {
+    socket.leave(data.roomId);
+    console.log(`📋 User ${socket.user?.name} left chat room: ${data.roomId}`);
+  });
+  
+  socket.on('send-message', (data: { roomId: string; message: any }) => {
+    socket.to(data.roomId).emit('receive-message', {
+      ...data.message,
+      sender: socket.user
+    });
+  });
+  
+  socket.on('typing', (data: { roomId: string; isTyping: boolean }) => {
+    socket.to(data.roomId).emit('user-typing', {
+      userId: socket.user?.id,
+      userName: socket.user?.name,
+      isTyping: data.isTyping
+    });
+  });
+});
+
+// Notification namespace events
+notificationNamespace.on('connection', (socket: AuthenticatedSocket) => {
+  console.log('🔌 Notification namespace connected:', socket.user?.name);
+  
+  socket.on('joinNotificationRoom', (userId: string) => {
+    socket.join(`notification-${userId}`);
+    console.log(`📋 User ${socket.user?.name} joined notification room: ${userId}`);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('🔌 Notification namespace disconnected:', socket.user?.name);
+  });
+});
+
+// VerbfyTalk namespace events
+verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
+  console.log('🔌 VerbfyTalk namespace connected:', socket.user?.name);
+  
+  // Store room information for this socket
+  let currentRoomId: string | null = null;
+  
+  // Get rooms list
+  socket.on('rooms:get', async () => {
+    try {
+      const rooms = await VerbfyTalkRoom.find({ isActive: true })
+        .populate('createdBy', 'name email avatar')
+        .populate('participants.userId', 'name email avatar')
+        .sort({ createdAt: -1 });
+      
+      const roomsWithActiveCount = rooms.map(room => {
+        const activeCount = room.participants.filter((p: any) => p.isActive).length;
+        return {
+          ...room.toObject(),
+          activeParticipantCount: activeCount
+        };
+      });
+      
+      socket.emit('rooms:list', roomsWithActiveCount);
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+    }
+  });
+  
+  // Join room
+  socket.on('room:join', async (data: { roomId: string }) => {
+    try {
+      const room = await VerbfyTalkRoom.findById(data.roomId)
+        .populate('createdBy', 'name email avatar')
+        .populate('participants.userId', 'name email avatar');
+      
+      if (!room || !room.isActive) {
+        socket.emit('room:error', { message: 'Room not found or inactive' });
+        return;
+      }
+      
+      // Check if user is already in the room (active)
+      const existingParticipant = room.participants.find((p: any) => 
+        p.userId.toString() === socket.user?.id && p.isActive
+      );
+      
+      if (existingParticipant) {
+        socket.emit('room:error', { message: 'Already in room' });
+        return;
+      }
+      
+             // Check if user was previously in room but inactive (rejoin)
+       const inactiveParticipantIndex = room.participants.findIndex((p: any) => 
+         p.userId.toString() === socket.user?.id && !p.isActive
+       );
+       
+       if (inactiveParticipantIndex !== -1) {
+         // Reactivate existing participant
+         room.participants[inactiveParticipantIndex].isActive = true;
+         room.participants[inactiveParticipantIndex].joinedAt = new Date();
+         room.participants[inactiveParticipantIndex].leftAt = undefined;
+               } else {
+          // Add new participant
+          room.participants.push({
+            userId: new Types.ObjectId(socket.user?.id!),
+            joinedAt: new Date(),
+            isActive: true
+          });
+        }
+      
+      await room.save();
+      
+      // Join socket room
+      socket.join(data.roomId);
+      currentRoomId = data.roomId;
+      
+             // Get updated room with populated data
+       const updatedRoom = await VerbfyTalkRoom.findById(data.roomId)
+         .populate('createdBy', 'name email avatar')
+         .populate('participants.userId', 'name email avatar');
+       
+       // Send room joined confirmation
+       if (updatedRoom) {
+         socket.emit('room:joined', updatedRoom);
+       }
+      
+      // Notify other participants
+      socket.to(data.roomId).emit('participant:joined', {
+        id: socket.user?.id,
+        name: socket.user?.name,
+        isSpeaking: false,
+        isMuted: false,
+        isSpeaker: false
+      });
+      
+             // Send current participants list to the new user
+       if (updatedRoom) {
+         const activeParticipants = updatedRoom.participants
+           .filter((p: any) => p.isActive)
+           .map((p: any) => ({
+             id: p.userId._id.toString(),
+             name: p.userId.name,
+             isSpeaking: false,
+             isMuted: false,
+             isSpeaker: false
+           }));
+         
+         socket.emit('participants:update', activeParticipants);
+       }
+      
+      console.log(`📋 User ${socket.user?.name} joined VerbfyTalk room: ${data.roomId}`);
+    } catch (error) {
+      console.error('Error joining room:', error);
+      socket.emit('room:error', { message: 'Failed to join room' });
+    }
+  });
+  
+  // Leave room
+  socket.on('room:leave', async (data: { roomId: string }) => {
+    try {
+      const room = await VerbfyTalkRoom.findById(data.roomId);
+      if (!room) {
+        return;
+      }
+      
+      // Find and deactivate user's participation
+      const participantIndex = room.participants.findIndex((p: any) => 
+        p.userId.toString() === socket.user?.id && p.isActive
+      );
+      
+      if (participantIndex !== -1) {
+        room.participants[participantIndex].isActive = false;
+        room.participants[participantIndex].leftAt = new Date();
+        
+        // If no active participants, end the room
+        const activeParticipants = room.participants.filter((p: any) => p.isActive).length;
+        if (activeParticipants === 0) {
+          room.endedAt = new Date();
+          room.isActive = false;
+          console.log(`🏁 Room ${room.name} (${data.roomId}) ended - no active participants`);
+        }
+        
+        await room.save();
+      }
+      
+      // Leave socket room
+      socket.leave(data.roomId);
+      currentRoomId = null;
+      
+      // Notify other participants
+      socket.to(data.roomId).emit('participant:left', socket.user?.id);
+      
+      // Send confirmation to user
+      socket.emit('room:left');
+      
+      console.log(`📋 User ${socket.user?.name} left VerbfyTalk room: ${data.roomId}`);
+    } catch (error) {
+      console.error('Error leaving room:', error);
+    }
+  });
+  
+  // Create room
+  socket.on('room:create', async (data: { name: string }, callback) => {
+    try {
+             const roomData = {
+         name: data.name,
+         createdBy: new Types.ObjectId(socket.user?.id!),
+         participants: [{ userId: new Types.ObjectId(socket.user?.id!), joinedAt: new Date(), isActive: true }]
+       };
+      
+      const room = new VerbfyTalkRoom(roomData);
+      await room.save();
+      
+      const populatedRoom = await VerbfyTalkRoom.findById(room._id)
+        .populate('createdBy', 'name email avatar')
+        .populate('participants.userId', 'name email avatar');
+      
+      callback({ success: true, roomId: room._id.toString() });
+      
+      // Join the created room
+      socket.emit('room:joined', populatedRoom);
+      socket.join(room._id.toString());
+      currentRoomId = room._id.toString();
+      
+      console.log(`📋 User ${socket.user?.name} created and joined room: ${data.name}`);
+    } catch (error) {
+      console.error('Error creating room:', error);
+      callback({ success: false });
+    }
+  });
+  
+  // Participant events
+  socket.on('participant:mute', (data: { roomId: string; isMuted: boolean }) => {
+    socket.to(data.roomId).emit('participant:mute', {
+      participantId: socket.user?.id,
+      isMuted: data.isMuted
+    });
+  });
+  
+  socket.on('participant:speaking', (data: { roomId: string; isSpeaking: boolean }) => {
+    socket.to(data.roomId).emit('participant:speaking', {
+      participantId: socket.user?.id,
+      isSpeaking: data.isSpeaking
+    });
+  });
+  
+  socket.on('participant:speaker', (data: { roomId: string; isSpeaker: boolean }) => {
+    socket.to(data.roomId).emit('participant:speaker', {
+      participantId: socket.user?.id,
+      isSpeaker: data.isSpeaker
+    });
+  });
+  
+     // WebRTC signaling
+   socket.on('webrtc:offer', (data: { roomId: string; to: string; offer: any }) => {
+     socket.to(data.roomId).emit('webrtc:offer', {
+       from: socket.user?.id,
+       offer: data.offer
+     });
+   });
+   
+   socket.on('webrtc:answer', (data: { roomId: string; to: string; answer: any }) => {
+     socket.to(data.roomId).emit('webrtc:answer', {
+       from: socket.user?.id,
+       answer: data.answer
+     });
+   });
+   
+   socket.on('webrtc:ice-candidate', (data: { roomId: string; to: string; candidate: any }) => {
+     socket.to(data.roomId).emit('webrtc:ice-candidate', {
+       from: socket.user?.id,
+       candidate: data.candidate
+     });
+   });
+  
+  // Room messages
+  socket.on('send-room-message', (data: { roomId: string; content: string; timestamp: number }) => {
+    socket.to(data.roomId).emit('room-message', {
+      id: Date.now().toString(),
+      content: data.content,
+      sender: socket.user?.id,
+      senderName: socket.user?.name,
+      timestamp: data.timestamp
+    });
+  });
+  
+  // Handle disconnect
+  socket.on('disconnect', async () => {
+    console.log('🔌 VerbfyTalk namespace disconnected:', socket.user?.name);
+    
+    // Clean up user from room if they were in one
+    if (currentRoomId) {
+      try {
+        const room = await VerbfyTalkRoom.findById(currentRoomId);
+        if (room) {
+          const participantIndex = room.participants.findIndex((p: any) => 
+            p.userId.toString() === socket.user?.id && p.isActive
+          );
+          
+          if (participantIndex !== -1) {
+            room.participants[participantIndex].isActive = false;
+            room.participants[participantIndex].leftAt = new Date();
+            
+            // If no active participants, end the room
+            const activeParticipants = room.participants.filter((p: any) => p.isActive).length;
+            if (activeParticipants === 0) {
+              room.endedAt = new Date();
+              room.isActive = false;
+              console.log(`🏁 Room ${room.name} (${currentRoomId}) ended - no active participants`);
+            }
+            
+            await room.save();
+            
+            // Notify other participants
+            socket.to(currentRoomId).emit('participant:left', socket.user?.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error cleaning up user on disconnect:', error);
+      }
+    }
+  });
+});
+
+// Voice Chat namespace events
+voiceChatNamespace.on('connection', (socket: AuthenticatedSocket) => {
+  console.log('🔌 Voice Chat namespace connected:', socket.user?.name);
+  
+  socket.on('join-room', (data: { roomId: string }) => {
+    socket.join(data.roomId);
+    console.log(`📋 User ${socket.user?.name} joined voice chat room: ${data.roomId}`);
+  });
+  
+  socket.on('leave-room', (data: { roomId: string }) => {
+    socket.leave(data.roomId);
+    console.log(`📋 User ${socket.user?.name} left voice chat room: ${data.roomId}`);
+  });
+  
+  // Voice chat specific events
+  socket.on('voice-offer', (data: { roomId: string; offer: any }) => {
+    socket.to(data.roomId).emit('voice-offer', {
+      userId: socket.user?.id,
+      userName: socket.user?.name,
+      offer: data.offer
+    });
+  });
+  
+  socket.on('voice-answer', (data: { roomId: string; answer: any }) => {
+    socket.to(data.roomId).emit('voice-answer', {
+      userId: socket.user?.id,
+      userName: socket.user?.name,
+      answer: data.answer
+    });
+  });
+});
+
+console.log('🔧 Socket.IO Setup - Main server initialized with namespaces');
+
+// Permissions policy headers already set above
+
+// Enhanced Socket.IO middleware with better error handling
+mainIo.use((socket, next) => {
+  try {
+    let token = (socket.handshake.auth && (socket.handshake.auth as any).token) as string | undefined;
+    
+    // Fallback to accessToken cookie if no auth token provided
+    if (!token && typeof socket.handshake.headers?.cookie === 'string') {
+      const cookieHeader = socket.handshake.headers.cookie as string;
+      const parts = cookieHeader.split(';').map(p => p.trim());
+      for (const part of parts) {
+        if (part.startsWith('accessToken=')) {
+          token = decodeURIComponent(part.substring('accessToken='.length));
+          break;
+        }
+      }
+    }
+
+    if (!token) {
+      console.log('🔌 Socket connection attempt without token');
+      return next(new Error('Unauthorized - No token provided'));
+    }
+
+    try {
+    const payload = verifyToken(token);
+    (socket as any).user = payload;
+      console.log('🔌 Socket authenticated for user:', payload.id);
+    next();
+    } catch (jwtError: any) {
+      console.log('🔌 Socket JWT verification failed:', jwtError.message);
+      return next(new Error('Unauthorized - Invalid token'));
+    }
+  } catch (e) {
+    console.error('🔌 Socket middleware error:', e);
+    return next(new Error('Unauthorized - Middleware error'));
+  }
+});
+
+// Attach io to request for controllers that need to emit events
+app.use((req, _res, next) => {
+  (req as any).io = mainIo;
+  next();
+});
+
+// Connect to MongoDB
+connectDB();
+
+// Rate limiting middleware (exclude health check). Relax limits in tests to avoid flakiness
+if (process.env.NODE_ENV !== 'test') {
+  // Exempt OAuth dance from strict auth limiter to avoid 429 during redirects
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/auth/oauth')) return next();
+    if (req.path.startsWith('/api/auth')) return authLimiter(req, res, next);
+    return next();
+  });
+
+  app.use((req, res, next) => {
+    if (req.path === '/api/health') return next();
+    return apiLimiter(req, res, next);
+  });
+}
+
+// CSRF: issue token cookie and header, and verify on state-changing requests in production
+app.use(setCsrfCookie);
+app.use(verifyCsrf);
+
 // Request logging middleware (development only)
 if (process.env.NODE_ENV === 'development') {
-  app.use((req, res, next) => {
+  app.use((req, _res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
     next();
   });
 }
 
 // Enhanced health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    version: process.env.npm_package_version || '1.0.0'
+    environment: process.env.NODE_ENV,
+    cors: {
+      allowedOrigins,
+      nodeEnv: process.env.NODE_ENV,
+      frontendUrl: process.env.FRONTEND_URL,
+      corsExtraOrigins: process.env.CORS_EXTRA_ORIGINS
+    }
   });
 });
+
+// CORS test endpoint removed - no longer needed
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -123,6 +764,7 @@ app.use('/api/availability', availabilityRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/materials', materialsRoutes);
 app.use('/api/lesson-materials', lessonMaterialRoutes);
+app.use('/api/lessons', lessonRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/analytics', analyticsRoutes);
@@ -138,10 +780,56 @@ app.use('/api/teacher-analytics', teacherAnalyticsRoutes);
 app.use('/api/ai-content-generation', aiContentGenerationRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/roles', rolesRoutes);
+app.use('/api/games', gameRoutes);
+
+// ========================================
+// TEST SENTRY ENDPOINT (BURAYA!)
+// ========================================
+app.get('/api/test-sentry', (_req, res) => {
+  try {
+    // Test Sentry by capturing an error
+    const Sentry = require('@sentry/node');
+    if (Sentry && Sentry.captureException) {
+      const testError = new Error('Test Sentry Error - Backend is working!');
+      Sentry.captureException(testError);
+      res.json({ 
+        success: true, 
+        message: 'Sentry test error captured successfully',
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.json({ 
+        success: true, 
+        message: 'Sentry not available, but endpoint is working',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error: any) {
+    res.json({ 
+      success: true, 
+      message: 'Sentry test completed',
+      error: error?.message || 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Socket.IO event handling
-io.on('connection', (socket) => {
+mainIo.on('connection', (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
+  
+  // Get user from socket
+  const user = (socket as any).user;
+  if (user?.id) {
+    socket.join(`user_${user.id}`);
+    console.log(`👤 User ${user.id} joined notification room`);
+  }
+
+  // Handle notification room joining
+  socket.on('joinNotificationRoom', (userId: string) => {
+    socket.join(`user_${userId}`);
+    console.log(`🔔 User ${userId} joined notification room`);
+  });
 
   // Join a conversation room
   socket.on('joinRoom', (conversationId: string) => {
@@ -179,6 +867,15 @@ io.on('connection', (socket) => {
 // 404 handler for undefined routes
 app.use('*', notFoundHandler);
 
+// Sentry error handler (must be before global error handler)
+try {
+  const Sentry = require('@sentry/node');
+  const errHandler = Sentry.Handlers?.errorHandler?.();
+  if (errHandler) app.use(errHandler);
+} catch (error: any) {
+  console.warn('⚠️ Sentry error handler not available:', error?.message || 'Unknown error');
+}
+
 // Global error handler (must be last)
 app.use(errorHandler);
 
@@ -203,8 +900,20 @@ server.listen(PORT, () => {
   console.log(`   - /api/messages (Messaging system)`);
   console.log(`   - /api/analytics (Analytics & reports)`);
   console.log(`   - /api/chat (Real-time chat system)`);
+  console.log(`   - /api/verbfy-talk (Voice chat rooms)`);
   console.log(`🔌 Socket.IO: Enabled for real-time communication`);
 });
+
+// Setup cron job for cleaning up empty rooms (every 5 minutes)
+setInterval(async () => {
+  try {
+    await VerbfyTalkController.cleanupEmptyRooms();
+  } catch (error) {
+    console.error('❌ Cron job failed:', error);
+  }
+}, 5 * 60 * 1000); // 5 minutes
+
+console.log(`🧹 Room cleanup cron job started (every 5 minutes)`);
 
 // Export app for testing
 export { app }; 

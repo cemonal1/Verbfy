@@ -3,6 +3,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global height guarantee for proper layout */
+html, body, #__next {
+  height: 100%;
+}
+
 /* Base styles for proper responsive behavior */
 * {
   box-sizing: border-box;
@@ -377,6 +382,11 @@ img, video, iframe {
 
 .avatar-xl {
   @apply w-16 h-16;
+}
+
+/* Default avatar helper */
+img[alt="Avatar"], img.default-avatar {
+  object-fit: cover;
 }
 
 /* Enhanced modal styles */

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'react-hot-toast';
+import { AxiosProgressEvent } from 'axios';
 import api from '../../lib/api';
 import { Material, MAX_FILE_SIZE, FILE_TYPES } from '../../types/materials';
 
@@ -122,7 +123,7 @@ export default function UploadMaterialModal({
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        onUploadProgress: (progressEvent) => {
+        onUploadProgress: (progressEvent: AxiosProgressEvent) => {
           if (progressEvent.total) {
             const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
             setUploadProgress(progress);

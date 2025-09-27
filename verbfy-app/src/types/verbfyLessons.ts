@@ -125,7 +125,13 @@ export interface StartLessonResponse {
     title: string;
     description: string;
     instructions: string;
-    materials: any[];
+    materials: {
+      id: string;
+      type: 'text' | 'image' | 'audio' | 'video' | 'document';
+      title: string;
+      content: string;
+      url?: string;
+    }[];
     exercises: {
       index: number;
       type: string;
@@ -135,8 +141,19 @@ export interface StartLessonResponse {
       audioUrl?: string;
       imageUrl?: string;
     }[];
-    vocabulary?: any[];
-    grammar?: any[];
+    vocabulary?: {
+      word: string;
+      definition: string;
+      pronunciation?: string;
+      example?: string;
+      difficulty: 'easy' | 'medium' | 'hard';
+    }[];
+    grammar?: {
+      rule: string;
+      explanation: string;
+      examples: string[];
+      difficulty: 'easy' | 'medium' | 'hard';
+    }[];
     estimatedDuration: number;
   };
 }
