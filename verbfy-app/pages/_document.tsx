@@ -10,6 +10,13 @@ export default function Document(props: DocumentProps) {
         <meta name="application-name" content="Verbfy" />
         <meta name="apple-mobile-web-app-title" content="Verbfy" />
         <meta name="description" content="Verbfy - Verbing Up Your Language Skills!" />
+        
+        {/* Permissions Policy for WebRTC media access */}
+        <meta httpEquiv="Permissions-Policy" content="camera=*, microphone=*, display-capture=*, geolocation=(), payment=(), usb=()" />
+        
+        {/* Feature Policy (fallback for older browsers) */}
+        <meta httpEquiv="Feature-Policy" content="camera *; microphone *; display-capture *" />
+        
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -30,4 +37,4 @@ export default function Document(props: DocumentProps) {
       </body>
     </Html>
   );
-} 
+}

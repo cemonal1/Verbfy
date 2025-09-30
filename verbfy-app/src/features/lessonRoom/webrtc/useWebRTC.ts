@@ -38,7 +38,32 @@ export function useWebRTC(roomId: string, peerIds: PeerIds, participantPeerIds: 
       setError(null);
       setStatus('connecting');
 
+      // Check if browser supports getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Your browser does not support media access. Please use a modern browser like Chrome, Firefox, Safari, or Edge.');
+      }
+
       console.log('🎤 Requesting microphone and camera access...');
+
+      // Check permissions first
+      try {
+        const permissions = await Promise.all([
+          navigator.permissions.query({ name: 'microphone' as PermissionName }),
+          navigator.permissions.query({ name: 'camera' as PermissionName })
+        ]);
+
+        console.log('📋 Current permissions:', {
+          microphone: permissions[0].state,
+          camera: permissions[1].state
+        });
+
+        if (permissions[0].state === 'denied' || permissions[1].state === 'denied') {
+          throw new Error('Media permissions are denied. Please allow microphone and camera access in your browser settings.');
+        }
+      } catch (permErr) {
+        console.warn('⚠️ Could not check permissions:', permErr);
+        // Continue anyway, as some browsers don't support permissions API
+      }
 
       // Request user media with proper constraints
       const constraints: MediaStreamConstraints = {
@@ -73,10 +98,20 @@ export function useWebRTC(roomId: string, peerIds: PeerIds, participantPeerIds: 
       
       if (audioTrack) {
         audioTrack.enabled = isMicOn;
+        // Add event listeners for track ended
+        audioTrack.addEventListener('ended', () => {
+          console.warn('🎤 Audio track ended');
+          setError('Microphone access was lost. Please refresh the page.');
+        });
       }
       
       if (videoTrack) {
         videoTrack.enabled = isCameraOn;
+        // Add event listeners for track ended
+        videoTrack.addEventListener('ended', () => {
+          console.warn('📹 Video track ended');
+          setError('Camera access was lost. Please refresh the page.');
+        });
       }
 
     } catch (err: any) {
@@ -85,16 +120,17 @@ export function useWebRTC(roomId: string, peerIds: PeerIds, participantPeerIds: 
       let errorMessage = 'Failed to access microphone and camera';
       
       if (err.name === 'NotAllowedError') {
-        errorMessage = 'Microphone and camera access denied. Please allow access in your browser settings.';
+        errorMessage = 'Microphone and camera access denied. Please click the camera/microphone icon in your browser\'s address bar and select "Allow", then refresh the page.';
       } else if (err.name === 'NotFoundError') {
-        errorMessage = 'No microphone or camera found. Please check your devices.';
+        errorMessage = 'No microphone or camera found. Please check that your devices are connected and working properly.';
       } else if (err.name === 'NotReadableError') {
-        errorMessage = 'Microphone or camera is already in use by another application.';
+        errorMessage = 'Microphone or camera is already in use by another application. Please close other applications using your camera/microphone and try again.';
       } else if (err.name === 'OverconstrainedError') {
         errorMessage = 'Camera constraints cannot be satisfied. Trying with basic settings...';
         
         // Try with basic constraints
         try {
+          console.log('🔄 Trying with basic media constraints...');
           const basicStream = await navigator.mediaDevices.getUserMedia({
             audio: true,
             video: true
@@ -107,7 +143,12 @@ export function useWebRTC(roomId: string, peerIds: PeerIds, participantPeerIds: 
           return;
         } catch (basicErr) {
           console.error('❌ Failed with basic constraints too:', basicErr);
+          errorMessage = 'Failed to access media devices even with basic settings. Please check your browser permissions and device connections.';
         }
+      } else if (err.name === 'SecurityError') {
+        errorMessage = 'Media access blocked due to security restrictions. Please ensure you\'re using HTTPS and try again.';
+      } else if (err.message) {
+        errorMessage = err.message;
       }
       
       setError(errorMessage);
@@ -194,4 +235,4 @@ export function useWebRTC(roomId: string, peerIds: PeerIds, participantPeerIds: 
     toggleRemoteVideo,
     isInitializing,
   };
-} 
+}
