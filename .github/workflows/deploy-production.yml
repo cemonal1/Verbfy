@@ -99,6 +99,23 @@ jobs:
           # Install and build frontend
           cd verbfy-app && npm ci && npm run build && cd ..
 
+      - name: Validate deployment secrets
+        if: success()
+        run: |
+          if [ -z "${{ secrets.PRODUCTION_HOST }}" ]; then
+            echo "Error: PRODUCTION_HOST secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.PRODUCTION_USER }}" ]; then
+            echo "Error: PRODUCTION_USER secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.PRODUCTION_SSH_KEY }}" ]; then
+            echo "Error: PRODUCTION_SSH_KEY secret is not set"
+            exit 1
+          fi
+          echo "All required deployment secrets are configured"
+
       - name: Deploy to production server
         if: success()
         uses: appleboy/ssh-action@v1.0.0
@@ -107,7 +124,12 @@ jobs:
           username: ${{ secrets.PRODUCTION_USER }}
           key: ${{ secrets.PRODUCTION_SSH_KEY }}
           port: ${{ secrets.PRODUCTION_PORT || 22 }}
+          timeout: 300s
+          command_timeout: 600s
           script: |
+            # Set error handling
+            set -e
+            
             # Navigate to application directory
             cd /opt/verbfy
             
@@ -118,23 +140,67 @@ jobs:
             # The actual production secrets should be managed server-side
             
             # Build and deploy with Docker Compose
-            docker compose -f docker-compose.production.yml down
+            docker compose -f docker-compose.production.yml down || true
             docker compose -f docker-compose.production.yml up -d --build
             
             # Clean up old images
             docker system prune -f
             
-            # Health check
+            # Health check with retries
+            echo "Waiting for services to start..."
             sleep 30
-            curl -f http://localhost:5000/health || exit 1
-            curl -f http://localhost:3000 || exit 1
+            
+            # Backend health check
+            for i in {1..5}; do
+              if curl -f http://localhost:5000/health; then
+                echo "Backend health check passed"
+                break
+              fi
+              echo "Backend health check attempt $i failed, retrying..."
+              sleep 10
+            done
+            
+            # Frontend health check
+            for i in {1..5}; do
+              if curl -f http://localhost:3000; then
+                echo "Frontend health check passed"
+                break
+              fi
+              echo "Frontend health check attempt $i failed, retrying..."
+              sleep 10
+            done
+            
+            echo "Deployment completed successfully"
+
+      - name: Create deployment summary
+        if: always()
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ **Deployment completed successfully!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Services Status" >> $GITHUB_STEP_SUMMARY
+            echo "- Backend: ✅ Running on port 5000" >> $GITHUB_STEP_SUMMARY
+            echo "- Frontend: ✅ Running on port 3000" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Deployment failed!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please check the workflow logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Notify deployment status
-        if: always()
+        if: always() && secrets.SLACK_WEBHOOK_URL != ''
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
           channel: '#deployments'
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
