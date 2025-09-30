@@ -103,8 +103,15 @@ function VerbfyTalkRoomPage() {
       await verbfyTalkAPI.leaveRoom(roomId as string);
       toast.success('Left room successfully');
       router.push('/verbfy-talk');
-    } catch (error) {
-      toast.error('Failed to leave room');
+    } catch (error: any) {
+      // If user is not in room (400 error), treat as successful leave
+      if (error.response?.status === 400 && error.response?.data?.message === 'Not in room') {
+        toast.success('Left room successfully');
+        router.push('/verbfy-talk');
+      } else {
+        console.error('Leave room error:', error);
+        toast.error('Failed to leave room');
+      }
     }
   };
 
