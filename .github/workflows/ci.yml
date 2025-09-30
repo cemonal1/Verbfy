@@ -37,8 +37,36 @@ jobs:
       - name: Verify environment files exist
         run: |
           echo "Checking for required environment files..."
-          ls -la backend/.env.production || echo "❌ backend/.env.production missing"
-          ls -la verbfy-app/.env.production || echo "❌ verbfy-app/.env.production missing"
+          if [ ! -f backend/.env.production ]; then
+            echo "❌ backend/.env.production missing"
+            echo "Creating template backend/.env.production for CI..."
+            echo "NODE_ENV=production" > backend/.env.production
+            echo "PORT=5001" >> backend/.env.production
+            echo "MONGO_URI=mongodb://admin:password@localhost:27017/verbfy?authSource=admin" >> backend/.env.production
+            echo "JWT_SECRET=ci-jwt-secret-placeholder" >> backend/.env.production
+            echo "JWT_REFRESH_SECRET=ci-jwt-refresh-secret-placeholder" >> backend/.env.production
+            echo "SESSION_SECRET=ci-session-secret-placeholder" >> backend/.env.production
+            echo "LIVEKIT_API_KEY=placeholder-key" >> backend/.env.production
+            echo "LIVEKIT_API_SECRET=placeholder-secret" >> backend/.env.production
+            echo "GOOGLE_CLIENT_ID=placeholder-client-id" >> backend/.env.production
+            echo "GOOGLE_CLIENT_SECRET=placeholder-client-secret" >> backend/.env.production
+            echo "CORS_ORIGIN=https://verbfy.com" >> backend/.env.production
+            echo "FRONTEND_URL=https://verbfy.com" >> backend/.env.production
+            echo "BACKEND_URL=https://api.verbfy.com" >> backend/.env.production
+          else
+            echo "✅ backend/.env.production exists"
+          fi
+          
+          if [ ! -f verbfy-app/.env.production ]; then
+            echo "❌ verbfy-app/.env.production missing"
+            echo "Creating template verbfy-app/.env.production for CI..."
+            echo "NODE_ENV=production" > verbfy-app/.env.production
+            echo "NEXT_PUBLIC_API_URL=https://api.verbfy.com" >> verbfy-app/.env.production
+            echo "NEXT_PUBLIC_LIVEKIT_URL=wss://placeholder.livekit.cloud" >> verbfy-app/.env.production
+          else
+            echo "✅ verbfy-app/.env.production exists"
+          fi
+          
           echo "✅ Environment file check complete"
 
       - name: Install backend deps
