@@ -57,8 +57,8 @@ try {
 // Validate environment variables before starting the application
 try {
   validateEnvironment();
-} catch (error: any) {
-  console.error('❌ Environment validation failed:', error.message);
+} catch (error) {
+  console.error('❌ Environment validation failed:', error instanceof Error ? error.message : String(error));
   process.exit(1);
 }
 

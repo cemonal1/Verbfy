@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { freeMaterialsAPI } from '@/lib/api';
@@ -40,15 +40,7 @@ function FreeMaterialsPage() {
   });
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  useEffect(() => {
-    loadMaterials();
-  }, [filters]);
-
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     try {
       setLoading(true);
       const [categoriesRes, levelsRes, featuredRes] = await Promise.all([
@@ -65,9 +57,9 @@ function FreeMaterialsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadMaterials = async () => {
+  const loadMaterials = useCallback(async () => {
     try {
       const response = await freeMaterialsAPI.getMaterials(filters);
       setMaterials(response.data);
@@ -75,7 +67,15 @@ function FreeMaterialsPage() {
     } catch (error) {
       toast.error('Failed to load materials');
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  useEffect(() => {
+    loadMaterials();
+  }, [loadMaterials]);
 
   const handleDownload = async (material: FreeMaterial) => {
     try {

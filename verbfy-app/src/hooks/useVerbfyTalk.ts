@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/context/AuthContext';
 import { tokenStorage } from '@/utils/secureStorage';
@@ -60,12 +60,99 @@ export const useVerbfyTalk = () => {
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
 
   // WebRTC Configuration
-  const WEBRTC_CONFIG = {
+  const WEBRTC_CONFIG = useMemo(() => ({
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' }
     ]
-  };
+  }), []);
+
+  // Create peer connection
+  const createPeerConnection = useCallback(async (participantId: string) => {
+    try {
+      const peerConnection = new RTCPeerConnection(WEBRTC_CONFIG);
+      peerConnectionsRef.current.set(participantId, peerConnection);
+
+      // Add local stream
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStreamRef.current!);
+        });
+      }
+
+      // Handle ICE candidates
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate && socketRef.current?.connected) {
+          socketRef.current.emit('webrtc:ice-candidate', {
+            to: participantId,
+            candidate: event.candidate
+          });
+        }
+      };
+
+      // Handle remote stream
+      peerConnection.ontrack = () => {
+        console.log('🎵 Remote audio stream received from:', participantId);
+        // You can add audio element here to play remote audio
+      };
+
+      // Create and send offer
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('webrtc:offer', {
+          to: participantId,
+          offer: offer
+        });
+      }
+    } catch (error) {
+      console.error('Failed to create peer connection:', error);
+    }
+  }, [WEBRTC_CONFIG]);
+
+  // WebRTC handlers
+  const handleOffer = useCallback(async (from: string, offer: RTCSessionDescriptionInit) => {
+    try {
+      const peerConnection = new RTCPeerConnection(WEBRTC_CONFIG);
+      peerConnectionsRef.current.set(from, peerConnection);
+
+      // Add local stream
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStreamRef.current!);
+        });
+      }
+
+      // Handle ICE candidates
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate && socketRef.current?.connected) {
+          socketRef.current.emit('webrtc:ice-candidate', {
+            to: from,
+            candidate: event.candidate
+          });
+        }
+      };
+
+      // Handle remote stream
+      peerConnection.ontrack = () => {
+        console.log('🎵 Remote audio stream received from:', from);
+      };
+
+      await peerConnection.setRemoteDescription(offer);
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('webrtc:answer', {
+          to: from,
+          answer: answer
+        });
+      }
+    } catch (error) {
+      console.error('❌ Failed to handle offer:', error);
+    }
+  }, [WEBRTC_CONFIG]);
 
   // Initialize Socket Connection
   useEffect(() => {
@@ -284,94 +371,7 @@ export const useVerbfyTalk = () => {
     }
   }, []);
 
-  // Create peer connection
-  const createPeerConnection = useCallback(async (participantId: string) => {
-    try {
-      const peerConnection = new RTCPeerConnection(WEBRTC_CONFIG);
-      peerConnectionsRef.current.set(participantId, peerConnection);
 
-      // Add local stream
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => {
-          peerConnection.addTrack(track, localStreamRef.current!);
-        });
-      }
-
-                  // Handle ICE candidates
-            peerConnection.onicecandidate = (event) => {
-              if (event.candidate && socketRef.current?.connected) {
-                socketRef.current.emit('webrtc:ice-candidate', {
-                  to: participantId,
-                  candidate: event.candidate
-                });
-              }
-            };
-
-      // Handle remote stream
-      peerConnection.ontrack = () => {
-        console.log('🎵 Remote audio stream received from:', participantId);
-        // You can add audio element here to play remote audio
-      };
-
-      // Create and send offer
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-
-      if (socketRef.current?.connected) {
-        socketRef.current.emit('webrtc:offer', {
-          to: participantId,
-          offer: offer
-        });
-      }
-
-      console.log('🔗 Peer connection created for:', participantId);
-    } catch (error) {
-      console.error('❌ Failed to create peer connection:', error);
-    }
-  }, [WEBRTC_CONFIG]);
-
-  // WebRTC handlers
-  const handleOffer = async (from: string, offer: RTCSessionDescriptionInit) => {
-    try {
-      const peerConnection = new RTCPeerConnection(WEBRTC_CONFIG);
-      peerConnectionsRef.current.set(from, peerConnection);
-
-      // Add local stream
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => {
-          peerConnection.addTrack(track, localStreamRef.current!);
-        });
-      }
-
-      // Handle ICE candidates
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate && socketRef.current?.connected) {
-          socketRef.current.emit('webrtc:ice-candidate', {
-            to: from,
-            candidate: event.candidate
-          });
-        }
-      };
-
-                  // Handle remote stream
-            peerConnection.ontrack = () => {
-              console.log('🎵 Remote audio stream received from:', from);
-            };
-
-      await peerConnection.setRemoteDescription(offer);
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-
-      if (socketRef.current?.connected) {
-        socketRef.current.emit('webrtc:answer', {
-          to: from,
-          answer: answer
-        });
-      }
-    } catch (error) {
-      console.error('❌ Failed to handle offer:', error);
-    }
-  };
 
   const handleAnswer = async (from: string, answer: RTCSessionDescriptionInit) => {
     try {

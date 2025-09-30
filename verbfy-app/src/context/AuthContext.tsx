@@ -4,7 +4,7 @@ import api, { authAPI } from '../lib/api';
 import { tokenStorage } from '../utils/secureStorage';
 
 // User interface
-export interface User {
+export interface User extends Record<string, unknown> {
   _id: string;
   id: string; // Alias for backward compatibility
   name: string;
@@ -93,9 +93,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       const response = await authAPI.getCurrentUser();
-
-      if (response.data?.success && response.data?.user) {
-        setUser(response.data.user);
+      
+      if (response.data.success) {
+        const userData = response.data.user;
+        
+        // Add id alias for backward compatibility
+        const userWithId = {
+          ...userData,
+          id: userData._id
+        };
+        
+        setUser(userWithId);
+        // Update stored user data
+        tokenStorage.setUser({ ...userWithId });
       } else {
         console.warn('Unexpected auth response structure:', response);
         tokenStorage.clear();
@@ -127,12 +137,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true);
       const response = await authAPI.login({ email, password });
-      if (response.success) {
-        const { accessToken, user: userData, token } = response;
-        const userWithId = { ...userData, id: userData._id } as User;
+      if (response.data?.success || response.success) {
+        const responseData = response.data || response;
+        const { accessToken, user: userData, token } = responseData;
+        
+        // Add id alias for backward compatibility
+        const userWithId = {
+          ...userData,
+          id: userData._id
+        } as User;
+        
+        // Store token and user data securely
         const provided = accessToken || token;
         if (provided) tokenStorage.setToken(provided);
-        tokenStorage.setUser(userWithId);
+        tokenStorage.setUser({ ...userWithId });
+        
+        // Set user in state
         setUser(userWithId);
         return true;
       }
@@ -149,10 +169,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true);
       const response = await authAPI.register(userData);
-      if (response.success) {
-        const { accessToken, user: newUser, token } = response;
-        const userWithId = { ...newUser, id: newUser._id } as User;
-        tokenStorage.setUser(userWithId);
+      
+      if (response.data?.success || response.success) {
+        const responseData = response.data || response;
+        const { accessToken, user: newUser, token } = responseData;
+        
+        // Add id alias for backward compatibility
+        const userWithId = {
+          ...newUser,
+          id: newUser._id
+        } as User;
+        
+        // Store token and user data securely
+        const provided = accessToken || token;
+        if (provided) tokenStorage.setToken(provided);
+        tokenStorage.setUser({ ...userWithId });
+        
+        // Set user in state
         setUser(userWithId);
         return true;
       }
@@ -203,7 +236,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
         
         setUser(userWithId);
-        tokenStorage.setUser(userWithId);
+        tokenStorage.setUser({ ...userWithId });
       }
     } catch (error) {
       console.error('Error refreshing user:', error);
@@ -265,13 +298,13 @@ export function useRoleGuard(allowedRoles: ('student' | 'teacher' | 'admin')[]) 
         // Redirect to appropriate dashboard based on user role
         switch (user.role) {
           case 'student':
-            router.push('/dashboard/student');
+            router.push('/dashboard');
             break;
           case 'teacher':
-            router.push('/dashboard/teacher');
+            router.push('/teacher/dashboard');
             break;
           case 'admin':
-            router.push('/dashboard/admin');
+            router.push('/admin');
             break;
           default:
             router.push('/login');

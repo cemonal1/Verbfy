@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # MongoDB Database
   mongodb:
@@ -74,7 +72,7 @@ services:
     env_file:
       - ./backend/.env.production
     ports:
-      - "5000:5000"
+      - "5001:5000"
     volumes:
       - ./backend/logs:/app/logs
       - ./backend/uploads:/app/uploads
@@ -150,4 +148,4 @@ volumes:
 
 networks:
   verbfy-network:
-    driver: bridge 
+    driver: bridge

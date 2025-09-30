@@ -1,0 +1,140 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Create backend production environment file
+        run: |
+          cat > backend/.env.production << EOF
+          # Database
+          MONGO_URI=${{ secrets.MONGO_URI }}
+          
+          # JWT Secrets
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+          
+          # Server
+          PORT=5000
+          NODE_ENV=production
+          FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+          BACKEND_URL=${{ secrets.BACKEND_URL }}
+          
+          # LiveKit
+          LIVEKIT_CLOUD_API_KEY=${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_CLOUD_API_SECRET=${{ secrets.LIVEKIT_API_SECRET }}
+          LIVEKIT_CLOUD_URL=${{ secrets.LIVEKIT_CLOUD_URL }}
+          
+          # OAuth
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          MS_CLIENT_ID=${{ secrets.MS_CLIENT_ID }}
+          MS_CLIENT_SECRET=${{ secrets.MS_CLIENT_SECRET }}
+          
+          # Stripe
+          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          
+          # Email
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          SMTP_FROM="${{ secrets.SMTP_FROM }}"
+          
+          # AWS
+          AWS_REGION=${{ secrets.AWS_REGION }}
+          S3_BUCKET=${{ secrets.S3_BUCKET }}
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          
+          # Monitoring
+          SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+          EOF
+
+      - name: Create frontend production environment file
+        run: |
+          cat > verbfy-app/.env.production << EOF
+          # API Configuration
+          NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_BACKEND_URL=${{ secrets.NEXT_PUBLIC_BACKEND_URL }}
+          
+          # LiveKit
+          NEXT_PUBLIC_LIVEKIT_URL=${{ secrets.NEXT_PUBLIC_LIVEKIT_URL }}
+          NEXT_PUBLIC_LIVEKIT_CLOUD_URL=${{ secrets.NEXT_PUBLIC_LIVEKIT_CLOUD_URL }}
+          
+          # Stripe
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          
+          # Analytics
+          NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
+          
+          # Environment
+          NODE_ENV=production
+          NEXT_PUBLIC_ENV=production
+          EOF
+
+      - name: Build and test
+        run: |
+          # Install and build backend
+          cd backend && npm ci && npm run build && cd ..
+          
+          # Install and build frontend
+          cd verbfy-app && npm ci && npm run build && cd ..
+
+      - name: Deploy to production server
+        if: success()
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          port: ${{ secrets.PRODUCTION_PORT || 22 }}
+          script: |
+            # Navigate to application directory
+            cd /opt/verbfy
+            
+            # Pull latest code
+            git pull origin main
+            
+            # Copy environment files (these should be managed on the server)
+            # The actual production secrets should be managed server-side
+            
+            # Build and deploy with Docker Compose
+            docker compose -f docker-compose.production.yml down
+            docker compose -f docker-compose.production.yml up -d --build
+            
+            # Clean up old images
+            docker system prune -f
+            
+            # Health check
+            sleep 30
+            curl -f http://localhost:5000/health || exit 1
+            curl -f http://localhost:3000 || exit 1
+
+      - name: Notify deployment status
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
