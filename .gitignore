@@ -31,6 +31,11 @@ node_modules/
 backend/.env.production.real
 verbfy-app/.env.production.real
 
+# All .env.production files (contain real secrets)
+.env.production
+backend/.env.production
+verbfy-app/.env.production
+
 # Debug logs
 npm-debug.log*
 yarn-debug.log*
@@ -54,4 +59,4 @@ Thumbs.db
 
 # Temp files
 *.log
-*.tmp 
+*.tmp
