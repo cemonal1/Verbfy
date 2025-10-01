@@ -197,13 +197,13 @@ export const useVerbfyTalk = () => {
       setIsConnected(false);
     });
 
-    newSocket.on('connect_error', (error) => {
+    newSocket.on('connect_error', (error: any) => {
       console.error('❌ VerbfyTalk: Connection error:', error);
       console.error('🔍 VerbfyTalk: Error details:', {
         message: error.message,
-        description: error.description,
-        context: error.context,
-        type: error.type
+        description: error.description || 'No description available',
+        context: error.context || 'No context available',
+        type: error.type || 'Unknown error type'
       });
       setError('Failed to connect to server');
     });
