@@ -176,10 +176,18 @@ export class VerbfyTalkController {
       const userId = (req as any).user.id;
       const { roomId } = req.params;
 
+      console.log(`🚪 Leave room request - User: ${userId}, Room: ${roomId}`);
+
       const room = await VerbfyTalkRoom.findById(roomId);
       if (!room) {
+        console.log(`❌ Room not found: ${roomId}`);
         return res.status(404).json({ success: false, message: 'Room not found' });
       }
+
+      console.log(`📋 Room participants:`, room.participants.map((p: any) => ({
+        userId: p.userId.toString(),
+        isActive: p.isActive
+      })));
 
       // Find and deactivate user's participation
       const participantIndex = room.participants.findIndex((p: any) => 
@@ -187,6 +195,7 @@ export class VerbfyTalkController {
       );
 
       if (participantIndex === -1) {
+        console.log(`❌ User ${userId} not found in active participants of room ${roomId}`);
         return res.status(400).json({ success: false, message: 'Not in room' });
       }
 
@@ -383,4 +392,4 @@ export class VerbfyTalkController {
       console.error('❌ Failed to cleanup empty rooms:', error);
     }
   }
-} 
+}
