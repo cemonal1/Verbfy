@@ -45,7 +45,7 @@ export function useChatViewModel(roomId: string): UseChatViewModelReturn {
   const messages: ChatMessage[] = verbfyMessages.map(msg => ({
     id: msg.id,
     userId: msg.userId,
-    userName: msg.username,
+    userName: msg.userName,
     message: msg.message,
     timestamp: new Date(msg.timestamp),
     type: 'text' as const,
