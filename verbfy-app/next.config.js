@@ -3,9 +3,11 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   
-  // Enable static export for Cloudflare Pages
-  output: 'export',
-  trailingSlash: true,
+  // Enable static export for Cloudflare Pages (disabled in development)
+  ...(process.env.NODE_ENV === 'production' && {
+    output: 'export',
+    trailingSlash: true,
+  }),
   
   // Security headers
   async headers() {
