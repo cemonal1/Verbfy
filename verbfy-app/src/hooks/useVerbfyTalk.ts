@@ -156,9 +156,16 @@ export const useVerbfyTalk = () => {
 
   // Initialize Socket Connection
   useEffect(() => {
-    if (!user || !token) return;
+    if (!user || !token) {
+      console.log('🚫 VerbfyTalk: No user or token available');
+      return;
+    }
 
-    const newSocket = io(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.verbfy.com'}`, {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.verbfy.com';
+    console.log('🔗 VerbfyTalk: Attempting to connect to:', backendUrl);
+    console.log('👤 VerbfyTalk: User:', user?.name, 'Token:', token ? 'Available' : 'Missing');
+
+    const newSocket = io(backendUrl, {
       auth: {
         token: token
       },
@@ -179,19 +186,42 @@ export const useVerbfyTalk = () => {
 
     // Connection events
     newSocket.on('connect', () => {
-      console.log('✅ Connected to VerbfyTalk server');
+      console.log('✅ VerbfyTalk: Connected to server successfully');
+      console.log('🆔 VerbfyTalk: Socket ID:', newSocket.id);
       setIsConnected(true);
       setError(null);
     });
 
     newSocket.on('disconnect', (reason) => {
-      console.log('❌ Disconnected from VerbfyTalk server:', reason);
+      console.log('❌ VerbfyTalk: Disconnected from server:', reason);
       setIsConnected(false);
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('❌ Connection error:', error);
+      console.error('❌ VerbfyTalk: Connection error:', error);
+      console.error('🔍 VerbfyTalk: Error details:', {
+        message: error.message,
+        description: error.description,
+        context: error.context,
+        type: error.type
+      });
       setError('Failed to connect to server');
+    });
+
+    newSocket.on('reconnect', (attemptNumber) => {
+      console.log('🔄 VerbfyTalk: Reconnected after', attemptNumber, 'attempts');
+    });
+
+    newSocket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('🔄 VerbfyTalk: Reconnection attempt', attemptNumber);
+    });
+
+    newSocket.on('reconnect_error', (error) => {
+      console.error('❌ VerbfyTalk: Reconnection error:', error);
+    });
+
+    newSocket.on('reconnect_failed', () => {
+      console.error('❌ VerbfyTalk: Reconnection failed after all attempts');
     });
 
     // Room events
