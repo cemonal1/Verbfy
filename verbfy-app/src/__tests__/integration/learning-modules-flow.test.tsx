@@ -30,17 +30,23 @@ const mockRouter = {
 
 describe('Learning Modules Flow Integration', () => {
   const mockTeacherUser = {
+    _id: '1',
     id: '1',
     name: 'Teacher User',
     email: 'teacher@example.com',
-    role: 'teacher',
+    role: 'teacher' as const,
+    createdAt: '2023-01-01T00:00:00.000Z',
+    updatedAt: '2023-01-01T00:00:00.000Z',
   }
 
   const mockStudentUser = {
+    _id: '2',
     id: '2',
     name: 'Student User',
     email: 'student@example.com',
-    role: 'student',
+    role: 'student' as const,
+    createdAt: '2023-01-01T00:00:00.000Z',
+    updatedAt: '2023-01-01T00:00:00.000Z',
   }
 
   const mockLessons = [
@@ -83,10 +89,15 @@ describe('Learning Modules Flow Integration', () => {
     it('should load and display lessons for teacher', async () => {
       const mockAuthContext = {
         user: mockTeacherUser,
+        isAuthenticated: true,
+        isLoading: false,
         loading: false,
         login: jest.fn(),
         logout: jest.fn(),
         register: jest.fn(),
+        refreshUser: jest.fn(),
+        setUser: jest.fn(),
+        setAccessToken: jest.fn(),
       }
 
       ;(verbfyLessonsAPI.getLessons as jest.Mock).mockResolvedValue({
@@ -116,10 +127,15 @@ describe('Learning Modules Flow Integration', () => {
     it('should create new lesson successfully', async () => {
       const mockAuthContext = {
         user: mockTeacherUser,
+        isAuthenticated: true,
+        isLoading: false,
         loading: false,
         login: jest.fn(),
         logout: jest.fn(),
         register: jest.fn(),
+        refreshUser: jest.fn(),
+        setUser: jest.fn(),
+        setAccessToken: jest.fn(),
       }
 
       const newLesson = {
@@ -185,10 +201,15 @@ describe('Learning Modules Flow Integration', () => {
     it('should delete lesson successfully', async () => {
       const mockAuthContext = {
         user: mockTeacherUser,
+        isAuthenticated: true,
+        isLoading: false,
         loading: false,
         login: jest.fn(),
         logout: jest.fn(),
         register: jest.fn(),
+        refreshUser: jest.fn(),
+        setUser: jest.fn(),
+        setAccessToken: jest.fn(),
       }
 
       ;(verbfyLessonsAPI.getLessons as jest.Mock).mockResolvedValue({
@@ -228,10 +249,15 @@ describe('Learning Modules Flow Integration', () => {
     it('should start and complete lesson successfully', async () => {
       const mockAuthContext = {
         user: mockStudentUser,
+        isAuthenticated: true,
+        isLoading: false,
         loading: false,
         login: jest.fn(),
         logout: jest.fn(),
         register: jest.fn(),
+        refreshUser: jest.fn(),
+        setUser: jest.fn(),
+        setAccessToken: jest.fn(),
       }
 
       const mockLesson = {
@@ -302,10 +328,15 @@ describe('Learning Modules Flow Integration', () => {
     it('should handle lesson errors gracefully', async () => {
       const mockAuthContext = {
         user: mockStudentUser,
+        isAuthenticated: true,
+        isLoading: false,
         loading: false,
         login: jest.fn(),
         logout: jest.fn(),
         register: jest.fn(),
+        refreshUser: jest.fn(),
+        setUser: jest.fn(),
+        setAccessToken: jest.fn(),
       }
 
       const mockError = new Error('Lesson not found')
@@ -323,4 +354,4 @@ describe('Learning Modules Flow Integration', () => {
       })
     })
   })
-}) 
+})

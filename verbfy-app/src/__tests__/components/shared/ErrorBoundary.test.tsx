@@ -80,7 +80,10 @@ describe('ErrorBoundary', () => {
 
   it('provides error details in development mode', () => {
     const originalEnv = process.env.NODE_ENV
-    process.env.NODE_ENV = 'development'
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'development',
+      configurable: true,
+    })
 
     render(
       <ErrorBoundary>
@@ -91,7 +94,10 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText(/Error Details/i)).toBeInTheDocument()
     expect(screen.getByText(/Test error/i)).toBeInTheDocument()
 
-    process.env.NODE_ENV = originalEnv
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: originalEnv,
+      configurable: true,
+    })
   })
 
   it('calls componentDidCatch when error occurs', () => {
@@ -110,4 +116,4 @@ describe('ErrorBoundary', () => {
     // Restore original method
     ErrorBoundary.prototype.componentDidCatch = originalComponentDidCatch
   })
-}) 
+})

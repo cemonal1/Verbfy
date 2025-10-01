@@ -26,10 +26,15 @@ const mockRouter = {
 describe('Authentication Flow Integration', () => {
   const mockAuthContext = {
     user: null,
+    isAuthenticated: false,
+    isLoading: false,
     loading: false,
     login: jest.fn(),
     logout: jest.fn(),
     register: jest.fn(),
+    refreshUser: jest.fn(),
+    setUser: jest.fn(),
+    setAccessToken: jest.fn(),
   }
 
   const renderWithProviders = (ui: React.ReactNode) =>
@@ -198,4 +203,4 @@ describe('Authentication Flow Integration', () => {
       expect(screen.queryByText(/invalid credentials/i)).not.toBeInTheDocument()
     })
   })
-}) 
+})

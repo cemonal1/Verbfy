@@ -1,6 +1,17 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ModuleManagementInterface } from '@/features/learningModules/view/ModuleManagementInterface'
+
+// Extend Performance interface for Chrome-specific memory property
+declare global {
+  interface Performance {
+    memory?: {
+      usedJSHeapSize: number;
+      totalJSHeapSize: number;
+      jsHeapSizeLimit: number;
+    };
+  }
+}
 import { AITutoringInterface } from '@/features/aiFeatures/view/AITutoringInterface'
 import { AIAnalyticsDashboard } from '@/features/aiFeatures/view/AIAnalyticsDashboard'
 
@@ -257,4 +268,4 @@ describe('Component Performance Tests', () => {
       }).not.toThrow()
     })
   })
-}) 
+})
