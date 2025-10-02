@@ -1,0 +1,86 @@
+name: Auto Deploy to Hetzner
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          known_hosts: ${{ secrets.HETZNER_KNOWN_HOSTS }}
+
+      - name: Deploy to Hetzner Server
+        run: |
+          echo "🚀 Starting deployment to Hetzner server..."
+          
+          # SSH into server and run deployment
+          ssh -o StrictHostKeyChecking=no root@46.62.161.121 << 'EOF'
+            set -e
+            
+            echo "📂 Navigating to project directory..."
+            cd /root/Verbfy
+            
+            echo "🔄 Pulling latest changes from GitHub..."
+            git fetch origin
+            git reset --hard origin/main
+            
+            echo "🛠️ Running deployment script..."
+            chmod +x ./deploy-production.sh
+            ./deploy-production.sh
+            
+            echo "✅ Deployment completed successfully!"
+          EOF
+
+      - name: Verify Deployment
+        run: |
+          echo "🔍 Verifying deployment..."
+          
+          # Wait for services to start
+          sleep 30
+          
+          # Check if API is responding
+          if curl -f -s https://api.verbfy.com/api/health > /dev/null; then
+            echo "✅ API health check passed"
+          else
+            echo "❌ API health check failed"
+            exit 1
+          fi
+          
+          # Check if frontend is responding
+          if curl -f -s https://verbfy.com > /dev/null; then
+            echo "✅ Frontend health check passed"
+          else
+            echo "❌ Frontend health check failed"
+            exit 1
+          fi
+          
+          echo "🎉 All health checks passed! Deployment successful."
+
+      - name: Notify on Success
+        if: success()
+        run: |
+          echo "✅ Deployment to Hetzner server completed successfully!"
+          echo "🌐 Frontend: https://verbfy.com"
+          echo "🔗 API: https://api.verbfy.com"
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed! Please check the logs."
+          echo "🔧 Manual intervention may be required."

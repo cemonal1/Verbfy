@@ -5,8 +5,7 @@ import { verbfyTalkAPI } from '@/lib/api';
 import { VerbfyTalkRoom } from '@/types/verbfyTalk';
 import { useAuthContext } from '@/context/AuthContext';
 import { useWebRTC } from '@/features/lessonRoom/webrtc/useWebRTC';
-import { useChatViewModel } from '@/features/chat/viewmodel/useChatViewModel';
-import ChatBox from '@/features/chat/view/ChatBox';
+import LessonChatBox from '@/features/lesson-chat/components/LessonChatBox';
 import { toast } from 'react-hot-toast';
 import { 
   ArrowLeftIcon,
@@ -56,9 +55,6 @@ function VerbfyTalkRoomPage() {
     toggleRemoteVideo,
     isInitializing,
   } = useWebRTC(roomId as string, peerIds, participants);
-
-  // Chat setup
-  const { messages, sendMessage, isConnected } = useChatViewModel(roomId as string);
 
   // Video refs
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -440,20 +436,9 @@ function VerbfyTalkRoomPage() {
               </div>
             )}
 
-            {/* Chat */}
+            {/* Lesson Chat */}
             <div className="flex-1 flex flex-col">
-              <div className="p-4 border-b">
-                <h3 className="font-semibold text-gray-900">Chat</h3>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <ChatBox
-                  messages={messages}
-                  onSendMessage={sendMessage}
-                  isConnected={isConnected}
-
-
-                />
-              </div>
+              <LessonChatBox lessonId={roomId as string} />
             </div>
           </div>
         </div>

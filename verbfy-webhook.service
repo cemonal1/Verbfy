@@ -1,0 +1,30 @@
+[Unit]
+Description=Verbfy GitHub Webhook Server
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/Verbfy
+ExecStart=/usr/bin/node /root/Verbfy/webhook-server.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables
+Environment=NODE_ENV=production
+Environment=WEBHOOK_PORT=9000
+Environment=WEBHOOK_SECRET=verbfy-webhook-secret-2024
+Environment=PROJECT_DIR=/root/Verbfy
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/root/Verbfy /var/log
+
+[Install]
+WantedBy=multi-user.target

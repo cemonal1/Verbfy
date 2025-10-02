@@ -86,16 +86,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Load user from token
   const loadUser = async () => {
     try {
+      console.log('🔍 Loading user...');
       const token = tokenStorage.getToken();
+      console.log('🔑 Token found:', !!token);
+      
       if (!token) {
+        console.log('❌ No token found, setting loading to false');
         setIsLoading(false);
         return;
       }
 
+      console.log('📡 Making API call to getCurrentUser...');
       const response = await authAPI.getCurrentUser();
+      console.log('📥 API response received:', response);
       
       if (response.data.success) {
         const userData = response.data.user;
+        console.log('✅ User data received:', userData);
         
         // Add id alias for backward compatibility
         const userWithId = {
@@ -106,12 +113,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(userWithId);
         // Update stored user data
         tokenStorage.setUser({ ...userWithId });
+        console.log('✅ User set successfully');
       } else {
-        console.warn('Unexpected auth response structure:', response);
+        console.warn('⚠️ Unexpected auth response structure:', response);
         tokenStorage.clear();
       }
     } catch (error: any) {
-      console.error('Error loading user:', error);
+      console.error('❌ Error loading user:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
       
       // Handle rate limiting specifically
       if (error.response?.status === 429) {
@@ -122,7 +136,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       
       // For other errors, redirect to login
-      console.log('Error loading user, redirecting to login');
+      console.log('🔄 Error loading user, redirecting to login');
       tokenStorage.clear();
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
         window.location.href = '/login';
@@ -318,4 +332,4 @@ export function useRoleGuard(allowedRoles: ('student' | 'teacher' | 'admin')[]) 
     isLoading,
     user,
   };
-} 
+}

@@ -53,6 +53,7 @@ import rolesRoutes from './routes/roles';
 import gameRoutes from './routes/gameRoutes';
 import healthRoutes from './routes/healthRoutes';
 import performanceRoutes from './routes/performanceRoutes';
+import lessonChatRoutes from './routes/lessonChat';
 import { VerbfyTalkController } from './controllers/verbfyTalkController';
 import { performanceMiddleware, memoryTrackingMiddleware, requestSizeMiddleware } from './middleware/performanceMiddleware';
 
@@ -811,6 +812,7 @@ app.use('/api/ai-content-generation', aiContentGenerationRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/roles', rolesRoutes);
 app.use('/api/games', gameRoutes);
+app.use('/api/lesson-chat', lessonChatRoutes);
 
 // ========================================
 // TEST SENTRY ENDPOINT (BURAYA!)

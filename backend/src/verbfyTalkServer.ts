@@ -170,6 +170,23 @@ export class VerbfyTalkServer {
         this.handleRoomMessage(socket, data);
       });
 
+      // Lesson chat events
+      socket.on('lesson:send-message', (data: { lessonId: string; message: string; messageType?: string }) => {
+        this.handleLessonMessage(socket, data);
+      });
+
+      socket.on('lesson:file-shared', (data: { lessonId: string; fileId: string; fileName: string; fileSize: number }) => {
+        this.handleLessonFileShared(socket, data);
+      });
+
+      socket.on('lesson:join', (data: { lessonId: string }) => {
+        this.handleJoinLesson(socket, data);
+      });
+
+      socket.on('lesson:leave', (data: { lessonId: string }) => {
+        this.handleLeaveLesson(socket, data);
+      });
+
       // Disconnect
       socket.on('disconnect', () => {
         this.handleDisconnect(socket);
@@ -381,6 +398,129 @@ export class VerbfyTalkServer {
       this.io.to(roomId).emit('room:message', message);
     } catch (error) {
       console.error('❌ Error handling room message:', error);
+    }
+  }
+
+  private handleLessonMessage(socket: any, data: { lessonId: string; message: string; messageType?: string }) {
+    try {
+      const { lessonId, message, messageType = 'text' } = data;
+      const user = (socket as any).user;
+      
+      if (!user) {
+        socket.emit('error', { message: 'User not authenticated' });
+        return;
+      }
+
+      const messageData = {
+        id: Date.now().toString(),
+        lessonId,
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        message,
+        messageType,
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log(`📚 Lesson message in ${lessonId} from ${user.name}: ${message}`);
+      
+      // Broadcast to all users in the lesson
+      this.io.to(`lesson:${lessonId}`).emit('lesson:message', messageData);
+    } catch (error) {
+      console.error('❌ Error handling lesson message:', error);
+      socket.emit('error', { message: 'Failed to send message' });
+    }
+  }
+
+  private handleLessonFileShared(socket: any, data: { lessonId: string; fileId: string; fileName: string; fileSize: number }) {
+    try {
+      const { lessonId, fileId, fileName, fileSize } = data;
+      const user = (socket as any).user;
+      
+      if (!user) {
+        socket.emit('error', { message: 'User not authenticated' });
+        return;
+      }
+
+      const fileData = {
+        id: Date.now().toString(),
+        lessonId,
+        fileId,
+        fileName,
+        fileSize,
+        uploadedBy: user.id,
+        uploaderName: user.name,
+        uploaderRole: user.role,
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log(`📎 File shared in lesson ${lessonId} by ${user.name}: ${fileName}`);
+      
+      // Broadcast to all users in the lesson
+      this.io.to(`lesson:${lessonId}`).emit('lesson:file-shared', fileData);
+    } catch (error) {
+      console.error('❌ Error handling lesson file share:', error);
+      socket.emit('error', { message: 'Failed to share file' });
+    }
+  }
+
+  private handleJoinLesson(socket: any, data: { lessonId: string }) {
+    try {
+      const { lessonId } = data;
+      const user = (socket as any).user;
+      
+      if (!user) {
+        socket.emit('error', { message: 'User not authenticated' });
+        return;
+      }
+
+      const lessonRoom = `lesson:${lessonId}`;
+      socket.join(lessonRoom);
+      
+      console.log(`📚 User ${user.name} joined lesson ${lessonId}`);
+      
+      // Notify other participants
+      socket.to(lessonRoom).emit('lesson:participant-joined', {
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        timestamp: new Date().toISOString()
+      });
+
+      // Confirm join to the user
+      socket.emit('lesson:joined', { lessonId });
+    } catch (error) {
+      console.error('❌ Error handling lesson join:', error);
+      socket.emit('error', { message: 'Failed to join lesson' });
+    }
+  }
+
+  private handleLeaveLesson(socket: any, data: { lessonId: string }) {
+    try {
+      const { lessonId } = data;
+      const user = (socket as any).user;
+      
+      if (!user) {
+        return;
+      }
+
+      const lessonRoom = `lesson:${lessonId}`;
+      socket.leave(lessonRoom);
+      
+      console.log(`📚 User ${user.name} left lesson ${lessonId}`);
+      
+      // Notify other participants
+      socket.to(lessonRoom).emit('lesson:participant-left', {
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        timestamp: new Date().toISOString()
+      });
+
+      // Confirm leave to the user
+      socket.emit('lesson:left', { lessonId });
+    } catch (error) {
+      console.error('❌ Error handling lesson leave:', error);
     }
   }
 

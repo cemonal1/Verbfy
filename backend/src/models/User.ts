@@ -29,12 +29,24 @@ export interface IUser extends Document {
   hourlyRate?: number;
   rating?: number;
   totalLessons?: number;
+  // New teacher customization fields
+  teachingStyle?: string;
+  availability?: string;
+  languages?: string[];
+  timezone?: string;
   // Student-specific fields
   englishLevel?: 'Beginner' | 'Intermediate' | 'Advanced';
   cefrLevel?: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
   learningGoals?: string[];
   preferredLessonTypes?: string[];
   totalLessonsTaken?: number;
+  
+  // Additional student preferences
+  studySchedule?: 'morning' | 'afternoon' | 'evening' | 'flexible';
+  preferredTeacherGender?: 'male' | 'female' | 'no-preference';
+  communicationStyle?: 'formal' | 'casual' | 'encouraging' | 'direct';
+  motivationLevel?: 'high' | 'medium' | 'low' | 'variable';
+  studyGoals?: string[];
   // Enhanced learning tracking
   overallProgress?: {
     grammar: number; // 0-100
@@ -54,6 +66,9 @@ export interface IUser extends Document {
   subscriptionExpiry?: Date;
   // Lesson tokens
   lessonTokens?: number;
+  // Profile customization
+  profileTheme?: 'default' | 'blue' | 'green' | 'purple' | 'orange' | 'dark';
+  profileVisibility?: 'public' | 'students' | 'teachers' | 'private';
   // Common fields
   isActive: boolean;
   lastActive?: Date;
@@ -94,12 +109,24 @@ const UserSchema = new Schema<IUser>({
   hourlyRate: { type: Number, min: 0 },
   rating: { type: Number, min: 0, max: 5, default: 0 },
   totalLessons: { type: Number, default: 0 },
+  // New teacher customization fields
+  teachingStyle: { type: String },
+  availability: { type: String },
+  languages: [{ type: String }],
+  timezone: { type: String },
   // Student-specific fields
   englishLevel: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced'] },
   cefrLevel: { type: String, enum: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] },
   learningGoals: [{ type: String }],
   preferredLessonTypes: [{ type: String }],
   totalLessonsTaken: { type: Number, default: 0 },
+  
+  // Additional student preferences
+  studySchedule: { type: String, enum: ['morning', 'afternoon', 'evening', 'flexible'] },
+  preferredTeacherGender: { type: String, enum: ['male', 'female', 'no-preference'] },
+  communicationStyle: { type: String, enum: ['formal', 'casual', 'encouraging', 'direct'] },
+  motivationLevel: { type: String, enum: ['high', 'medium', 'low', 'variable'] },
+  studyGoals: [{ type: String }],
   // Enhanced learning tracking
   overallProgress: {
     grammar: { type: Number, min: 0, max: 100, default: 0 },
@@ -126,6 +153,17 @@ const UserSchema = new Schema<IUser>({
     type: Number,
     default: 0,
     min: 0
+  },
+  // Profile customization
+  profileTheme: { 
+    type: String, 
+    enum: ['default', 'blue', 'green', 'purple', 'orange', 'dark'], 
+    default: 'default' 
+  },
+  profileVisibility: { 
+    type: String, 
+    enum: ['public', 'students', 'teachers', 'private'], 
+    default: 'public' 
   },
   // Common fields
   isActive: { type: Boolean, default: true },

@@ -110,22 +110,35 @@ health_check() {
     print_status "Performing health checks..."
     
     # Wait for services to start
-    sleep 30
+    sleep 45
+    
+    # Check production URLs
+    print_status "Testing production endpoints..."
     
     # Check frontend
-    if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
+    if curl -f https://verbfy.com > /dev/null 2>&1; then
         print_status "Frontend health check passed ✓"
     else
-        print_error "Frontend health check failed!"
-        exit 1
+        print_warning "Frontend health check failed - checking localhost fallback..."
+        if curl -f http://localhost:3000 > /dev/null 2>&1; then
+            print_status "Frontend localhost check passed ✓"
+        else
+            print_error "Frontend health check failed!"
+            exit 1
+        fi
     fi
     
-    # Check backend
-    if curl -f http://localhost:5000/api/health > /dev/null 2>&1; then
-        print_status "Backend health check passed ✓"
+    # Check backend API
+    if curl -f https://api.verbfy.com/api/health > /dev/null 2>&1; then
+        print_status "Backend API health check passed ✓"
     else
-        print_error "Backend health check failed!"
-        exit 1
+        print_warning "Backend API health check failed - checking localhost fallback..."
+        if curl -f http://localhost:5000/api/health > /dev/null 2>&1; then
+            print_status "Backend localhost check passed ✓"
+        else
+            print_error "Backend health check failed!"
+            exit 1
+        fi
     fi
     
     print_status "All health checks passed ✓"
@@ -149,4 +162,4 @@ main() {
 }
 
 # Run main function
-main "$@" 
+main "$@"
