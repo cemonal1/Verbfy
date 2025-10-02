@@ -18,6 +18,19 @@ services:
     networks:
       - verbfy
 
+  verbfy-frontend:
+    build:
+      context: ./verbfy-app
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+    container_name: verbfy-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    networks:
+      - verbfy
+
   nginx:
     image: nginx:alpine
     container_name: verbfy-nginx
@@ -31,6 +44,7 @@ services:
       - /var/log/nginx:/var/log/nginx
     depends_on:
       - verbfy-backend
+      - verbfy-frontend
     networks:
       - verbfy
 

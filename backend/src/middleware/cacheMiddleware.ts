@@ -40,7 +40,7 @@ export function cacheMiddleware(options: CacheOptions = {}) {
         
         // Set vary headers
         if (varyBy.length > 0) {
-          res.vary(varyBy);
+          varyBy.forEach(header => res.vary(header));
         }
         
         return res.json(cachedResponse);
@@ -64,7 +64,7 @@ export function cacheMiddleware(options: CacheOptions = {}) {
         
         // Set vary headers
         if (varyBy.length > 0) {
-          res.vary(varyBy);
+          varyBy.forEach(header => res.vary(header));
         }
         
         return originalJson.call(this, body);

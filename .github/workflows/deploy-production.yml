@@ -96,8 +96,7 @@ jobs:
           # Install and build backend
           cd backend && npm ci && npm run build && cd ..
           
-          # Install and build frontend
-          cd verbfy-app && npm ci && npm run build && cd ..
+          # Frontend will be built in Docker container during deployment
 
       - name: Validate deployment secrets
         if: success()

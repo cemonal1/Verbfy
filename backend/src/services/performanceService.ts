@@ -76,8 +76,8 @@ class PerformanceService {
       const currentCpuUsage = process.cpuUsage(this.cpuUsage);
       
       // Database metrics
-      let dbMetrics = null;
-      let dbResponseTime = null;
+      let dbMetrics: any = undefined;
+      let dbResponseTime: number | undefined = undefined;
       try {
         const dbStart = Date.now();
         dbMetrics = getDBMetrics();
@@ -88,7 +88,7 @@ class PerformanceService {
 
       // Cache metrics
       let cacheHealthy = false;
-      let cacheResponseTime = null;
+      let cacheResponseTime: number | undefined = undefined;
       try {
         const cacheStart = Date.now();
         cacheHealthy = await cacheService.isHealthy();

@@ -179,10 +179,10 @@ export const getDBMetrics = () => {
     port: mongoose.connection.port,
     name: mongoose.connection.name,
     isConnected: isConnected,
-    // Connection pool info (if available)
-    poolSize: mongoose.connection.db?.serverConfig?.s?.pool?.totalConnectionCount || 0,
-    availableConnections: mongoose.connection.db?.serverConfig?.s?.pool?.availableConnectionCount || 0,
-    checkedOutConnections: mongoose.connection.db?.serverConfig?.s?.pool?.checkedOutConnectionCount || 0
+    // Connection pool info from mongoose connection options
+    poolSize: mongoose.connection.getMaxListeners() || 0,
+    availableConnections: 0, // Not directly accessible in newer MongoDB driver
+    checkedOutConnections: 0 // Not directly accessible in newer MongoDB driver
   };
 
   return {

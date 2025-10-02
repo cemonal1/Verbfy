@@ -15,7 +15,6 @@ class CacheService {
         url: redisUrl,
         socket: {
           connectTimeout: 5000,
-          lazyConnect: true,
         },
       });
 

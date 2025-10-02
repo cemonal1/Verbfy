@@ -32,7 +32,7 @@ export const performanceMiddleware = (req: Request, res: Response, next: NextFun
 
   // Override res.end to track completion
   const originalEnd = res.end;
-  res.end = function(chunk?: any, encoding?: any) {
+  res.end = function(chunk?: any, encoding?: any): Response {
     const isError = res.statusCode >= 400;
     performanceService.trackRequestEnd(startTime, isError);
     
@@ -61,7 +61,7 @@ export const performanceMiddleware = (req: Request, res: Response, next: NextFun
       });
     }
 
-    originalEnd.call(this, chunk, encoding);
+    return originalEnd.call(this, chunk, encoding) as Response;
   };
 
   next();
@@ -159,7 +159,7 @@ export const memoryTrackingMiddleware = (req: Request, res: Response, next: Next
   
   // Override res.end to track memory usage
   const originalEnd = res.end;
-  res.end = function(chunk?: any, encoding?: any) {
+  res.end = function(chunk?: any, encoding?: any): Response {
     const memoryAfter = process.memoryUsage();
     const memoryDiff = {
       heapUsed: memoryAfter.heapUsed - memoryBefore.heapUsed,
@@ -178,7 +178,7 @@ export const memoryTrackingMiddleware = (req: Request, res: Response, next: Next
       });
     }
     
-    originalEnd.call(this, chunk, encoding);
+    return originalEnd.call(this, chunk, encoding) as Response;
   };
   
   next();

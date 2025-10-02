@@ -65,9 +65,9 @@ export const securityHeaders = helmet({
         "https://www.facebook.com",
         "ws://localhost:*", // WebSocket for development
         "wss://localhost:*",
-        process.env.NODE_ENV === 'development' ? "http://localhost:*" : null,
-        process.env.NODE_ENV === 'development' ? "ws://localhost:*" : null,
-      ].filter(Boolean),
+        ...(process.env.NODE_ENV === 'development' ? ["http://localhost:*"] : []),
+        ...(process.env.NODE_ENV === 'development' ? ["ws://localhost:*"] : []),
+      ],
       frameSrc: [
         "'self'",
         "https://accounts.google.com",
@@ -129,11 +129,7 @@ export const securityHeaders = helmet({
     allow: false,
   },
 
-  // Expect-CT
-  expectCt: {
-    maxAge: 86400, // 24 hours
-    enforce: process.env.NODE_ENV === 'production',
-  },
+
 
   // Cross-Origin-Embedder-Policy
   crossOriginEmbedderPolicy: false, // Disabled for compatibility

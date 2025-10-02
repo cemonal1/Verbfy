@@ -29,7 +29,7 @@ export const getTeachers = async (req: AuthRequest, res: Response): Promise<void
 };
 
 // Get all students
-export const getStudents = async (req: Request, res: Response): Promise<void> => {
+export const getStudents = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const cacheKey = 'students:active';
     

@@ -27,6 +27,7 @@ export interface HealthReport {
     unhealthy: number;
     degraded: number;
   };
+  performance?: any;
 }
 
 class HealthService {
@@ -139,7 +140,7 @@ class HealthService {
         const testValue = { timestamp: Date.now() };
         
         await cacheService.set(testKey, testValue, 10);
-        const retrieved = await cacheService.get(testKey);
+        const retrieved = await cacheService.get(testKey) as { timestamp: number } | null;
         await cacheService.del(testKey);
 
         const isWorking = retrieved && retrieved.timestamp === testValue.timestamp;
@@ -307,6 +308,11 @@ class HealthService {
       return 'degraded';
     }
     return 'healthy';
+  }
+
+  // Alias for performHealthCheck for backward compatibility
+  async getHealthStatus(): Promise<HealthReport> {
+    return this.performHealthCheck();
   }
 
   // Quick health check for load balancers
