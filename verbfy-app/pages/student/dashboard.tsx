@@ -128,7 +128,7 @@ function StudentDashboardPage() {
       lessonType: lessonType,
       lessonLevel: lessonLevel
     };
-  }).filter(Boolean); // Remove any null entries
+  }).filter((lesson): lesson is NonNullable<typeof lesson> => Boolean(lesson)); // Remove any null entries
 
   // Progress data for learning progress section
   const progressData = [
