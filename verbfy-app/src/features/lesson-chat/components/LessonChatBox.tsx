@@ -192,3 +192,5 @@ export const LessonChatBox: React.FC<LessonChatBoxProps> = ({
     </div>
   );
 };
+
+export default LessonChatBox;

@@ -280,14 +280,14 @@ export class LessonChatController {
           name: teacher.name,
           email: teacher.email,
           role: 'teacher',
-          avatar: teacher.avatar
+          avatar: teacher.profileImage
         },
         {
           id: student._id,
           name: student.name,
           email: student.email,
           role: 'student',
-          avatar: student.avatar
+          avatar: student.profileImage
         }
       ];
 

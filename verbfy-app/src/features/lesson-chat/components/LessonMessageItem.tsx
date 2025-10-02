@@ -1,7 +1,7 @@
 import React from 'react';
 import { Download, FileText, Image, Video, Music, FileIcon } from 'lucide-react';
 import { LessonMessage } from '../hooks/useLessonChat';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface LessonMessageItemProps {
   message: LessonMessage;

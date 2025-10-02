@@ -57,7 +57,7 @@ export class LessonController {
             _id: teacher._id,
             name: teacher.name,
             email: teacher.email,
-            avatar: teacher.avatar
+            avatar: teacher.profileImage
           },
           student: {
             _id: student._id,
@@ -145,7 +145,7 @@ export class LessonController {
             _id: teacher._id,
             name: teacher.name,
             email: teacher.email,
-            avatar: teacher.avatar
+            avatar: teacher.profileImage
           },
           student: {
             _id: student._id,

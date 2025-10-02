@@ -44,7 +44,7 @@ export const getConversations = async (req: Request, res: Response): Promise<voi
           name: otherParticipant.name,
           email: otherParticipant.email,
           role: otherParticipant.role,
-          avatar: otherParticipant.avatar
+          avatar: otherParticipant.profileImage
         },
         lastMessage: conversation.lastMessage,
         unreadCount: 0, // Will be calculated separately if needed
@@ -148,7 +148,7 @@ export const getOrCreateConversation = async (req: Request, res: Response): Prom
         name: otherParticipant.name,
         email: otherParticipant.email,
         role: otherParticipant.role,
-        avatar: otherParticipant.avatar
+        avatar: otherParticipant.profileImage
       },
       lastMessage: conversation.lastMessage,
       updatedAt: conversation.updatedAt,
@@ -405,4 +405,4 @@ export const getUnreadCount = async (req: Request, res: Response): Promise<void>
       message: 'Failed to get unread count'
     });
   }
-}; 
+};
