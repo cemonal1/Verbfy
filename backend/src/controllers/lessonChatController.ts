@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { LessonChat } from '../models/LessonChat';
 import { LessonFile } from '../models/LessonFile';
 import { Reservation } from '../models/Reservation';
-import { User } from '../models/User';
+import User, { IUser } from '../models/User';
 import fs from 'fs';
 import path from 'path';
 
@@ -271,20 +271,23 @@ export class LessonChatController {
         return;
       }
 
+      const teacher = reservation.teacher as IUser;
+      const student = reservation.student as IUser;
+
       const participants = [
         {
-          id: reservation.teacher._id,
-          name: reservation.teacher.name,
-          email: reservation.teacher.email,
+          id: teacher._id,
+          name: teacher.name,
+          email: teacher.email,
           role: 'teacher',
-          avatar: reservation.teacher.avatar
+          avatar: teacher.avatar
         },
         {
-          id: reservation.student._id,
-          name: reservation.student.name,
-          email: reservation.student.email,
+          id: student._id,
+          name: student.name,
+          email: student.email,
           role: 'student',
-          avatar: reservation.student.avatar
+          avatar: student.avatar
         }
       ];
 

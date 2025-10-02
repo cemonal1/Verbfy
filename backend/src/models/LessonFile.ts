@@ -127,7 +127,7 @@ LessonFileSchema.methods.softDelete = function() {
 
 // Static method to get files by category
 LessonFileSchema.statics.getFilesByCategory = function(lessonId: string, category: string) {
-  const mimeTypePattern = this.getCategoryMimePattern(category);
+  const mimeTypePattern = (this as any).getCategoryMimePattern(category);
   return this.find({ 
     lessonId, 
     isDeleted: { $ne: true },
