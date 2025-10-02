@@ -6,7 +6,7 @@ import mongoose from 'mongoose';
 
 export class AIContentGenerationController {
   // Generate new content
-  static async generateContent(req: AuthRequest, res: Response) {
+  static async generateContent(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const {
@@ -19,15 +19,17 @@ export class AIContentGenerationController {
       } = req.body;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       // Validate required fields
       if (!contentType || !topic || !targetLevel || !skillFocus) {
-        return res.status(400).json({ 
+        res.status(400).json({ 
           success: false, 
           message: 'Missing required fields: contentType, topic, targetLevel, skillFocus' 
         });
+      return;
       }
 
       // Create content generation record
@@ -82,13 +84,14 @@ export class AIContentGenerationController {
   }
 
   // Get user's generated content
-  static async getUserContent(req: AuthRequest, res: Response) {
+  static async getUserContent(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { contentType, status, page = 1, limit = 10 } = req.query;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       const filter: any = { userId };
@@ -125,13 +128,14 @@ export class AIContentGenerationController {
   }
 
   // Get content by ID
-  static async getContentById(req: AuthRequest, res: Response) {
+  static async getContentById(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { id } = req.params;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       const content = await AIContentGeneration.findById(id)
@@ -139,12 +143,14 @@ export class AIContentGenerationController {
         .populate('approvedBy', 'name email');
 
       if (!content) {
-        return res.status(404).json({ success: false, message: 'Content not found' });
+        res.status(404).json({ success: false, message: 'Content not found' });
+      return;
       }
 
       // Check if user has access to this content
       if (content.userId.toString() !== userId) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+      return;
       }
 
       res.json({
@@ -161,24 +167,27 @@ export class AIContentGenerationController {
   }
 
   // Update content quality assessment
-  static async updateQualityAssessment(req: AuthRequest, res: Response) {
+  static async updateQualityAssessment(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { id } = req.params;
       const { relevance, accuracy, engagement } = req.body;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       const content = await AIContentGeneration.findById(id);
 
       if (!content) {
-        return res.status(404).json({ success: false, message: 'Content not found' });
+        res.status(404).json({ success: false, message: 'Content not found' });
+      return;
       }
 
       if (content.userId.toString() !== userId) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+      return;
       }
 
       // Update quality metrics
@@ -206,26 +215,29 @@ export class AIContentGenerationController {
   }
 
   // Approve content (for admins/teachers)
-  static async approveContent(req: AuthRequest, res: Response) {
+  static async approveContent(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { id } = req.params;
       const { reviewNotes } = req.body;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       // Check if user is admin or teacher
       const user = await User.findById(userId);
       if (!user || !['admin', 'teacher'].includes(user.role)) {
-        return res.status(403).json({ success: false, message: 'Access denied. Admin or teacher role required.' });
+        res.status(403).json({ success: false, message: 'Access denied. Admin or teacher role required.' });
+      return;
       }
 
       const content = await AIContentGeneration.findById(id);
 
       if (!content) {
-        return res.status(404).json({ success: false, message: 'Content not found' });
+        res.status(404).json({ success: false, message: 'Content not found' });
+      return;
       }
 
       content.status = 'published';
@@ -250,13 +262,14 @@ export class AIContentGenerationController {
   }
 
   // Get content analytics
-  static async getContentAnalytics(req: AuthRequest, res: Response) {
+  static async getContentAnalytics(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { timeRange = '30d' } = req.query;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       const startDate = new Date();

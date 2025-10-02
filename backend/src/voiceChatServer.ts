@@ -18,9 +18,9 @@ interface Room {
 
 interface SignalingData {
   type: 'offer' | 'answer' | 'ice-candidate';
-  offer?: RTCSessionDescriptionInit;
-  answer?: RTCSessionDescriptionInit;
-  candidate?: RTCIceCandidateInit;
+  offer?: any;
+  answer?: any;
+  candidate?: any;
   to: string;
 }
 

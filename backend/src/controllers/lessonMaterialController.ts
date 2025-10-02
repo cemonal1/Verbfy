@@ -4,7 +4,7 @@ import { LessonMaterial, ILessonMaterial } from '../models/LessonMaterial';
 import { Reservation } from '../models/Reservation';
 
 // Upload a new lesson material
-export const uploadMaterial = async (req: AuthRequest, res: Response) => {
+export const uploadMaterial = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { 
       title, 
@@ -24,17 +24,19 @@ export const uploadMaterial = async (req: AuthRequest, res: Response) => {
 
     // Validate required fields
     if (!title || !type || !fileUrl || !fileSize || !mimeType) {
-      return res.status(400).json({ 
+      res.status(400).json({ 
         message: 'title, type, fileUrl, fileSize, and mimeType are required' 
       });
+      return;
     }
 
     // Validate type
     const validTypes = ['document', 'video', 'audio', 'image', 'presentation', 'worksheet', 'quiz'];
     if (!validTypes.includes(type)) {
-      return res.status(400).json({ 
+      res.status(400).json({ 
         message: 'Invalid type. Must be one of: ' + validTypes.join(', ') 
       });
+      return;
     }
 
     // Create the material
@@ -81,7 +83,7 @@ export const uploadMaterial = async (req: AuthRequest, res: Response) => {
 };
 
 // Get materials by teacher
-export const getTeacherMaterials = async (req: AuthRequest, res: Response) => {
+export const getTeacherMaterials = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const teacherId = req.user!.id;
     const { lessonType, lessonLevel, type } = req.query;
@@ -124,7 +126,7 @@ export const getTeacherMaterials = async (req: AuthRequest, res: Response) => {
 };
 
 // Get public materials
-export const getPublicMaterials = async (req: AuthRequest, res: Response) => {
+export const getPublicMaterials = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { lessonType, lessonLevel, type, tags } = req.query;
 
@@ -169,7 +171,7 @@ export const getPublicMaterials = async (req: AuthRequest, res: Response) => {
 };
 
 // Get material by ID
-export const getMaterialById = async (req: AuthRequest, res: Response) => {
+export const getMaterialById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { materialId } = req.params;
     const userId = req.user!.id;
@@ -178,9 +180,10 @@ export const getMaterialById = async (req: AuthRequest, res: Response) => {
       .populate('uploadedBy', 'name email');
 
     if (!material) {
-      return res.status(404).json({ 
+      res.status(404).json({ 
         message: 'Material not found' 
       });
+      return;
     }
 
     // Check if user can access this material
@@ -188,9 +191,10 @@ export const getMaterialById = async (req: AuthRequest, res: Response) => {
     const isPublic = material.isPublic;
 
     if (!isOwner && !isPublic) {
-      return res.status(403).json({ 
+      res.status(403).json({ 
         message: 'Access denied to this material' 
       });
+      return;
     }
 
     // Increment download count
@@ -225,7 +229,7 @@ export const getMaterialById = async (req: AuthRequest, res: Response) => {
 };
 
 // Update material
-export const updateMaterial = async (req: AuthRequest, res: Response) => {
+export const updateMaterial = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { materialId } = req.params;
     const userId = req.user!.id;
@@ -234,16 +238,18 @@ export const updateMaterial = async (req: AuthRequest, res: Response) => {
     const material = await LessonMaterial.findById(materialId);
 
     if (!material) {
-      return res.status(404).json({ 
+      res.status(404).json({ 
         message: 'Material not found' 
       });
+      return;
     }
 
     // Check if user owns this material
     if (material.uploadedBy.toString() !== userId) {
-      return res.status(403).json({ 
+      res.status(403).json({ 
         message: 'You can only update your own materials' 
       });
+      return;
     }
 
     // Update fields
@@ -280,7 +286,7 @@ export const updateMaterial = async (req: AuthRequest, res: Response) => {
 };
 
 // Delete material
-export const deleteMaterial = async (req: AuthRequest, res: Response) => {
+export const deleteMaterial = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { materialId } = req.params;
     const userId = req.user!.id;
@@ -288,16 +294,18 @@ export const deleteMaterial = async (req: AuthRequest, res: Response) => {
     const material = await LessonMaterial.findById(materialId);
 
     if (!material) {
-      return res.status(404).json({ 
+      res.status(404).json({ 
         message: 'Material not found' 
       });
+      return;
     }
 
     // Check if user owns this material
     if (material.uploadedBy.toString() !== userId) {
-      return res.status(403).json({ 
+      res.status(403).json({ 
         message: 'You can only delete your own materials' 
       });
+      return;
     }
 
     // Check if material is being used in any reservations
@@ -306,9 +314,10 @@ export const deleteMaterial = async (req: AuthRequest, res: Response) => {
     });
 
     if (reservationsUsingMaterial.length > 0) {
-      return res.status(400).json({ 
+      res.status(400).json({ 
         message: 'Cannot delete material that is being used in lessons' 
       });
+      return;
     }
 
     await LessonMaterial.findByIdAndDelete(materialId);

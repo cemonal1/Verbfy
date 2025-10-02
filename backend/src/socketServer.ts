@@ -1,4 +1,4 @@
-import { Server as SocketIOServer } from 'socket.io';
+import { Server as SocketIOServer, Socket, Namespace } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import { verifyToken } from './utils/jwt';
 import { Reservation } from './models/Reservation';
@@ -11,27 +11,6 @@ interface AuthenticatedSocket extends Socket {
     email: string;
     role: string;
   };
-  handshake: {
-    auth: {
-      token?: string;
-    };
-    headers: {
-      authorization?: string;
-    };
-  };
-  rooms: Set<string>;
-  to: (room: string) => {
-    emit: (event: string, data: any) => void;
-  };
-}
-
-interface Socket {
-  id: string;
-  join: (room: string) => void;
-  leave: (room: string) => void;
-  emit: (event: string, data: any) => void;
-  on: (event: string, callback: (data: any) => void) => void;
-  disconnect: () => void;
 }
 
 // Authentication middleware for Socket.IO
@@ -139,8 +118,9 @@ const validateRoomAccess = async (userId: string, reservationId: string): Promis
   }
 };
 
-export const setupSocketServer = (server: HTTPServer) => {
-  const io = new SocketIOServer(server, {
+export const setupSocketServer = (server: HTTPServer, namespace?: Namespace) => {
+  // Use provided namespace or create new SocketIOServer
+  const io = namespace || new SocketIOServer(server, {
     transports: ['polling', 'websocket'],
     allowEIO3: true,
     pingTimeout: 60000,
@@ -148,7 +128,11 @@ export const setupSocketServer = (server: HTTPServer) => {
     upgradeTimeout: 30000,
     maxHttpBufferSize: 1e6,
     allowUpgrades: true,
-    perMessageDeflate: false, // Disable compression for better compatibility
+    perMessageDeflate: {
+      threshold: 1024,
+      concurrencyLimit: 10,
+      windowBits: 13
+    },
     httpCompression: true,
     cors: {
       origin: process.env.NODE_ENV === 'production' 
@@ -158,6 +142,9 @@ export const setupSocketServer = (server: HTTPServer) => {
       methods: ["GET", "POST"]
     }
   });
+
+  // Cast to SocketIOServer for proper typing
+  const socketServer = io as SocketIOServer;
 
   // Authentication middleware
   io.use(async (socket: AuthenticatedSocket, next) => {
@@ -176,7 +163,7 @@ export const setupSocketServer = (server: HTTPServer) => {
   });
 
   io.on('connection', (socket: AuthenticatedSocket) => {
-    console.log(`Socket connected: ${socket.id} (user: ${socket.user?.name})`);
+    console.log(`WebRTC Socket connected: ${socket.id} (user: ${socket.user?.name})`);
 
     // Join lesson room
     socket.on('join-room', async (data: { reservationId: string }) => {
@@ -222,16 +209,17 @@ export const setupSocketServer = (server: HTTPServer) => {
       });
 
       // Send room info to the joining user
-      const roomUsers = Array.from(io.sockets.adapter.rooms.get(reservationId) || [])
+      const roomSockets = socketServer.sockets.adapter.rooms.get(reservationId);
+      const roomUsers = roomSockets ? Array.from(roomSockets)
         .map(socketId => {
-          const userSocket = io.sockets.sockets.get(socketId) as AuthenticatedSocket;
+          const userSocket = socketServer.sockets.sockets.get(socketId) as AuthenticatedSocket;
           return userSocket?.user ? {
             id: userSocket.user.id,
             name: userSocket.user.name,
             role: userSocket.user.role
           } : null;
         })
-        .filter(Boolean);
+        .filter(Boolean) : [];
 
       console.log(`📋 Room ${reservationId} users:`, roomUsers);
 
@@ -252,9 +240,10 @@ export const setupSocketServer = (server: HTTPServer) => {
 
     socket.on('answer', (data: { roomId: string; answer: any; targetUserId: string }) => {
       // Send answer to specific user in the room
-      const targetSocket = Array.from(io.sockets.adapter.rooms.get(data.roomId) || [])
-        .map(socketId => io.sockets.sockets.get(socketId) as AuthenticatedSocket)
-        .find(s => s?.user?.id === data.targetUserId);
+      const roomSockets = socketServer.sockets.adapter.rooms.get(data.roomId);
+      const targetSocket = roomSockets ? Array.from(roomSockets)
+        .map(socketId => socketServer.sockets.sockets.get(socketId) as AuthenticatedSocket)
+        .find(s => s?.user?.id === data.targetUserId) : null;
       
       if (targetSocket) {
         targetSocket.emit('answer', {
@@ -307,7 +296,7 @@ export const setupSocketServer = (server: HTTPServer) => {
 
     // Disconnect
     socket.on('disconnect', () => {
-      console.log(`Socket disconnected: ${socket.id} (user: ${socket.user?.name})`);
+      console.log(`WebRTC Socket disconnected: ${socket.id} (user: ${socket.user?.name})`);
       
       // Notify other users in all rooms that this user was in
       socket.rooms.forEach(room => {
@@ -321,4 +310,6 @@ export const setupSocketServer = (server: HTTPServer) => {
       });
     });
   });
-}; 
+
+  return io;
+};

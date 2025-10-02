@@ -7,7 +7,7 @@ import mongoose from 'mongoose';
 
 export class RoleController {
   // Create new role
-  static async createRole(req: AuthRequest, res: Response) {
+  static async createRole(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { organizationId } = req.params;
@@ -21,39 +21,45 @@ export class RoleController {
       } = req.body;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
       }
 
       // Validate required fields
       if (!name || !organizationId) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'Missing required fields: name, organizationId'
         });
+        return;
       }
 
       // Check if user has permission to create roles
       const organization = await Organization.findById(organizationId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+        return;
       }
 
       const admin = organization.admins.find(admin => admin.userId.toString() === userId);
       if (!admin || (!admin.permissions.includes('roles.create') && admin.role !== 'owner')) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
       }
 
       // Check if role name already exists in organization
       const existingRole = await Role.findOne({ organizationId, name });
       if (existingRole) {
-        return res.status(400).json({ success: false, message: 'Role name already exists' });
+        res.status(400).json({ success: false, message: 'Role name already exists' });
+        return;
       }
 
       // Validate parent role if provided
       if (parentRoleId) {
         const parentRole = await Role.findOne({ _id: parentRoleId, organizationId });
         if (!parentRole) {
-          return res.status(400).json({ success: false, message: 'Parent role not found' });
+          res.status(400).json({ success: false, message: 'Parent role not found' });
+          return;
         }
       }
 
@@ -87,27 +93,30 @@ export class RoleController {
   }
 
   // Get all roles for organization
-  static async getRoles(req: AuthRequest, res: Response) {
+  static async getRoles(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { organizationId } = req.params;
       const { type, isActive } = req.query;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
       }
 
       // Check if user has access to organization
       const organization = await Organization.findById(organizationId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+        return;
       }
 
       const admin = organization.admins.find(admin => admin.userId.toString() === userId);
       const user = await User.findById(userId);
       
       if (!admin && user?.organizationId?.toString() !== organizationId) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
       }
 
       // Build query
@@ -133,13 +142,14 @@ export class RoleController {
   }
 
   // Get role by ID
-  static async getRole(req: AuthRequest, res: Response) {
+  static async getRole(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { roleId } = req.params;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
       }
 
       const role = await Role.findById(roleId)
@@ -147,20 +157,23 @@ export class RoleController {
         .populate('organizationId', 'name');
 
       if (!role) {
-        return res.status(404).json({ success: false, message: 'Role not found' });
+        res.status(404).json({ success: false, message: 'Role not found' });
+        return;
       }
 
       // Check if user has access to this role's organization
       const organization = await Organization.findById(role.organizationId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+        return;
       }
 
       const admin = organization.admins.find(admin => admin.userId.toString() === userId);
       const user = await User.findById(userId);
       
       if (!admin && user?.organizationId?.toString() !== role.organizationId.toString()) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
       }
 
       res.json({
@@ -177,35 +190,40 @@ export class RoleController {
   }
 
   // Update role
-  static async updateRole(req: AuthRequest, res: Response) {
+  static async updateRole(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { roleId } = req.params;
       const updateData = req.body;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
       }
 
       const role = await Role.findById(roleId);
       if (!role) {
-        return res.status(404).json({ success: false, message: 'Role not found' });
+        res.status(404).json({ success: false, message: 'Role not found' });
+        return;
       }
 
       // Check if user has permission to update roles
       const organization = await Organization.findById(role.organizationId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+        return;
       }
 
       const admin = organization.admins.find(admin => admin.userId.toString() === userId);
       if (!admin || (!admin.permissions.includes('roles.edit') && admin.role !== 'owner')) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
       }
 
       // Cannot update system roles unless owner
       if (role.type === 'system' && admin.role !== 'owner') {
-        return res.status(403).json({ success: false, message: 'Cannot update system roles' });
+        res.status(403).json({ success: false, message: 'Cannot update system roles' });
+        return;
       }
 
       // Check if role name already exists (if name is being updated)
@@ -216,7 +234,8 @@ export class RoleController {
           _id: { $ne: roleId }
         });
         if (existingRole) {
-          return res.status(400).json({ success: false, message: 'Role name already exists' });
+          res.status(400).json({ success: false, message: 'Role name already exists' });
+        return;
         }
       }
 
@@ -227,12 +246,14 @@ export class RoleController {
           organizationId: role.organizationId 
         });
         if (!parentRole) {
-          return res.status(400).json({ success: false, message: 'Parent role not found' });
+          res.status(400).json({ success: false, message: 'Parent role not found' });
+        return;
         }
 
         // Check for circular references
         if (updateData.parentRoleId === roleId) {
-          return res.status(400).json({ success: false, message: 'Cannot set role as its own parent' });
+          res.status(400).json({ success: false, message: 'Cannot set role as its own parent' });
+        return;
         }
       }
 
@@ -258,39 +279,45 @@ export class RoleController {
   }
 
   // Delete role
-  static async deleteRole(req: AuthRequest, res: Response) {
+  static async deleteRole(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { roleId } = req.params;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
       }
 
       const role = await Role.findById(roleId);
       if (!role) {
-        return res.status(404).json({ success: false, message: 'Role not found' });
+        res.status(404).json({ success: false, message: 'Role not found' });
+        return;
       }
 
       // Check if user has permission to delete roles
       const organization = await Organization.findById(role.organizationId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+        return;
       }
 
       const admin = organization.admins.find(admin => admin.userId.toString() === userId);
       if (!admin || (!admin.permissions.includes('roles.delete') && admin.role !== 'owner')) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
       }
 
       // Cannot delete system roles
       if (role.type === 'system') {
-        return res.status(400).json({ success: false, message: 'Cannot delete system roles' });
+        res.status(400).json({ success: false, message: 'Cannot delete system roles' });
+        return;
       }
 
       // Cannot delete default roles
       if (role.isDefault) {
-        return res.status(400).json({ success: false, message: 'Cannot delete default roles' });
+        res.status(400).json({ success: false, message: 'Cannot delete default roles' });
+        return;
       }
 
       // Check if role is being used by any users
@@ -300,19 +327,21 @@ export class RoleController {
       });
 
       if (usersWithRole > 0) {
-        return res.status(400).json({ 
+        res.status(400).json({ 
           success: false, 
           message: `Cannot delete role. ${usersWithRole} user(s) are currently assigned this role.`
         });
+        return;
       }
 
       // Check if role has child roles
       const childRoles = await Role.countDocuments({ parentRoleId: roleId });
       if (childRoles > 0) {
-        return res.status(400).json({ 
+        res.status(400).json({ 
           success: false, 
           message: `Cannot delete role. ${childRoles} child role(s) depend on this role.`
         });
+        return;
       }
 
       await Role.findByIdAndDelete(roleId);
@@ -331,41 +360,47 @@ export class RoleController {
   }
 
   // Assign role to user
-  static async assignRole(req: AuthRequest, res: Response) {
+  static async assignRole(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { organizationId } = req.params;
       const { targetUserId, roleId } = req.body;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
       }
 
       if (!targetUserId || !roleId) {
-        return res.status(400).json({ success: false, message: 'Missing required fields' });
+        res.status(400).json({ success: false, message: 'Missing required fields' });
+        return;
       }
 
       // Check if user has permission to assign roles
       const organization = await Organization.findById(organizationId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+        return;
       }
 
       const admin = organization.admins.find(admin => admin.userId.toString() === userId);
       if (!admin || (!admin.permissions.includes('roles.assign') && admin.role !== 'owner')) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
       }
 
       // Check if target user exists and belongs to organization
       const targetUser = await User.findOne({ _id: targetUserId, organizationId });
       if (!targetUser) {
-        return res.status(404).json({ success: false, message: 'Target user not found' });
+        res.status(404).json({ success: false, message: 'Target user not found' });
+        return;
       }
 
       // Check if role exists and belongs to organization
       const role = await Role.findOne({ _id: roleId, organizationId });
       if (!role) {
-        return res.status(404).json({ success: false, message: 'Role not found' });
+        res.status(404).json({ success: false, message: 'Role not found' });
+        return;
       }
 
       // Update user's role
@@ -385,26 +420,29 @@ export class RoleController {
   }
 
   // Get role hierarchy
-  static async getRoleHierarchy(req: AuthRequest, res: Response) {
+  static async getRoleHierarchy(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { organizationId } = req.params;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
       }
 
       // Check if user has access to organization
       const organization = await Organization.findById(organizationId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+        return;
       }
 
       const admin = organization.admins.find(admin => admin.userId.toString() === userId);
       const user = await User.findById(userId);
       
       if (!admin && user?.organizationId?.toString() !== organizationId) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
       }
 
       // Get all roles for organization
@@ -437,31 +475,35 @@ export class RoleController {
   }
 
   // Get role permissions
-  static async getRolePermissions(req: AuthRequest, res: Response) {
+  static async getRolePermissions(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { roleId } = req.params;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
       }
 
       const role = await Role.findById(roleId);
       if (!role) {
-        return res.status(404).json({ success: false, message: 'Role not found' });
+        res.status(404).json({ success: false, message: 'Role not found' });
+        return;
       }
 
       // Check if user has access to this role's organization
       const organization = await Organization.findById(role.organizationId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+        return;
       }
 
       const admin = organization.admins.find(admin => admin.userId.toString() === userId);
       const user = await User.findById(userId);
       
       if (!admin && user?.organizationId?.toString() !== role.organizationId.toString()) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
       }
 
       // Get effective permissions (including inherited)
@@ -491,29 +533,33 @@ export class RoleController {
   }
 
   // Bulk role operations
-  static async bulkRoleOperations(req: AuthRequest, res: Response) {
+  static async bulkRoleOperations(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { organizationId } = req.params;
       const { operation, roleIds, data } = req.body;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+        return;
       }
 
       // Check if user has permission
       const organization = await Organization.findById(organizationId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+        return;
       }
 
       const admin = organization.admins.find(admin => admin.userId.toString() === userId);
       if (!admin || (!admin.permissions.includes('roles.edit') && admin.role !== 'owner')) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
       }
 
       if (!roleIds || !Array.isArray(roleIds) || roleIds.length === 0) {
-        return res.status(400).json({ success: false, message: 'Role IDs required' });
+        res.status(400).json({ success: false, message: 'Role IDs required' });
+        return;
       }
 
       let result;
@@ -534,7 +580,8 @@ export class RoleController {
 
         case 'update_permissions':
           if (!data.permissions) {
-            return res.status(400).json({ success: false, message: 'Permissions required' });
+            res.status(400).json({ success: false, message: 'Permissions required' });
+        return;
           }
           result = await Role.updateMany(
             { _id: { $in: roleIds }, organizationId, type: { $ne: 'system' } },
@@ -543,7 +590,8 @@ export class RoleController {
           break;
 
         default:
-          return res.status(400).json({ success: false, message: 'Invalid operation' });
+          res.status(400).json({ success: false, message: 'Invalid operation' });
+        return;
       }
 
       res.json({
@@ -559,4 +607,4 @@ export class RoleController {
       });
     }
   }
-} 
+}

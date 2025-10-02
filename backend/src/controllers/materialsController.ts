@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Material, IMaterial } from '../models/Material';
-import path from 'path';
-import fs from 'fs';
+import * as path from 'path';
+import * as fs from 'fs';
 import { promisify } from 'util';
 
 const unlinkAsync = promisify(fs.unlink);
@@ -43,13 +43,14 @@ const isValidFileType = (mimeType: string): boolean => {
 };
 
 // Upload material
-export const uploadMaterial = async (req: Request, res: Response) => {
+export const uploadMaterial = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.file) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'No file uploaded'
       });
+      return;
     }
 
     const { originalname, filename, mimetype, size } = req.file;
@@ -61,20 +62,22 @@ export const uploadMaterial = async (req: Request, res: Response) => {
     if (size > MAX_FILE_SIZE) {
       // Delete uploaded file
       await unlinkAsync(req.file.path);
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: `File size exceeds maximum limit of ${MAX_FILE_SIZE / (1024 * 1024)}MB`
       });
+      return;
     }
 
     // Validate file type
     if (!isValidFileType(mimetype)) {
       // Delete uploaded file
       await unlinkAsync(req.file.path);
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'File type not allowed'
       });
+      return;
     }
 
     // Determine file type
@@ -132,7 +135,7 @@ export const uploadMaterial = async (req: Request, res: Response) => {
 };
 
 // Get materials with filters
-export const getMaterials = async (req: Request, res: Response) => {
+export const getMaterials = async (req: Request, res: Response): Promise<void> => {
   try {
     const { uploaderId, type, tags, isPublic, page = 1, limit = 10 } = req.query;
     const userRole = (req as any).user.role;
@@ -217,7 +220,7 @@ export const getMaterials = async (req: Request, res: Response) => {
 };
 
 // Get material by ID
-export const getMaterialById = async (req: Request, res: Response) => {
+export const getMaterialById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const userRole = (req as any).user.role;
@@ -226,10 +229,11 @@ export const getMaterialById = async (req: Request, res: Response) => {
     const material = await Material.findById(id).populate('uploaderId', 'name email role');
 
     if (!material) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Material not found'
       });
+      return;
     }
 
     // Check access permissions
@@ -239,10 +243,11 @@ export const getMaterialById = async (req: Request, res: Response) => {
                      (userRole === 'teacher' && material.role === 'student');
 
     if (!canAccess) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Access denied'
       });
+      return;
     }
 
     res.json({
@@ -261,7 +266,7 @@ export const getMaterialById = async (req: Request, res: Response) => {
 };
 
 // Preview material file
-export const previewMaterial = async (req: Request, res: Response) => {
+export const previewMaterial = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const userRole = (req as any).user.role;
@@ -270,10 +275,11 @@ export const previewMaterial = async (req: Request, res: Response) => {
     const material = await Material.findById(id);
 
     if (!material) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Material not found'
       });
+      return;
     }
 
     // Check access permissions
@@ -283,19 +289,21 @@ export const previewMaterial = async (req: Request, res: Response) => {
                      (userRole === 'teacher' && material.role === 'student');
 
     if (!canAccess) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Access denied'
       });
+      return;
     }
 
     // Check if file type is previewable
     const previewableTypes = ['pdf', 'image'];
     if (!previewableTypes.includes(material.type)) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'File type not previewable'
       });
+      return;
     }
 
     // Construct file path
@@ -304,10 +312,11 @@ export const previewMaterial = async (req: Request, res: Response) => {
 
     // Check if file exists
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'File not found on server'
       });
+      return;
     }
 
     // Set appropriate headers
@@ -331,7 +340,7 @@ export const previewMaterial = async (req: Request, res: Response) => {
 };
 
 // Download material file
-export const downloadMaterial = async (req: Request, res: Response) => {
+export const downloadMaterial = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const userRole = (req as any).user.role;
@@ -340,10 +349,11 @@ export const downloadMaterial = async (req: Request, res: Response) => {
     const material = await Material.findById(id);
 
     if (!material) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Material not found'
       });
+      return;
     }
 
     // Check access permissions
@@ -353,10 +363,11 @@ export const downloadMaterial = async (req: Request, res: Response) => {
                      (userRole === 'teacher' && material.role === 'student');
 
     if (!canAccess) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Access denied'
       });
+      return;
     }
 
     // Construct file path
@@ -365,10 +376,11 @@ export const downloadMaterial = async (req: Request, res: Response) => {
 
     // Check if file exists
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'File not found on server'
       });
+      return;
     }
 
     // Set appropriate headers for download
@@ -392,7 +404,7 @@ export const downloadMaterial = async (req: Request, res: Response) => {
 };
 
 // Update material
-export const updateMaterial = async (req: Request, res: Response) => {
+export const updateMaterial = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { tags, description, isPublic } = req.body;
@@ -402,20 +414,22 @@ export const updateMaterial = async (req: Request, res: Response) => {
     const material = await Material.findById(id);
 
     if (!material) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Material not found'
       });
+      return;
     }
 
     // Check if user can update this material
     const canUpdate = material.uploaderId.toString() === userId || userRole === 'admin';
 
     if (!canUpdate) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Access denied'
       });
+      return;
     }
 
     // Update fields
@@ -447,7 +461,7 @@ export const updateMaterial = async (req: Request, res: Response) => {
 };
 
 // Delete material
-export const deleteMaterial = async (req: Request, res: Response) => {
+export const deleteMaterial = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;
@@ -456,20 +470,22 @@ export const deleteMaterial = async (req: Request, res: Response) => {
     const material = await Material.findById(id);
 
     if (!material) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Material not found'
       });
+      return;
     }
 
     // Check if user can delete this material
     const canDelete = material.uploaderId.toString() === userId || userRole === 'admin';
 
     if (!canDelete) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Access denied'
       });
+      return;
     }
 
     // Delete physical file
@@ -498,7 +514,7 @@ export const deleteMaterial = async (req: Request, res: Response) => {
 };
 
 // Get user's own materials
-export const getMyMaterials = async (req: Request, res: Response) => {
+export const getMyMaterials = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const { page = 1, limit = 10 } = req.query;
@@ -533,4 +549,4 @@ export const getMyMaterials = async (req: Request, res: Response) => {
       message: 'Failed to retrieve your materials'
     });
   }
-}; 
+};

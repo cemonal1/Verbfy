@@ -2,27 +2,34 @@ import { Request, Response } from 'express';
 import User from '../models/User';
 import { Lesson } from '../models/Lesson';
 import { Payment } from '../models/Payment';
+import { cacheService } from '../services/cacheService';
 
 // Teacher Analytics
-export const getTeacherAnalytics = async (req: Request, res: Response) => {
+export const getTeacherAnalytics = async (req: Request, res: Response): Promise<void> => {
   try {
     const teacherId = (req as any).user.id;
     const userRole = (req as any).user.role;
 
     // Verify user is a teacher
     if (userRole !== 'teacher') {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Access denied. Only teachers can view teacher analytics.'
       });
+      return;
     }
 
-    // Get current date and 6 months ago
-    const now = new Date();
-    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    const cacheKey = `teacher:analytics:${teacherId}`;
+    
+    const analyticsData = await cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        // Get current date and 6 months ago
+        const now = new Date();
+        const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
 
-    // Aggregate teacher data
-    const teacherStats = await Lesson.aggregate([
+        // Aggregate teacher data with optimized pipeline
+        const teacherStats = await Lesson.aggregate([
       {
         $match: {
           teacherId: teacherId,
@@ -35,7 +42,7 @@ export const getTeacherAnalytics = async (req: Request, res: Response) => {
           totalLessons: { $sum: 1 },
           totalStudents: { $addToSet: '$studentId' },
           totalEarnings: { $sum: '$price' },
-          averageRating: { $avg: '$rating' }
+          totalHours: { $sum: '$duration' }
         }
       },
       {
@@ -44,12 +51,12 @@ export const getTeacherAnalytics = async (req: Request, res: Response) => {
           totalLessons: 1,
           totalStudents: { $size: '$totalStudents' },
           totalEarnings: 1,
-          averageRating: { $round: ['$averageRating', 2] }
+          totalHours: { $round: ['$totalHours', 2] }
         }
       }
-    ]);
+    ]).hint({ teacherId: 1, status: 1 });
 
-    // Get monthly lesson trend (last 6 months)
+    // Get monthly lesson trend (last 6 months) with optimized pipeline
     const monthlyTrend = await Lesson.aggregate([
       {
         $match: {
@@ -70,10 +77,24 @@ export const getTeacherAnalytics = async (req: Request, res: Response) => {
       },
       {
         $sort: { '_id.year': 1, '_id.month': 1 }
+      },
+      {
+        $project: {
+          _id: 0,
+          month: {
+            $concat: [
+              { $toString: '$_id.year' },
+              '-',
+              { $toString: '$_id.month' }
+            ]
+          },
+          lessonCount: 1,
+          earnings: 1
+        }
       }
-    ]);
+    ]).hint({ teacherId: 1, status: 1, createdAt: -1 });
 
-    // Get recent ratings
+    // Get recent ratings with optimized pipeline
     const recentRatings = await Lesson.aggregate([
       {
         $match: {
@@ -108,9 +129,9 @@ export const getTeacherAnalytics = async (req: Request, res: Response) => {
           'student.name': 1
         }
       }
-    ]);
+    ]).hint({ teacherId: 1, createdAt: -1 });
 
-    // Get lesson type breakdown
+    // Get lesson type breakdown with optimized pipeline
     const lessonTypeBreakdown = await Lesson.aggregate([
       {
         $match: {
@@ -124,24 +145,37 @@ export const getTeacherAnalytics = async (req: Request, res: Response) => {
           count: { $sum: 1 },
           earnings: { $sum: '$price' }
         }
+      },
+      {
+        $project: {
+          type: '$_id',
+          count: 1,
+          earnings: 1,
+          _id: 0
+        }
       }
-    ]);
+    ]).hint({ teacherId: 1, status: 1 });
 
-    const stats = teacherStats[0] || {
-      totalLessons: 0,
-      totalStudents: 0,
-      totalEarnings: 0,
-      averageRating: 0
-    };
+        const stats = teacherStats[0] || {
+          totalLessons: 0,
+          totalStudents: 0,
+          totalEarnings: 0,
+          averageRating: 0
+        };
+
+        return {
+          ...stats,
+          monthlyTrend,
+          recentRatings,
+          lessonTypeBreakdown
+        };
+      },
+      1800 // Cache for 30 minutes
+    );
 
     res.json({
       success: true,
-      data: {
-        ...stats,
-        monthlyTrend,
-        recentRatings,
-        lessonTypeBreakdown
-      },
+      data: analyticsData,
       message: 'Teacher analytics retrieved successfully'
     });
   } catch (error) {
@@ -154,24 +188,25 @@ export const getTeacherAnalytics = async (req: Request, res: Response) => {
 };
 
 // Student Analytics
-export const getStudentAnalytics = async (req: Request, res: Response) => {
+export const getStudentAnalytics = async (req: Request, res: Response): Promise<void> => {
   try {
     const studentId = (req as any).user.id;
     const userRole = (req as any).user.role;
 
     // Verify user is a student
     if (userRole !== 'student') {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Access denied. Only students can view student analytics.'
       });
+      return;
     }
 
     // Get current date and 30 days ago for streak calculation
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // Aggregate student data
+    // Aggregate student data with optimized pipeline
     const studentStats = await Lesson.aggregate([
       {
         $match: {
@@ -197,9 +232,9 @@ export const getStudentAnalytics = async (req: Request, res: Response) => {
           averageRating: { $round: ['$averageRating', 2] }
         }
       }
-    ]);
+    ]).hint({ studentId: 1, status: 1 });
 
-    // Calculate activity streak
+    // Calculate activity streak with optimized pipeline
     const activityStreak = await Lesson.aggregate([
       {
         $match: {
@@ -221,9 +256,9 @@ export const getStudentAnalytics = async (req: Request, res: Response) => {
       {
         $sort: { '_id.year': -1, '_id.month': -1, '_id.day': -1 }
       }
-    ]);
+    ]).hint({ studentId: 1, status: 1, createdAt: -1 });
 
-    // Get skill progress (based on lesson types)
+    // Get skill progress (based on lesson types) with optimized pipeline
     const skillProgress = await Lesson.aggregate([
       {
         $match: {
@@ -247,7 +282,7 @@ export const getStudentAnalytics = async (req: Request, res: Response) => {
           averageRating: { $round: ['$averageRating', 2] }
         }
       }
-    ]);
+    ]).hint({ studentId: 1, status: 1 });
 
     // Get recent activity
     const recentActivity = await Lesson.aggregate([
@@ -333,16 +368,17 @@ export const getStudentAnalytics = async (req: Request, res: Response) => {
 };
 
 // Admin Analytics
-export const getAdminAnalytics = async (req: Request, res: Response) => {
+export const getAdminAnalytics = async (req: Request, res: Response): Promise<void> => {
   try {
     const userRole = (req as any).user.role;
 
     // Verify user is an admin
     if (userRole !== 'admin') {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Access denied. Only admins can view admin analytics.'
       });
+      return;
     }
 
     // Get current date and 12 months ago
@@ -518,4 +554,4 @@ export const getAdminAnalytics = async (req: Request, res: Response) => {
       message: 'Failed to retrieve admin analytics'
     });
   }
-}; 
+};

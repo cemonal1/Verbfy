@@ -3,8 +3,8 @@ import { register, login, getTeachers, refreshToken, logout, me, requestEmailVer
 import { passwordResetLimiter, authLimiter } from '../middleware/rateLimit';
 import { oauthInit, oauthCallback } from '../controllers/oauthController';
 import { Request, Response } from 'express';
-import path from 'path';
-import fs from 'fs';
+import * as path from 'path';
+import * as fs from 'fs';
 
 const router = Router();
 

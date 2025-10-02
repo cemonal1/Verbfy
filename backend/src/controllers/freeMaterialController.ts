@@ -2,8 +2,8 @@ import { Request, Response } from 'express';
 import { FreeMaterial } from '../models/FreeMaterial';
 import User, { IUser } from '../models/User';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import * as path from 'path';
+import * as fs from 'fs';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -51,7 +51,7 @@ const upload = multer({
 
 export class FreeMaterialController {
   // Get all free materials with filtering
-  static async getMaterials(req: Request, res: Response) {
+  static async getMaterials(req: Request, res: Response): Promise<void> {
     try {
       const {
         category,
@@ -105,7 +105,7 @@ export class FreeMaterialController {
   }
 
   // Get featured materials
-  static async getFeaturedMaterials(req: Request, res: Response) {
+  static async getFeaturedMaterials(req: Request, res: Response): Promise<void> {
     try {
       const materials = await FreeMaterial.find({ isActive: true, isFeatured: true })
         .populate('uploadedBy', 'name email avatar')
@@ -122,7 +122,7 @@ export class FreeMaterialController {
   }
 
   // Get material by ID
-  static async getMaterial(req: Request, res: Response) {
+  static async getMaterial(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
 
@@ -130,7 +130,8 @@ export class FreeMaterialController {
         .populate('uploadedBy', 'name email avatar');
 
       if (!material) {
-        return res.status(404).json({ success: false, message: 'Material not found' });
+        res.status(404).json({ success: false, message: 'Material not found' });
+      return;
       }
 
       res.json({
@@ -143,22 +144,25 @@ export class FreeMaterialController {
   }
 
   // Upload new material (teachers and admins only)
-  static async uploadMaterial(req: Request, res: Response) {
+  static async uploadMaterial(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
       const user = await User.findById(userId);
       
       if (!user || !['teacher', 'admin'].includes(user.role)) {
-        return res.status(403).json({ success: false, message: 'Only teachers and admins can upload materials' });
+        res.status(403).json({ success: false, message: 'Only teachers and admins can upload materials' });
+      return;
       }
 
       upload.single('file')(req, res, async (err) => {
         if (err) {
-          return res.status(400).json({ success: false, message: err.message });
+          res.status(400).json({ success: false, message: err.message });
+      return;
         }
 
         if (!req.file) {
-          return res.status(400).json({ success: false, message: 'No file uploaded' });
+          res.status(400).json({ success: false, message: 'No file uploaded' });
+      return;
         }
 
         const {
@@ -202,7 +206,7 @@ export class FreeMaterialController {
   }
 
   // Update material (only by uploader or admin)
-  static async updateMaterial(req: Request, res: Response) {
+  static async updateMaterial(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
       const { id } = req.params;
@@ -210,12 +214,14 @@ export class FreeMaterialController {
 
       const material = await FreeMaterial.findById(id);
       if (!material) {
-        return res.status(404).json({ success: false, message: 'Material not found' });
+        res.status(404).json({ success: false, message: 'Material not found' });
+      return;
       }
 
       const user = await User.findById(userId);
       if (!user || (material.uploadedBy.toString() !== userId && user.role !== 'admin')) {
-        return res.status(403).json({ success: false, message: 'Not authorized' });
+        res.status(403).json({ success: false, message: 'Not authorized' });
+      return;
       }
 
       // Update fields
@@ -242,19 +248,21 @@ export class FreeMaterialController {
   }
 
   // Delete material (only by uploader or admin)
-  static async deleteMaterial(req: Request, res: Response) {
+  static async deleteMaterial(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
       const { id } = req.params;
 
       const material = await FreeMaterial.findById(id);
       if (!material) {
-        return res.status(404).json({ success: false, message: 'Material not found' });
+        res.status(404).json({ success: false, message: 'Material not found' });
+      return;
       }
 
       const user = await User.findById(userId);
       if (!user || (material.uploadedBy.toString() !== userId && user.role !== 'admin')) {
-        return res.status(403).json({ success: false, message: 'Not authorized' });
+        res.status(403).json({ success: false, message: 'Not authorized' });
+      return;
       }
 
       // Delete file from filesystem
@@ -274,19 +282,21 @@ export class FreeMaterialController {
   }
 
   // Rate material
-  static async rateMaterial(req: Request, res: Response) {
+  static async rateMaterial(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
       const { id } = req.params;
       const { rating } = req.body;
 
       if (!rating || rating < 1 || rating > 5) {
-        return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+        res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+      return;
       }
 
       const material = await FreeMaterial.findById(id);
       if (!material) {
-        return res.status(404).json({ success: false, message: 'Material not found' });
+        res.status(404).json({ success: false, message: 'Material not found' });
+      return;
       }
 
       await material.updateRating(rating);
@@ -301,13 +311,14 @@ export class FreeMaterialController {
   }
 
   // Download material
-  static async downloadMaterial(req: Request, res: Response) {
+  static async downloadMaterial(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
 
       const material = await FreeMaterial.findById(id);
       if (!material) {
-        return res.status(404).json({ success: false, message: 'Material not found' });
+        res.status(404).json({ success: false, message: 'Material not found' });
+      return;
       }
 
       // Increment download count
@@ -315,7 +326,8 @@ export class FreeMaterialController {
 
       const filePath = material.fileUrl.substring(1);
       if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ success: false, message: 'File not found' });
+        res.status(404).json({ success: false, message: 'File not found' });
+      return;
       }
 
       res.download(filePath, material.title + path.extname(filePath));
@@ -325,7 +337,7 @@ export class FreeMaterialController {
   }
 
   // Get material categories
-  static async getCategories(req: Request, res: Response) {
+  static async getCategories(req: Request, res: Response): Promise<void> {
     try {
       const categories = await FreeMaterial.distinct('category');
       res.json({
@@ -338,7 +350,7 @@ export class FreeMaterialController {
   }
 
   // Get material levels
-  static async getLevels(req: Request, res: Response) {
+  static async getLevels(req: Request, res: Response): Promise<void> {
     try {
       const levels = await FreeMaterial.distinct('level');
       res.json({

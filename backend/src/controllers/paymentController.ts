@@ -3,7 +3,7 @@ import { Payment } from '../models/Payment';
 
 // Payments are disabled. Keep read-only endpoints operational for history and product catalog if present.
 
-export const getPaymentHistory = async (req: Request, res: Response) => {
+export const getPaymentHistory = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const { page = 1, limit = 20 } = req.query;
@@ -71,10 +71,11 @@ export const getProducts = async (_req: Request, res: Response) => {
     },
   ];
 
-  return res.json({ success: true, data: catalog, message: 'Product catalog' });
+  res.json({ success: true, data: catalog, message: 'Product catalog' });
+      return;
 };
 
-export const getPaymentStats = async (req: Request, res: Response) => {
+export const getPaymentStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const stats = await Payment.getPaymentStats(userId);

@@ -7,7 +7,7 @@ import UserModel from '../models/User';
 import mongoose from 'mongoose';
 
 // Book a lesson slot
-export const bookReservation = async (req: AuthRequest, res: Response) => {
+export const bookReservation = async (req: AuthRequest, res: Response): Promise<void> => {
   const session = await mongoose.startSession();
   session.startTransaction();
   
@@ -26,78 +26,87 @@ export const bookReservation = async (req: AuthRequest, res: Response) => {
     // Validate required fields
     if (!teacherId || !slotId || !actualDate) {
       await session.abortTransaction();
-      return res.status(400).json({ 
+      res.status(400).json({ 
         message: 'teacherId, slotId, and actualDate are required' 
       });
+      return;
     }
 
     // Validate lesson type
     const validLessonTypes = ['VerbfySpeak', 'VerbfyListen', 'VerbfyRead', 'VerbfyWrite', 'VerbfyGrammar', 'VerbfyExam'];
     if (!validLessonTypes.includes(lessonType)) {
       await session.abortTransaction();
-      return res.status(400).json({ 
+      res.status(400).json({ 
         message: 'Invalid lesson type. Must be one of: ' + validLessonTypes.join(', ') 
       });
+      return;
     }
 
     // Validate lesson level
     const validLevels = ['Beginner', 'Intermediate', 'Advanced'];
     if (!validLevels.includes(lessonLevel)) {
       await session.abortTransaction();
-      return res.status(400).json({ 
+      res.status(400).json({ 
         message: 'Invalid lesson level. Must be one of: ' + validLevels.join(', ') 
       });
+      return;
     }
 
     // Verify student role
     if (req.user!.role !== 'student') {
       await session.abortTransaction();
-      return res.status(403).json({ 
+      res.status(403).json({ 
         message: 'Only students can book lessons' 
       });
+      return;
     }
 
     // Validate teacher exists
     const teacher = await UserModel.findById(teacherId);
     if (!teacher || teacher.role !== 'teacher') {
       await session.abortTransaction();
-      return res.status(404).json({ 
+      res.status(404).json({ 
         message: 'Teacher not found' 
       });
+      return;
     }
 
     // Get the availability slot with session
     const availabilitySlot = await Availability.findById(slotId).session(session);
     if (!availabilitySlot) {
       await session.abortTransaction();
-      return res.status(404).json({ 
+      res.status(404).json({ 
         message: 'Time slot not available' 
       });
+      return;
     }
 
     // Verify the slot belongs to the teacher
     if (availabilitySlot.teacher.toString() !== teacherId) {
       await session.abortTransaction();
-      return res.status(403).json({ 
+      res.status(403).json({ 
         message: 'Invalid time slot for this teacher' 
       });
+      return;
     }
 
     // Check if slot is already booked (with session for consistency)
     if (availabilitySlot.isBooked) {
       await session.abortTransaction();
-      return res.status(409).json({ 
+      res.status(409).json({ 
         message: 'This time slot is already booked' 
       });
+      return;
     }
 
     // Parse the actual date
     const lessonDate = new Date(actualDate);
     if (isNaN(lessonDate.getTime())) {
       await session.abortTransaction();
-      return res.status(400).json({ 
+      res.status(400).json({ 
         message: 'Invalid date format' 
       });
+      return;
     }
 
     // Calculate lesson duration
@@ -117,9 +126,10 @@ export const bookReservation = async (req: AuthRequest, res: Response) => {
 
     if (existingBooking) {
       await session.abortTransaction();
-      return res.status(409).json({ 
+      res.status(409).json({ 
         message: 'This time slot is already booked by another student' 
       });
+      return;
     }
 
     // Check if this student already has a booking at this time
@@ -132,9 +142,10 @@ export const bookReservation = async (req: AuthRequest, res: Response) => {
 
     if (studentExistingBooking) {
       await session.abortTransaction();
-      return res.status(409).json({ 
+      res.status(409).json({ 
         message: 'You already have a lesson booked at this time' 
       });
+      return;
     }
 
     // Create the reservation
@@ -219,7 +230,7 @@ export const bookReservation = async (req: AuthRequest, res: Response) => {
 };
 
 // Get student's bookings
-export const getStudentBookings = async (req: AuthRequest, res: Response) => {
+export const getStudentBookings = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const studentId = req.user!.id;
     console.log('[getStudentBookings] Fetching bookings for student:', studentId);
@@ -268,15 +279,16 @@ export const getStudentBookings = async (req: AuthRequest, res: Response) => {
 };
 
 // Get teacher's bookings
-export const getTeacherBookings = async (req: AuthRequest, res: Response) => {
+export const getTeacherBookings = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const teacherId = req.user!.id;
 
     // Verify teacher role
     if (req.user!.role !== 'teacher') {
-      return res.status(403).json({ 
+      res.status(403).json({ 
         message: 'Only teachers can access this endpoint' 
       });
+      return;
     }
 
     const now = new Date();
@@ -319,16 +331,17 @@ export const getTeacherBookings = async (req: AuthRequest, res: Response) => {
 };
 
 // Cancel a reservation
-export const cancelReservation = async (req: AuthRequest, res: Response) => {
+export const cancelReservation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { reservationId } = req.params;
     const userId = req.user!.id;
 
     const reservation = await Reservation.findById(reservationId);
     if (!reservation) {
-      return res.status(404).json({ 
+      res.status(404).json({ 
         message: 'Reservation not found' 
       });
+      return;
     }
 
     // Check if user owns the reservation (student) or is the teacher
@@ -336,16 +349,18 @@ export const cancelReservation = async (req: AuthRequest, res: Response) => {
     const isTeacher = reservation.teacher.toString() === userId;
 
     if (!isOwner && !isTeacher) {
-      return res.status(403).json({ 
+      res.status(403).json({ 
         message: 'You can only cancel your own reservations' 
       });
+      return;
     }
 
     // Check if reservation can be cancelled
     if (reservation.status !== 'booked') {
-      return res.status(400).json({ 
+      res.status(400).json({ 
         message: 'Only booked reservations can be cancelled' 
       });
+      return;
     }
 
     // Update reservation status
@@ -382,7 +397,7 @@ export const cancelReservation = async (req: AuthRequest, res: Response) => {
 };
 
 // Get upcoming reservations for a user
-export const getUpcomingReservations = async (req: AuthRequest, res: Response) => {
+export const getUpcomingReservations = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const now = new Date();
@@ -436,7 +451,7 @@ export const getUpcomingReservations = async (req: AuthRequest, res: Response) =
 }; 
 
 // Get student reservations (for dashboard)
-export const getStudentReservations = async (req: AuthRequest, res: Response) => {
+export const getStudentReservations = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const studentId = req.user!.id;
     const { page = 1, limit = 10 } = req.query;
@@ -483,7 +498,7 @@ export const getStudentReservations = async (req: AuthRequest, res: Response) =>
 };
 
 // Get reservation by ID
-export const getReservationById = async (req: AuthRequest, res: Response) => {
+export const getReservationById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { reservationId } = req.params;
     const userId = req.user!.id;
@@ -493,9 +508,10 @@ export const getReservationById = async (req: AuthRequest, res: Response) => {
       .populate('teacher', 'name email');
 
     if (!reservation) {
-      return res.status(404).json({ 
+      res.status(404).json({ 
         message: 'Reservation not found' 
       });
+      return;
     }
 
     // Check if user is part of this reservation
@@ -503,9 +519,10 @@ export const getReservationById = async (req: AuthRequest, res: Response) => {
     const isTeacher = reservation.teacher._id.toString() === userId;
 
     if (!isStudent && !isTeacher) {
-      return res.status(403).json({ 
+      res.status(403).json({ 
         message: 'Access denied to this reservation' 
       });
+      return;
     }
 
     res.json(reservation);

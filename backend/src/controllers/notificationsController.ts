@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { Notification, INotificationDocument } from '../models/Notification';
 
 // Get user's notifications
-export const getNotifications = async (req: Request, res: Response) => {
+export const getNotifications = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const { page = 1, limit = 20, type, isRead } = req.query;
@@ -60,16 +60,17 @@ export const getNotifications = async (req: Request, res: Response) => {
 };
 
 // Create new notification
-export const createNotification = async (req: Request, res: Response) => {
+export const createNotification = async (req: Request, res: Response): Promise<void> => {
   try {
     const { recipient, type, title, body, link, meta } = req.body;
 
     // Validate required fields
     if (!recipient || !type || !title || !body) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Recipient, type, title, and body are required'
       });
+      return;
     }
 
     // Create notification
@@ -107,7 +108,7 @@ export const createNotification = async (req: Request, res: Response) => {
 };
 
 // Mark notification as read
-export const markAsRead = async (req: Request, res: Response) => {
+export const markAsRead = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const { id } = req.params;
@@ -118,10 +119,11 @@ export const markAsRead = async (req: Request, res: Response) => {
     }) as INotificationDocument | null;
 
     if (!notification) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Notification not found'
       });
+      return;
     }
 
     await notification.markAsRead();
@@ -147,7 +149,7 @@ export const markAsRead = async (req: Request, res: Response) => {
 };
 
 // Mark all notifications as read
-export const markAllAsRead = async (req: Request, res: Response) => {
+export const markAllAsRead = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
 
@@ -170,7 +172,7 @@ export const markAllAsRead = async (req: Request, res: Response) => {
 };
 
 // Get unread count
-export const getUnreadCount = async (req: Request, res: Response) => {
+export const getUnreadCount = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
 
@@ -191,7 +193,7 @@ export const getUnreadCount = async (req: Request, res: Response) => {
 };
 
 // Delete notification
-export const deleteNotification = async (req: Request, res: Response) => {
+export const deleteNotification = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const { id } = req.params;
@@ -202,10 +204,11 @@ export const deleteNotification = async (req: Request, res: Response) => {
     });
 
     if (!notification) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Notification not found'
       });
+      return;
     }
 
     // Get updated unread count

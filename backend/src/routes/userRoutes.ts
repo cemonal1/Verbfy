@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import * as path from 'path';
+import * as fs from 'fs';
 import { auth, requireRole } from '../middleware/auth';
 import * as userController from '../controllers/userController';
+import { userDataCache, shortCache } from '../middleware/cacheMiddleware';
 
 const router = Router();
 
@@ -31,13 +32,13 @@ const upload = multer({
 });
 
 // Get all teachers (accessible by students)
-router.get('/teachers', auth, userController.getTeachers);
+router.get('/teachers', auth, shortCache, userController.getTeachers);
 
 // Get all students (accessible by teachers)
-router.get('/students', auth, requireRole('teacher'), userController.getStudents);
+router.get('/students', auth, requireRole('teacher'), shortCache, userController.getStudents);
 
 // Get current user profile
-router.get('/profile', auth, userController.getCurrentUser);
+router.get('/profile', auth, userDataCache, userController.getCurrentUser);
 
 // Update current user profile
 router.put('/profile', auth, userController.updateCurrentUser);
@@ -48,4 +49,4 @@ router.post('/profile/avatar', auth, upload.single('avatar'), userController.upl
 // S3 presigned upload URL for teacher documents
 router.get('/uploads/presign', auth, userController.getPresignedUploadUrl);
 
-export default router; 
+export default router;

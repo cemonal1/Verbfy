@@ -27,9 +27,13 @@ else
     exit 1
 fi
 
-# Build the project
-echo "🔨 Building Verbfy backend..."
-npm run build
+# Install terser if not present
+echo "📦 Ensuring build dependencies..."
+npm install --save-dev terser
+
+# Build the project with optimization
+echo "🔨 Building Verbfy backend with optimization..."
+npm run build:prod
 
 if [ $? -eq 0 ]; then
     echo "✅ Build successful"
@@ -37,6 +41,12 @@ else
     echo "❌ Build failed"
     exit 1
 fi
+
+# Performance check
+echo "🔍 Checking build size..."
+du -sh dist/
+echo "📊 Build files:"
+ls -la dist/
 
 # Stop existing PM2 process
 echo "🛑 Stopping existing PM2 process..."
@@ -73,6 +83,21 @@ pm2 status
 echo "📋 Recent logs:"
 pm2 logs verbfy-backend --lines 10
 
+# Health check
+echo "🏥 Performing health check..."
+sleep 5  # Wait for server to start
+curl -f http://localhost:5000/api/health || echo "❌ Health check failed"
+
+# Memory check
+echo "💾 Memory usage:"
+free -h
+
+# Performance monitoring setup
+echo "📊 Setting up performance monitoring..."
+if [ ! -d "logs" ]; then
+    mkdir -p logs
+fi
+
 echo "🎉 Deployment completed!"
 echo "🌐 Test WebSocket: https://api.verbfy.com/socket.io/"
 echo "🔍 Test API: https://api.verbfy.com/api/health"
@@ -82,3 +107,8 @@ echo "  pm2 logs verbfy-backend --lines 50    # Show last 50 log lines"
 echo "  pm2 restart verbfy-backend             # Restart backend"
 echo "  pm2 reload verbfy-backend              # Zero-downtime reload"
 echo "  pm2 monit                              # Monitor all processes"
+echo ""
+echo "🔧 Performance commands:"
+echo "  npm run monitor:memory                 # Monitor memory usage"
+echo "  npm run health-check                   # Check API health"
+echo "  npm run performance:test               # Run performance tests"

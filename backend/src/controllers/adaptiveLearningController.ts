@@ -19,7 +19,8 @@ export const getAdaptivePaths = async (req: AuthenticatedRequest, res: Response)
     const userId = req.user?.id;
     
     if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
     const paths = await AdaptivePath.find({ userId })
@@ -48,7 +49,8 @@ export const createAdaptivePath = async (req: AuthenticatedRequest, res: Respons
     const userId = req.user?.id;
     
     if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
     const {
@@ -62,15 +64,17 @@ export const createAdaptivePath = async (req: AuthenticatedRequest, res: Respons
 
     // Validate required fields
     if (!pathName || !description || !targetCEFRLevel || !currentCEFRLevel) {
-      return res.status(400).json({ 
+      res.status(400).json({ 
         error: 'Missing required fields: pathName, description, targetCEFRLevel, currentCEFRLevel' 
       });
+      return;
     }
 
     // Get user information
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'User not found' });
+      return;
     }
 
     // Find appropriate lessons based on CEFR level and focus areas
@@ -160,7 +164,8 @@ export const getCurrentRecommendations = async (req: AuthenticatedRequest, res: 
     const userId = req.user?.id;
     
     if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
     // Find the user's active adaptive path
@@ -170,7 +175,7 @@ export const getCurrentRecommendations = async (req: AuthenticatedRequest, res: 
     }).populate('modules.moduleId', 'title description difficulty estimatedDuration category');
 
     if (!activePath) {
-      return res.json({
+      res.json({
         success: true,
         data: {
           hasActivePath: false,
@@ -178,6 +183,7 @@ export const getCurrentRecommendations = async (req: AuthenticatedRequest, res: 
           message: 'No active adaptive learning path found. Create one to get personalized recommendations.'
         }
       });
+      return;
     }
 
     // Get current module and next recommendations
@@ -241,11 +247,13 @@ export const updatePathProgress = async (req: AuthenticatedRequest, res: Respons
     const { moduleId, score, timeSpent } = req.body;
     
     if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
     if (!moduleId) {
-      return res.status(400).json({ error: 'Module ID is required' });
+      res.status(400).json({ error: 'Module ID is required' });
+      return;
     }
 
     const adaptivePath = await AdaptivePath.findOne({ 
@@ -254,7 +262,8 @@ export const updatePathProgress = async (req: AuthenticatedRequest, res: Respons
     });
 
     if (!adaptivePath) {
-      return res.status(404).json({ error: 'Adaptive path not found' });
+      res.status(404).json({ error: 'Adaptive path not found' });
+      return;
     }
 
     // Find the module and update its performance
@@ -263,7 +272,8 @@ export const updatePathProgress = async (req: AuthenticatedRequest, res: Respons
     );
 
     if (moduleIndex === -1) {
-      return res.status(404).json({ error: 'Module not found in path' });
+      res.status(404).json({ error: 'Module not found in path' });
+      return;
     }
 
     const module = adaptivePath.modules[moduleIndex];
@@ -320,7 +330,8 @@ export const getPathAnalytics = async (req: AuthenticatedRequest, res: Response)
     const { pathId } = req.params;
     
     if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
     }
 
     const adaptivePath = await AdaptivePath.findOne({ 
@@ -329,7 +340,8 @@ export const getPathAnalytics = async (req: AuthenticatedRequest, res: Response)
     }).populate('modules.moduleId', 'title category');
 
     if (!adaptivePath) {
-      return res.status(404).json({ error: 'Adaptive path not found' });
+      res.status(404).json({ error: 'Adaptive path not found' });
+      return;
     }
 
     // Calculate detailed analytics

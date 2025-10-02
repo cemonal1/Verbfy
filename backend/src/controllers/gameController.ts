@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Game } from '../models/Game';
 
-export const listGames = async (req: Request, res: Response) => {
+export const listGames = async (req: Request, res: Response): Promise<void> => {
   try {
     const { search = '', category, level } = req.query as any;
     const q: any = {};
@@ -15,20 +15,28 @@ export const listGames = async (req: Request, res: Response) => {
   }
 };
 
-export const createGame = async (req: Request, res: Response) => {
+export const createGame = async (req: Request, res: Response): Promise<void> => {
   try {
     const { title, description, category, level, thumbnailUrl, gameUrl } = req.body || {};
-    if (!title || !gameUrl) return res.status(400).json({ success: false, message: 'title and gameUrl are required' });
-    if (typeof title !== 'string' || typeof gameUrl !== 'string') return res.status(400).json({ success: false, message: 'invalid payload' });
+    if (!title || !gameUrl) {
+      res.status(400).json({ success: false, message: 'title and gameUrl are required' });
+      return;
+    }
+    if (typeof title !== 'string' || typeof gameUrl !== 'string') {
+      res.status(400).json({ success: false, message: 'invalid payload' });
+      return;
+    }
     // very basic domain allow-list for iframe safety
     const allowed = (process.env.ALLOWED_FRAME_SRC || '').split(',').map(s => s.trim()).filter(Boolean);
     try {
       const url = new URL(gameUrl);
       if (allowed.length && !allowed.some(d => url.hostname.endsWith(d))) {
-        return res.status(400).json({ success: false, message: 'gameUrl domain not allowed' });
+        res.status(400).json({ success: false, message: 'gameUrl domain not allowed' });
+      return;
       }
     } catch {
-      return res.status(400).json({ success: false, message: 'invalid gameUrl' });
+      res.status(400).json({ success: false, message: 'invalid gameUrl' });
+      return;
     }
     const game = await Game.create({ title, description, category, level, thumbnailUrl, gameUrl });
     res.status(201).json({ success: true, data: game });
@@ -37,7 +45,7 @@ export const createGame = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteGame = async (req: Request, res: Response) => {
+export const deleteGame = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     await Game.findByIdAndDelete(id);

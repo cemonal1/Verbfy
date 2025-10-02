@@ -6,10 +6,17 @@ export default function Document(props: DocumentProps) {
     <Html lang="en" data-scroll-behavior="smooth">
       <Head>
         <meta charSet="utf-8" />
-        <meta name="theme-color" content="#3B82F6" />
+        {/* PWA Meta Tags */}
+        <meta name="theme-color" content="#3b82f6" />
         <meta name="application-name" content="Verbfy" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Verbfy" />
-        <meta name="description" content="Verbfy - Verbing Up Your Language Skills!" />
+        <meta name="description" content="Learn languages with AI-powered tutoring and live conversations" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-TileColor" content="#3b82f6" />
+        <meta name="msapplication-tap-highlight" content="no" />
         
         {/* Permissions Policy for WebRTC media access */}
         <meta httpEquiv="Permissions-Policy" content="camera=*, microphone=*, display-capture=*, geolocation=(), payment=(), usb=()" />
@@ -17,11 +24,15 @@ export default function Document(props: DocumentProps) {
         {/* Feature Policy (fallback for older browsers) */}
         <meta httpEquiv="Feature-Policy" content="camera *; microphone *; display-capture *" />
         
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <link rel="manifest" href="/site.webmanifest" />
+        {/* PWA Manifest */}
+        <link rel="manifest" href="/manifest.json" />
+        
+        {/* Favicons and Icons */}
+        <link rel="icon" type="image/svg+xml" href="/icons/icon-192x192.svg" />
+        <link rel="shortcut icon" href="/icons/icon-192x192.svg" />
+        <link rel="apple-touch-icon" href="/icons/icon-152x152.svg" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.svg" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.svg" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

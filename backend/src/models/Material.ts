@@ -77,6 +77,25 @@ MaterialSchema.index({ isPublic: 1 });
 MaterialSchema.index({ createdAt: -1 });
 MaterialSchema.index({ role: 1 });
 
+// Compound indexes for frequent query patterns
+MaterialSchema.index({ isPublic: 1, type: 1 }); // Public materials by type
+MaterialSchema.index({ uploaderId: 1, type: 1 }); // User's materials by type
+MaterialSchema.index({ role: 1, isPublic: 1 }); // Materials by role and visibility
+
+// Text indexes for search functionality
+MaterialSchema.index({ 
+  originalName: 'text', 
+  description: 'text', 
+  tags: 'text' 
+}, { 
+  weights: { 
+    originalName: 10, 
+    tags: 5, 
+    description: 1 
+  },
+  name: 'material_text_search'
+});
+
 // Virtual for preview URL
 MaterialSchema.virtual('previewURL').get(function() {
   return `/api/materials/${this._id}/preview`;
@@ -86,4 +105,4 @@ MaterialSchema.virtual('previewURL').get(function() {
 MaterialSchema.set('toJSON', { virtuals: true });
 MaterialSchema.set('toObject', { virtuals: true });
 
-export const Material = mongoose.model<IMaterial>('Material', MaterialSchema); 
+export const Material = mongoose.model<IMaterial>('Material', MaterialSchema);

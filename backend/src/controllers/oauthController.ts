@@ -54,12 +54,13 @@ function getBaseUrl(req: Request): string {
   return `${proto}://${host}`;
 }
 
-export const oauthInit = async (req: Request, res: Response) => {
+export const oauthInit = async (req: Request, res: Response): Promise<void> => {
   try {
     const provider = (req.params.provider || 'google') as Provider;
     const cfg = getProviderConfig(provider);
     if (!cfg || !cfg.clientId || !cfg.clientSecret) {
-      return res.status(501).json({ success: false, message: 'OAuth not configured in this environment' });
+      res.status(501).json({ success: false, message: 'OAuth not configured in this environment' });
+      return;
     }
 
     const { Issuer, generators } = require('openid-client');
@@ -86,16 +87,18 @@ export const oauthInit = async (req: Request, res: Response) => {
     return res.redirect(authUrl);
   } catch (err) {
     console.error('OAuth init error:', err);
-    return res.status(500).json({ success: false, message: 'OAuth init failed' });
+    res.status(500).json({ success: false, message: 'OAuth init failed' });
+      return;
   }
 };
 
-export const oauthCallback = async (req: Request, res: Response) => {
+export const oauthCallback = async (req: Request, res: Response): Promise<void> => {
   try {
     const provider = (req.params.provider || 'google') as Provider;
     const cfg = getProviderConfig(provider);
     if (!cfg || !cfg.clientId || !cfg.clientSecret) {
-      return res.status(501).send('<script>window.close()</script>');
+      res.status(501).send('<script>window.close()</script>');
+      return;
     }
 
     const { Issuer } = require('openid-client');
@@ -109,7 +112,8 @@ export const oauthCallback = async (req: Request, res: Response) => {
 
     const stateCookie = req.cookies?.[`oauth_state_${provider}`];
     if (!stateCookie || stateCookie !== req.query.state) {
-      return res.status(400).send('Invalid state');
+      res.status(400).send('Invalid state');
+      return;
     }
 
     const params = client.callbackParams(req);
@@ -123,7 +127,8 @@ export const oauthCallback = async (req: Request, res: Response) => {
     const name: string = (userinfo.name as string) || (userinfo.given_name ? `${userinfo.given_name} ${userinfo.family_name || ''}`.trim() : 'User');
 
     if (!email) {
-      return res.status(400).send('Email permission is required');
+      res.status(400).send('Email permission is required');
+      return;
     }
 
     // Find or create user
@@ -185,7 +190,8 @@ export const oauthCallback = async (req: Request, res: Response) => {
           }
         </script>
       </body></html>`;
-    return res.send(html);
+    res.send(html);
+      return;
   } catch (err) {
     console.error('OAuth callback error:', err);
     try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
@@ -197,7 +203,8 @@ export const oauthCallback = async (req: Request, res: Response) => {
         <div id="payload" data-json='${JSON.stringify(payload).replace(/'/g, '&#39;')}'></div>
         <script src="/api/auth/oauth/relay.js"></script>
       </body></html>`;
-    return res.status(500).send(html);
+    res.status(500).send(html);
+      return;
   }
 };
 

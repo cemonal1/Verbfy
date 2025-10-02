@@ -7,7 +7,7 @@ import { AuthRequest } from '../middleware/auth';
 
 export class CEFRTestController {
   // Get all tests
-  static async getTests(req: Request, res: Response) {
+  static async getTests(req: Request, res: Response): Promise<void> {
     try {
       const { level, type, testType, page = 1, limit = 10 } = req.query as any;
       const skip = (Number(page) - 1) * Number(limit);
@@ -61,14 +61,15 @@ export class CEFRTestController {
   }
 
   // Get test by ID
-  static async getTest(req: Request, res: Response) {
+  static async getTest(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const test = await CEFRTest.findById(id)
         .populate('createdBy', 'name');
 
       if (!test) {
-        return res.status(404).json({ message: 'Test not found' });
+        res.status(404).json({ message: 'Test not found' });
+      return;
       }
 
       res.json(test);
@@ -82,7 +83,8 @@ export class CEFRTestController {
     try {
       const existingCount = await CEFRTest.countDocuments({ testType: 'placement' });
       if (existingCount > 0) {
-        return res.json({ created: false, message: 'Placement tests already exist' });
+        res.json({ created: false, message: 'Placement tests already exist' });
+      return;
       }
       const UserModel = (await import('../models/User')).default;
       const admin = await UserModel.findOne({ role: 'admin' }).lean();
@@ -92,14 +94,16 @@ export class CEFRTestController {
       await CEFRTestController.seedKidsPlacementA1B1(fakeReq, fakeRes);
       await CEFRTestController.seedAdultsPlacementA1B2(fakeReq, fakeRes);
       await CEFRTestController.seedAdvancedPlacementB1C2(fakeReq, fakeRes);
-      return res.status(201).json({ created: true });
+      res.status(201).json({ created: true });
+      return;
     } catch (error: any) {
-      return res.status(500).json({ message: 'Error bootstrapping placement tests', error: error.message });
+      res.status(500).json({ message: 'Error bootstrapping placement tests', error: error.message });
+      return;
     }
   }
 
   // Public list: ensure 4 placement tests exist then return all placement tests
-  static async listOrSeedPlacement(req: Request, res: Response) {
+  static async listOrSeedPlacement(req: Request, res: Response): Promise<void> {
     try {
       const titles = [
         'Global CEFR Placement (50Q)',
@@ -122,18 +126,21 @@ export class CEFRTestController {
       const tests = await CEFRTest.find({ testType: 'placement' })
         .sort({ createdAt: -1 })
         .lean();
-      return res.json({ tests });
+      res.json({ tests });
+      return;
     } catch (error: any) {
-      return res.status(500).json({ message: 'Error listing placement tests', error: error.message });
+      res.status(500).json({ message: 'Error listing placement tests', error: error.message });
+      return;
     }
   }
 
   // Create new test (admin/teacher only)
-  static async createTest(req: AuthRequest, res: Response) {
+  static async createTest(req: AuthRequest, res: Response): Promise<void> {
     try {
       const testData = req.body;
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       testData.createdBy = req.user.id;
 
@@ -147,7 +154,7 @@ export class CEFRTestController {
   }
 
   // Update test (admin/teacher only)
-  static async updateTest(req: Request, res: Response) {
+  static async updateTest(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const updateData = req.body;
@@ -159,7 +166,8 @@ export class CEFRTestController {
       );
 
       if (!test) {
-        return res.status(404).json({ message: 'Test not found' });
+        res.status(404).json({ message: 'Test not found' });
+      return;
       }
 
       res.json(test);
@@ -169,13 +177,14 @@ export class CEFRTestController {
   }
 
   // Delete test (admin/teacher only)
-  static async deleteTest(req: Request, res: Response) {
+  static async deleteTest(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const test = await CEFRTest.findByIdAndDelete(id);
 
       if (!test) {
-        return res.status(404).json({ message: 'Test not found' });
+        res.status(404).json({ message: 'Test not found' });
+      return;
       }
 
       res.json({ message: 'Test deleted successfully' });
@@ -185,24 +194,27 @@ export class CEFRTestController {
   }
 
   // Start test attempt
-  static async startTest(req: AuthRequest, res: Response) {
+  static async startTest(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { testId } = req.params;
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+      return;
       }
       const studentId = req.user.id;
 
       const test = await CEFRTest.findById(testId);
       if (!test) {
-        return res.status(404).json({ message: 'Test not found' });
+        res.status(404).json({ message: 'Test not found' });
+      return;
       }
 
       // Check if user has access to premium test
       if (test.isPremium) {
         const user = await User.findById(studentId);
         if (user?.subscriptionStatus !== 'active') {
-          return res.status(403).json({ message: 'Premium test requires active subscription' });
+          res.status(403).json({ message: 'Premium test requires active subscription' });
+      return;
         }
       }
 
@@ -259,27 +271,31 @@ export class CEFRTestController {
   }
 
   // Submit test attempt
-  static async submitTest(req: AuthRequest, res: Response) {
+  static async submitTest(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { attemptId } = req.params;
       const { answers, timeSpent } = req.body;
 
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+      return;
       }
 
       const attempt = await LessonAttempt.findById(attemptId);
       if (!attempt) {
-        return res.status(404).json({ message: 'Attempt not found' });
+        res.status(404).json({ message: 'Attempt not found' });
+      return;
       }
 
       if (attempt.student.toString() !== req.user.id) {
-        return res.status(403).json({ message: 'Unauthorized' });
+        res.status(403).json({ message: 'Unauthorized' });
+      return;
       }
 
       const test = await CEFRTest.findById(attempt.lessonId);
       if (!test) {
-        return res.status(404).json({ message: 'Test not found' });
+        res.status(404).json({ message: 'Test not found' });
+      return;
       }
 
       // Calculate score and process answers
@@ -431,10 +447,11 @@ export class CEFRTestController {
   }
 
   // Get placement test recommendations
-  static async getPlacementRecommendation(req: AuthRequest, res: Response) {
+  static async getPlacementRecommendation(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+      return;
       }
       const studentId = req.user.id;
 
@@ -456,11 +473,12 @@ export class CEFRTestController {
           isPremium: false
         });
 
-        return res.json({
+        res.json({
           recommendedLevel: 'A1',
           test: a1Test,
           reason: 'No previous test history found'
         });
+      return;
       }
 
       // Calculate average score and recommend next level
@@ -497,7 +515,7 @@ export class CEFRTestController {
   }
 
   // Get test statistics
-  static async getTestStats(req: Request, res: Response) {
+  static async getTestStats(req: Request, res: Response): Promise<void> {
     try {
       const { testId } = req.params;
 
@@ -528,15 +546,17 @@ export class CEFRTestController {
   }
 
   // Seed: Create a 50-question global CEFR placement test (admin only)
-  static async seedGlobalPlacementTest(req: AuthRequest, res: Response) {
+  static async seedGlobalPlacementTest(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+      return;
       }
 
       const existing = await CEFRTest.findOne({ title: 'Global CEFR Placement (50Q)' });
       if (existing) {
-        return res.json({ created: false, test: existing });
+        res.json({ created: false, test: existing });
+      return;
       }
 
       // Helpers to build questions
@@ -672,18 +692,26 @@ export class CEFRTestController {
         createdBy: req.user.id
       });
 
-      return res.status(201).json({ created: true, test });
+      res.status(201).json({ created: true, test });
+      return;
     } catch (error: any) {
-      return res.status(500).json({ message: 'Error seeding global placement test', error: error.message });
+      res.status(500).json({ message: 'Error seeding global placement test', error: error.message });
+      return;
     }
   }
 
   // Seed: Kids A1–B1 Placement (untimed, kid-friendly topics)
-  static async seedKidsPlacementA1B1(req: AuthRequest, res: Response) {
+  static async seedKidsPlacementA1B1(req: AuthRequest, res: Response): Promise<void> {
     try {
-      if (!req.user?.id) return res.status(401).json({ message: 'User not authenticated' });
+      if (!req.user?.id) {
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
+      }
       const existing = await CEFRTest.findOne({ title: 'Kids Placement (A1–B1) – 40Q' });
-      if (existing) return res.json({ created: false, test: existing });
+      if (existing) {
+        res.json({ created: false, test: existing });
+        return;
+      }
 
       const mc = (q: string, options: string[], correct: string, diff: 'easy'|'medium'|'hard' = 'easy') => ({ type: 'multiple-choice', question: q, options, correctAnswer: correct, points: 1, difficulty: diff });
 
@@ -737,18 +765,26 @@ export class CEFRTestController {
         isPremium: false,
         createdBy: req.user.id
       });
-      return res.status(201).json({ created: true, test });
+      res.status(201).json({ created: true, test });
+      return;
     } catch (error: any) {
-      return res.status(500).json({ message: 'Error seeding kids placement test', error: error.message });
+      res.status(500).json({ message: 'Error seeding kids placement test', error: error.message });
+      return;
     }
   }
 
   // Seed: Adults A1–B2 Placement (untimed, adult topics)
-  static async seedAdultsPlacementA1B2(req: AuthRequest, res: Response) {
+  static async seedAdultsPlacementA1B2(req: AuthRequest, res: Response): Promise<void> {
     try {
-      if (!req.user?.id) return res.status(401).json({ message: 'User not authenticated' });
+      if (!req.user?.id) {
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
+      }
       const existing = await CEFRTest.findOne({ title: 'Adults Placement (A1–B2) – 60Q' });
-      if (existing) return res.json({ created: false, test: existing });
+      if (existing) {
+        res.json({ created: false, test: existing });
+        return;
+      }
 
       const mc = (q: string, options: string[], correct: string, diff: 'easy'|'medium'|'hard' = 'medium') => ({ type: 'multiple-choice', question: q, options, correctAnswer: correct, points: 1, difficulty: diff });
 
@@ -820,18 +856,26 @@ export class CEFRTestController {
         isPremium: false,
         createdBy: req.user.id
       });
-      return res.status(201).json({ created: true, test });
+      res.status(201).json({ created: true, test });
+      return;
     } catch (error: any) {
-      return res.status(500).json({ message: 'Error seeding adults placement test', error: error.message });
+      res.status(500).json({ message: 'Error seeding adults placement test', error: error.message });
+      return;
     }
   }
 
   // Seed: Advanced Placement (B1–C2) – 60Q
-  static async seedAdvancedPlacementB1C2(req: AuthRequest, res: Response) {
+  static async seedAdvancedPlacementB1C2(req: AuthRequest, res: Response): Promise<void> {
     try {
-      if (!req.user?.id) return res.status(401).json({ message: 'User not authenticated' });
+      if (!req.user?.id) {
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
+      }
       const existing = await CEFRTest.findOne({ title: 'Advanced Placement (B1–C2) – 60Q' });
-      if (existing) return res.json({ created: false, test: existing });
+      if (existing) {
+        res.json({ created: false, test: existing });
+        return;
+      }
 
       const mc = (q: string, options: string[], correct: string, diff: 'easy'|'medium'|'hard' = 'medium') => ({ type: 'multiple-choice', question: q, options, correctAnswer: correct, points: 1, difficulty: diff });
 
@@ -951,9 +995,11 @@ export class CEFRTestController {
         isPremium: false,
         createdBy: req.user.id
       });
-      return res.status(201).json({ created: true, test });
+      res.status(201).json({ created: true, test });
+      return;
     } catch (error: any) {
-      return res.status(500).json({ message: 'Error seeding advanced placement test', error: error.message });
+      res.status(500).json({ message: 'Error seeding advanced placement test', error: error.message });
+      return;
     }
   }
   // Helper methods
@@ -1115,4 +1161,4 @@ export class CEFRTestController {
     const currentIndex = levels.indexOf(currentLevel as any);
     return currentIndex > 0 ? levels[currentIndex - 1] : currentLevel as any;
   }
-} 
+}

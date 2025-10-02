@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import { Lesson } from '../models/Lesson';
 import User from '../models/User';
+import { cacheService } from '../services/cacheService';
 
 export class LessonController {
   // Get student's lessons with filters
-  static async getStudentLessons(req: Request, res: Response) {
+  static async getStudentLessons(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
       const { status, level, page = 1, limit = 10 } = req.query;
@@ -93,29 +94,38 @@ export class LessonController {
   }
 
   // Get lesson details
-  static async getLesson(req: Request, res: Response) {
+  static async getLesson(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const userId = (req as any).user.id;
+      const cacheKey = `lesson:${id}`;
 
-      const lesson = await Lesson.findById(id)
-        .populate('teacherId', 'name email avatar')
-        .populate('studentId', 'name email')
-        .populate('materials', 'title type fileUrl');
+      const lesson = await cacheService.getOrSet(
+        cacheKey,
+        async () => {
+          return await Lesson.findById(id)
+            .populate('teacherId', 'name email avatar')
+            .populate('studentId', 'name email')
+            .populate('materials', 'title type fileUrl');
+        },
+        300 // Cache for 5 minutes
+      );
 
       if (!lesson) {
-        return res.status(404).json({ 
+        res.status(404).json({ 
           success: false, 
           message: 'Lesson not found' 
         });
+      return;
       }
 
       // Check if user has access to this lesson
       if (lesson.studentId.toString() !== userId && lesson.teacherId.toString() !== userId) {
-        return res.status(403).json({ 
+        res.status(403).json({ 
           success: false, 
           message: 'Access denied' 
         });
+      return;
       }
 
               // Transform lesson to match frontend expectations
@@ -165,33 +175,36 @@ export class LessonController {
   }
 
   // Join lesson (mark as in-progress)
-  static async joinLesson(req: Request, res: Response) {
+  static async joinLesson(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const userId = (req as any).user.id;
 
       const lesson = await Lesson.findById(id);
       if (!lesson) {
-        return res.status(404).json({ 
+        res.status(404).json({ 
           success: false, 
           message: 'Lesson not found' 
         });
+      return;
       }
 
       // Check if user is the student for this lesson
       if (lesson.studentId.toString() !== userId) {
-        return res.status(403).json({ 
+        res.status(403).json({ 
           success: false, 
           message: 'Only the student can join this lesson' 
         });
+      return;
       }
 
       // Check if lesson can be joined
       if (lesson.status !== 'scheduled') {
-        return res.status(400).json({ 
+        res.status(400).json({ 
           success: false, 
           message: 'Lesson cannot be joined at this time' 
         });
+      return;
       }
 
       // Check if it's time to join (within 15 minutes of start time)
@@ -200,10 +213,11 @@ export class LessonController {
       const timeDiff = Math.abs(now.getTime() - startTime.getTime()) / (1000 * 60); // minutes
 
       if (timeDiff > 15) {
-        return res.status(400).json({ 
+        res.status(400).json({ 
           success: false, 
           message: 'Lesson can only be joined within 15 minutes of start time' 
         });
+      return;
       }
 
       // Update lesson status
@@ -225,7 +239,7 @@ export class LessonController {
   }
 
   // Leave lesson (mark as completed or cancelled)
-  static async leaveLesson(req: Request, res: Response) {
+  static async leaveLesson(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const userId = (req as any).user.id;
@@ -233,26 +247,29 @@ export class LessonController {
 
       const lesson = await Lesson.findById(id);
       if (!lesson) {
-        return res.status(404).json({ 
+        res.status(404).json({ 
           success: false, 
           message: 'Lesson not found' 
         });
+      return;
       }
 
       // Check if user is the student for this lesson
       if (lesson.studentId.toString() !== userId) {
-        return res.status(403).json({ 
+        res.status(403).json({ 
           success: false, 
           message: 'Only the student can leave this lesson' 
         });
+      return;
       }
 
       // Check if lesson can be left
       if (lesson.status !== 'in-progress') {
-        return res.status(400).json({ 
+        res.status(400).json({ 
           success: false, 
           message: 'Lesson is not in progress' 
         });
+      return;
       }
 
       // Update lesson status
@@ -274,26 +291,28 @@ export class LessonController {
   }
 
   // Create a new lesson (for testing/demo purposes)
-  static async createLesson(req: Request, res: Response) {
+  static async createLesson(req: Request, res: Response): Promise<void> {
     try {
       const { topic, description, scheduledAt, duration, teacherId, lessonType, materials, notes } = req.body;
       const studentId = (req as any).user.id;
 
       // Validate required fields
       if (!topic || !scheduledAt || !duration || !teacherId) {
-        return res.status(400).json({ 
+        res.status(400).json({ 
           success: false, 
           message: 'Missing required fields' 
         });
+      return;
       }
 
       // Check if teacher exists and is approved
       const teacher = await User.findById(teacherId);
       if (!teacher || teacher.role !== 'teacher' || !teacher.isApproved) {
-        return res.status(400).json({ 
+        res.status(400).json({ 
           success: false, 
           message: 'Invalid teacher' 
         });
+      return;
       }
 
       // Create lesson

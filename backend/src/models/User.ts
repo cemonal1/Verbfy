@@ -157,4 +157,27 @@ UserSchema.index({ totalLessons: -1 }); // For teacher popularity
 UserSchema.index({ emailVerificationToken: 1 });
 UserSchema.index({ passwordResetToken: 1, passwordResetExpires: 1 });
 
-export default mongoose.model<IUser>('User', UserSchema); 
+// Compound indexes for frequently queried combinations
+UserSchema.index({ role: 1, isActive: 1 }); // For filtering active users by role
+UserSchema.index({ organizationId: 1, role: 1 }); // For organization-specific role queries
+UserSchema.index({ role: 1, rating: -1 }); // For teacher listings sorted by rating
+UserSchema.index({ isActive: 1, lastActiveAt: -1 }); // For active user analytics
+UserSchema.index({ role: 1, isApproved: 1, isActive: 1 }); // For approved active teachers/students
+
+// Text indexes for search functionality
+UserSchema.index({ 
+  name: 'text', 
+  email: 'text', 
+  bio: 'text', 
+  specialties: 'text' 
+}, { 
+  weights: { 
+    name: 10, 
+    email: 5, 
+    specialties: 3, 
+    bio: 1 
+  },
+  name: 'user_text_search'
+});
+
+export default mongoose.model<IUser>('User', UserSchema);

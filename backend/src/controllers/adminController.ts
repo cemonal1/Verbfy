@@ -5,6 +5,7 @@ import { Material } from '../models/Material';
 import { Reservation } from '../models/Reservation';
 import { Notification } from '../models/Notification';
 import AuditLog from '../models/AuditLog';
+import { cacheService } from '../services/cacheService';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -14,11 +15,11 @@ interface AuthenticatedRequest extends Request {
 }
 
 // User Management
-export const getUsers = async (req: Request, res: Response) => {
+export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const { page = 1, limit = 20, role, status, search } = req.query;
     const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
+    const limitNum = Math.min(parseInt(limit as string), 100); // Limit max page size
     const skip = (pageNum - 1) * limitNum;
 
     // Build query
@@ -33,34 +34,42 @@ export const getUsers = async (req: Request, res: Response) => {
     }
     
     if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
-      ];
+      query.$text = { $search: search }; // Use text index instead of regex
     }
 
-    // Get users with pagination
-    const users = await User.find(query)
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .lean();
+    // Create cache key based on query parameters
+    const cacheKey = `admin:users:${JSON.stringify({ page: pageNum, limit: limitNum, role, status, search })}`;
+    
+    const result = await cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        // Use Promise.all for parallel execution
+        const [users, total] = await Promise.all([
+          User.find(query)
+            .select('-password -refreshTokenVersion')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limitNum)
+            .lean(),
+          User.countDocuments(query)
+        ]);
 
-    // Get total count for pagination
-    const total = await User.countDocuments(query);
+        return {
+          users,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            pages: Math.ceil(total / limitNum)
+          }
+        };
+      },
+      300 // Cache for 5 minutes
+    );
 
     res.json({
       success: true,
-      data: {
-        users,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total,
-          pages: Math.ceil(total / limitNum)
-        }
-      },
+      data: result,
       message: 'Users retrieved successfully'
     });
   } catch (error) {
@@ -72,7 +81,7 @@ export const getUsers = async (req: Request, res: Response) => {
   }
 };
 
-export const getUserById = async (req: Request, res: Response) => {
+export const getUserById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -81,10 +90,11 @@ export const getUserById = async (req: Request, res: Response) => {
       .lean();
 
     if (!user) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       });
+      return;
     }
 
     res.json({
@@ -101,16 +111,17 @@ export const getUserById = async (req: Request, res: Response) => {
   }
 };
 
-export const updateUserRole = async (req: Request, res: Response) => {
+export const updateUserRole = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { role } = req.body;
 
     if (!['student', 'teacher', 'admin'].includes(role)) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Invalid role. Must be student, teacher, or admin'
       });
+      return;
     }
 
     const user = await User.findByIdAndUpdate(
@@ -120,10 +131,11 @@ export const updateUserRole = async (req: Request, res: Response) => {
     ).select('-password');
 
     if (!user) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       });
+      return;
     }
 
     res.json({
@@ -140,16 +152,17 @@ export const updateUserRole = async (req: Request, res: Response) => {
   }
 };
 
-export const updateUserStatus = async (req: Request, res: Response) => {
+export const updateUserStatus = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
     if (!['active', 'inactive', 'suspended'].includes(status)) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Invalid status. Must be active, inactive, or suspended'
       });
+      return;
     }
 
     const user = await User.findByIdAndUpdate(
@@ -159,10 +172,11 @@ export const updateUserStatus = async (req: Request, res: Response) => {
     ).select('-password');
 
     if (!user) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       });
+      return;
     }
 
     res.json({
@@ -179,17 +193,18 @@ export const updateUserStatus = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteUser = async (req: Request, res: Response) => {
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
     const user = await User.findByIdAndDelete(id);
 
     if (!user) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       });
+      return;
     }
 
     // Clean up related data
@@ -224,7 +239,7 @@ export const listPendingTeachers = async (_req: Request, res: Response) => {
   }
 };
 
-export const approveTeacher = async (req: Request, res: Response) => {
+export const approveTeacher = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const user = await User.findOneAndUpdate(
@@ -232,7 +247,10 @@ export const approveTeacher = async (req: Request, res: Response) => {
       { isApproved: true, approvalStatus: 'approved' },
       { new: true }
     ).select('-password');
-    if (!user) return res.status(404).json({ success: false, message: 'Teacher not found' });
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Teacher not found' });
+      return;
+    }
     try {
       await AuditLog.create({
         userId: (req as any).user?.id,
@@ -267,7 +285,7 @@ export const approveTeacher = async (req: Request, res: Response) => {
   }
 };
 
-export const rejectTeacher = async (req: Request, res: Response) => {
+export const rejectTeacher = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { reason } = req.body || {};
@@ -276,7 +294,10 @@ export const rejectTeacher = async (req: Request, res: Response) => {
       { isApproved: false, approvalStatus: 'rejected' },
       { new: true }
     ).select('-password');
-    if (!user) return res.status(404).json({ success: false, message: 'Teacher not found' });
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Teacher not found' });
+      return;
+    }
     try {
       await AuditLog.create({
         userId: (req as any).user?.id,
@@ -312,7 +333,7 @@ export const rejectTeacher = async (req: Request, res: Response) => {
 };
 
 // Material Moderation
-export const getMaterials = async (req: Request, res: Response) => {
+export const getMaterials = async (req: Request, res: Response): Promise<void> => {
   try {
     const { page = 1, limit = 20, status, type, search } = req.query;
     const pageNum = parseInt(page as string);
@@ -370,7 +391,7 @@ export const getMaterials = async (req: Request, res: Response) => {
   }
 };
 
-export const approveMaterial = async (req: Request, res: Response) => {
+export const approveMaterial = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { approved, reason } = req.body;
@@ -387,10 +408,11 @@ export const approveMaterial = async (req: Request, res: Response) => {
     ).populate('uploaderId', 'name email');
 
     if (!material) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Material not found'
       });
+      return;
     }
 
     // Notify uploader
@@ -419,17 +441,18 @@ export const approveMaterial = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteMaterial = async (req: Request, res: Response) => {
+export const deleteMaterial = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
     const material = await Material.findByIdAndDelete(id);
 
     if (!material) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Material not found'
       });
+      return;
     }
 
     res.json({
@@ -447,7 +470,7 @@ export const deleteMaterial = async (req: Request, res: Response) => {
 
 // Payment Management functions moved to end of file
 
-export const refundPayment = async (req: Request, res: Response) => {
+export const refundPayment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
@@ -465,10 +488,11 @@ export const refundPayment = async (req: Request, res: Response) => {
      .populate('student', 'name email');
 
     if (!payment) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Payment not found'
       });
+      return;
     }
 
     // Notify users
@@ -509,7 +533,7 @@ export const refundPayment = async (req: Request, res: Response) => {
 };
 
 // Logs & Activity
-export const getLogs = async (req: Request, res: Response) => {
+export const getLogs = async (req: Request, res: Response): Promise<void> => {
   try {
     const { page = 1, limit = 50, type, startDate, endDate } = req.query;
     const pageNum = parseInt(page as string);
@@ -604,7 +628,7 @@ export const getLogs = async (req: Request, res: Response) => {
 };
 
 // Analytics/Overview
-export const getOverview = async (req: Request, res: Response) => {
+export const getOverview = async (req: Request, res: Response): Promise<void> => {
   try {
     const [
       totalUsers,
@@ -689,7 +713,7 @@ export const getOverview = async (req: Request, res: Response) => {
 }; 
 
 // Payment Management
-export const getPayments = async (req: Request, res: Response) => {
+export const getPayments = async (req: Request, res: Response): Promise<void> => {
   try {
     const { page = 1, limit = 20, status, search, startDate, endDate } = req.query;
     const pageNum = parseInt(page as string);
@@ -763,10 +787,11 @@ export const approvePayment = async (req: AuthenticatedRequest, res: Response) =
     // Find the payment/reservation
     const payment = await Reservation.findById(id);
     if (!payment) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Payment not found'
       });
+      return;
     }
 
     // Update payment status
@@ -815,10 +840,11 @@ export const rejectPayment = async (req: AuthenticatedRequest, res: Response) =>
     // Find the payment/reservation
     const payment = await Reservation.findById(id);
     if (!payment) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Payment not found'
       });
+      return;
     }
 
     // Update payment status

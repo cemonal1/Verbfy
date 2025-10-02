@@ -37,9 +37,11 @@ export function verifyCsrf(req: Request, res: Response, next: NextFunction) {
   const path = req.path || '';
   if (path.startsWith('/api/health') || path.startsWith('/api/payments/webhook')) return next();
 
-  // Temporarily disable CSRF in production until frontend properly implements token handling
+  // Temporarily disable CSRF in development until frontend properly implements token handling
   // TODO: Re-enable CSRF protection after frontend integration
-  if (process.env.NODE_ENV !== 'production' || true) return next();
+  if (process.env.NODE_ENV === 'development') {
+    return next();
+  }
 
   const headerToken = (req.headers[CSRF_HEADER_NAME] as string | undefined) || (req.headers[CSRF_HEADER_NAME.toLowerCase()] as string | undefined);
   const cookieToken = req.cookies?.[CSRF_COOKIE_NAME] as string | undefined;

@@ -7,7 +7,7 @@ import { AuthRequest } from '../middleware/auth';
 
 export class VerbfyLessonController {
   // Get all lessons with filtering
-  static async getLessons(req: Request, res: Response) {
+  static async getLessons(req: Request, res: Response): Promise<void> {
     try {
       const {
         lessonType,
@@ -58,14 +58,15 @@ export class VerbfyLessonController {
   }
 
   // Get lesson by ID
-  static async getLesson(req: Request, res: Response) {
+  static async getLesson(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const lesson = await VerbfyLesson.findById(id)
         .populate('createdBy', 'name');
 
       if (!lesson) {
-        return res.status(404).json({ message: 'Lesson not found' });
+        res.status(404).json({ message: 'Lesson not found' });
+        return;
       }
 
       res.json(lesson);
@@ -75,10 +76,11 @@ export class VerbfyLessonController {
   }
 
   // Create new lesson (admin/teacher only)
-  static async createLesson(req: AuthRequest, res: Response) {
+  static async createLesson(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const lessonData = req.body;
       lessonData.createdBy = req.user.id;
@@ -93,7 +95,7 @@ export class VerbfyLessonController {
   }
 
   // Update lesson (admin/teacher only)
-  static async updateLesson(req: Request, res: Response) {
+  static async updateLesson(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const updateData = req.body;
@@ -105,7 +107,8 @@ export class VerbfyLessonController {
       );
 
       if (!lesson) {
-        return res.status(404).json({ message: 'Lesson not found' });
+        res.status(404).json({ message: 'Lesson not found' });
+        return;
       }
 
       res.json(lesson);
@@ -115,13 +118,14 @@ export class VerbfyLessonController {
   }
 
   // Delete lesson (admin/teacher only)
-  static async deleteLesson(req: Request, res: Response) {
+  static async deleteLesson(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const lesson = await VerbfyLesson.findByIdAndDelete(id);
 
       if (!lesson) {
-        return res.status(404).json({ message: 'Lesson not found' });
+        res.status(404).json({ message: 'Lesson not found' });
+        return;
       }
 
       res.json({ message: 'Lesson deleted successfully' });
@@ -131,24 +135,27 @@ export class VerbfyLessonController {
   }
 
   // Start lesson attempt
-  static async startLesson(req: AuthRequest, res: Response) {
+  static async startLesson(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const { lessonId } = req.params;
       const studentId = req.user.id;
 
       const lesson = await VerbfyLesson.findById(lessonId);
       if (!lesson) {
-        return res.status(404).json({ message: 'Lesson not found' });
+        res.status(404).json({ message: 'Lesson not found' });
+        return;
       }
 
       // Check if user has access to premium lesson
       if (lesson.isPremium) {
         const user = await User.findById(studentId);
         if (user?.subscriptionStatus !== 'active') {
-          return res.status(403).json({ message: 'Premium lesson requires active subscription' });
+          res.status(403).json({ message: 'Premium lesson requires active subscription' });
+          return;
         }
       }
 
@@ -189,26 +196,30 @@ export class VerbfyLessonController {
   }
 
   // Submit lesson attempt
-  static async submitLesson(req: AuthRequest, res: Response) {
+  static async submitLesson(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const { attemptId } = req.params;
       const { answers, timeSpent } = req.body;
 
       const attempt = await LessonAttempt.findById(attemptId);
       if (!attempt) {
-        return res.status(404).json({ message: 'Attempt not found' });
+        res.status(404).json({ message: 'Attempt not found' });
+        return;
       }
 
       if (attempt.student.toString() !== req.user.id) {
-        return res.status(403).json({ message: 'Unauthorized' });
+        res.status(403).json({ message: 'Unauthorized' });
+        return;
       }
 
       const lesson = await VerbfyLesson.findById(attempt.lessonId);
       if (!lesson) {
-        return res.status(404).json({ message: 'Lesson not found' });
+        res.status(404).json({ message: 'Lesson not found' });
+        return;
       }
 
       // Calculate score and process answers
@@ -265,7 +276,7 @@ export class VerbfyLessonController {
   }
 
   // Get lesson categories
-  static async getCategories(req: Request, res: Response) {
+  static async getCategories(req: Request, res: Response): Promise<void> {
     try {
       const categories = await VerbfyLesson.distinct('category');
       res.json(categories);
@@ -275,7 +286,7 @@ export class VerbfyLessonController {
   }
 
   // Get lesson statistics
-  static async getLessonStats(req: Request, res: Response) {
+  static async getLessonStats(req: Request, res: Response): Promise<void> {
     try {
       const { lessonId } = req.params;
 
@@ -451,4 +462,4 @@ export class VerbfyLessonController {
       console.error('Error updating lesson progress:', error);
     }
   }
-} 
+}

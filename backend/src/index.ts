@@ -3,12 +3,14 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
+import { initMonitoring } from './config/monitoring';
 import { createServer } from 'http';
-import path from 'path';
-import fs from 'fs';
+import * as path from 'path';
+import * as fs from 'fs';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { connectDB } from './config/db';
 import { validateEnvironment } from './config/env';
+import { cacheService } from './services/cacheService';
 import { apiLimiter, authLimiter } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { setCsrfCookie, verifyCsrf } from './middleware/csrf';
@@ -18,6 +20,11 @@ import { VerbfyTalkRoom } from './models/VerbfyTalkRoom';
 import { verifyToken } from './utils/jwt';
 import { Types } from 'mongoose';
 import { createLogger } from './utils/logger';
+import { setupSocketServer } from './socketServer';
+import { corsConfig, corsMonitoring, preflightHandler, corsErrorHandler, getAllowedOrigins } from './config/cors';
+import { securityMiddleware, ddosProtection, requestSizeLimiter, securityHeaders } from './middleware/security';
+import { securityHeaders as enhancedSecurityHeaders, additionalSecurityHeaders, sanitizeRequest, apiVersioning, requestTimeout, securityMonitoring } from './config/security';
+import { performanceMonitoring, startMonitoring, getHealthMetrics, requestTimeoutMonitoring } from './middleware/monitoring';
 import livekitRoutes from './routes/livekitRoutes';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/userRoutes';
@@ -44,14 +51,16 @@ import aiContentGenerationRoutes from './routes/aiContentGeneration';
 import organizationRoutes from './routes/organization';
 import rolesRoutes from './routes/roles';
 import gameRoutes from './routes/gameRoutes';
+import healthRoutes from './routes/healthRoutes';
+import performanceRoutes from './routes/performanceRoutes';
 import { VerbfyTalkController } from './controllers/verbfyTalkController';
+import { performanceMiddleware, memoryTrackingMiddleware, requestSizeMiddleware } from './middleware/performanceMiddleware';
 
 // Load environment variables and initialize Sentry
 dotenv.config();
 
 // Create context-specific loggers
 const serverLogger = createLogger('Server');
-const corsLogger = createLogger('CORS');
 const socketLogger = createLogger('Socket');
 const roomLogger = createLogger('Room');
 
@@ -70,6 +79,9 @@ try {
   process.exit(1);
 }
 
+// Initialize monitoring
+initMonitoring();
+
 // Initialize express and HTTP server
 const app = express();
 const server = createServer(app);
@@ -77,60 +89,34 @@ const server = createServer(app);
 // Behind proxy (nginx) trust X-Forwarded-* for secure cookies and IPs
 app.set('trust proxy', 1);
 
-// CORS middleware - MUST BE FIRST, before any other middleware
-// Centralized CORS origins configuration
-const defaultOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
-const extraOrigins = (process.env.CORS_EXTRA_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+// Enhanced security middleware - MUST BE FIRST
+app.use(enhancedSecurityHeaders);
+app.use(additionalSecurityHeaders);
+app.use(sanitizeRequest);
+app.use(securityMonitoring);
+app.use(ddosProtection);
+app.use(requestSizeLimiter(10 * 1024 * 1024)); // 10MB limit
 
-// Production domains from environment or defaults
-const productionDomains = process.env.PRODUCTION_DOMAINS 
-  ? process.env.PRODUCTION_DOMAINS.split(',').map(s => s.trim()).filter(Boolean)
-  : ['https://verbfy.com', 'https://www.verbfy.com', 'https://api.verbfy.com'];
+// Performance monitoring
+app.use(performanceMonitoring);
+app.use(requestTimeoutMonitoring(30000));
+app.use(performanceMiddleware);
+app.use(memoryTrackingMiddleware);
+app.use(requestSizeMiddleware);
 
-const allowedOrigins = [
-  defaultOrigin, 
-  ...extraOrigins,
-  ...(process.env.NODE_ENV === 'production' ? productionDomains : [])
-];
+// CORS middleware with monitoring
+app.use(corsMonitoring);
+app.use(preflightHandler);
+app.use(cors(corsConfig));
 
-// Enhanced CORS configuration
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, etc.)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is in allowed list
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    
-    corsLogger.warn('CORS blocked origin:', origin);
-    corsLogger.info('Allowed origins:', allowedOrigins);
-    return callback(new Error('Not allowed by CORS'), false);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With', 
-    'x-csrf-token', 
-    'X-CSRF-Token',
-    'Idempotency-Key',
-    'idempotency-key',
-    'Accept',
-    'Origin',
-    'User-Agent',
-    'Cache-Control'
-  ],
-  exposedHeaders: ['set-cookie', 'X-CSRF-Token']
-}));
+// Security monitoring
+app.use(securityMiddleware);
 
 // Add permission headers for WebRTC
 app.use((req, res, next) => {
-  // Use production domains for WebRTC permissions
+  const allowedOrigins = getAllowedOrigins();
   const webrtcDomains = process.env.NODE_ENV === 'production' 
-    ? productionDomains.map(domain => `"${domain}"`).join(' ')
+    ? allowedOrigins.filter(origin => origin.startsWith('https://')).map(domain => `"${domain}"`).join(' ')
     : '"http://localhost:3000"';
   
   res.setHeader('Permissions-Policy', `microphone=(self ${webrtcDomains}), camera=(self ${webrtcDomains}), geolocation=(self ${webrtcDomains})`);
@@ -145,6 +131,10 @@ app.use((req, res, next) => {
   // Request logged
   next();
 });
+
+// API versioning and timeout
+app.use(apiVersioning);
+app.use(requestTimeout(30000)); // 30 second timeout
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -221,13 +211,14 @@ const mainIo = new SocketIOServer(server, {
   path: '/socket.io',
   cors: {
     origin: (origin, callback) => {
-      // Use the same allowedOrigins as main CORS configuration
+      const allowedOrigins = getAllowedOrigins();
+      // Allow requests with no origin (mobile apps, etc.)
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      corsLogger.warn('Socket.IO CORS blocked origin:', origin);
-      corsLogger.info('Allowed origins:', allowedOrigins);
+      serverLogger.warn('Socket.IO CORS blocked origin:', origin);
+      serverLogger.info('Allowed origins:', allowedOrigins);
       return callback(new Error('Not allowed by CORS'), false);
     },
     methods: ["GET", "POST", "OPTIONS"],
@@ -252,10 +243,25 @@ const mainIo = new SocketIOServer(server, {
   allowEIO3: true,
   maxHttpBufferSize: 1e6,
   allowUpgrades: true,
-  upgradeTimeout: 10000,
+  upgradeTimeout: 30000,
   connectTimeout: 45000,
-  // Better WebSocket handling
-  perMessageDeflate: false
+  // Better WebSocket handling for production
+  perMessageDeflate: {
+    threshold: 1024,
+    concurrencyLimit: 10,
+    windowBits: 13
+  },
+  httpCompression: true,
+  // Add connection state recovery for better reliability
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
+    skipMiddlewares: true,
+  },
+  // Engine.IO options for better compatibility
+  allowRequest: (req, callback) => {
+    // Additional security checks can be added here
+    callback(null, true);
+  }
 });
 
 // Socket interface with user property
@@ -723,6 +729,9 @@ app.use((req, _res, next) => {
 // Connect to MongoDB
 connectDB();
 
+// Initialize cache service
+cacheService.connect();
+
 // Rate limiting middleware (exclude health check). Relax limits in tests to avoid flakiness
 if (process.env.NODE_ENV !== 'test') {
   // Exempt OAuth dance from strict auth limiter to avoid 429 during redirects
@@ -750,8 +759,11 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-// Enhanced health check endpoint
+// Enhanced health check endpoint with monitoring
 app.get('/api/health', (_req, res) => {
+  const allowedOrigins = getAllowedOrigins();
+  const healthMetrics = getHealthMetrics();
+  
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
@@ -761,11 +773,16 @@ app.get('/api/health', (_req, res) => {
       nodeEnv: process.env.NODE_ENV,
       frontendUrl: process.env.FRONTEND_URL,
       corsExtraOrigins: process.env.CORS_EXTRA_ORIGINS
-    }
+    },
+    monitoring: healthMetrics
   });
 });
 
 // CORS test endpoint removed - no longer needed
+
+// Health check routes (before authentication)
+app.use('/health', healthRoutes);
+app.use('/api/performance', performanceRoutes);
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -827,7 +844,11 @@ app.get('/api/test-sentry', (_req, res) => {
   }
 });
 
-// Socket.IO event handling
+// Setup WebRTC Socket.IO namespace
+const webrtcNamespace = mainIo.of('/webrtc');
+setupSocketServer(server, webrtcNamespace);
+
+// Socket.IO event handling for main namespace (chat, notifications)
 mainIo.on('connection', (socket) => {
   socketLogger.info(`User connected: ${socket.id}`);
   
@@ -890,17 +911,24 @@ try {
 }
 
 // Global error handler (must be last)
+app.use(corsErrorHandler);
 app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  serverLogger.info(`Server running on port ${PORT}`);
-  serverLogger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  serverLogger.info(`Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
-  serverLogger.info(`API Base URL: http://localhost:${PORT}/api`);
-  serverLogger.info(`Database: ${process.env.MONGO_URI ? 'Connected' : 'Not configured'}`);
-  serverLogger.info(`Available API Routes:`);
+  serverLogger.info(`🚀 Server running on port ${PORT}`);
+  serverLogger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  serverLogger.info(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+  serverLogger.info(`🔗 API Base URL: http://localhost:${PORT}/api`);
+  serverLogger.info(`🗄️ Database: ${process.env.MONGO_URI ? 'Connected' : 'Not configured'}`);
+  serverLogger.info(`🔌 Socket.IO: Enabled for real-time communication`);
+  serverLogger.info(`📈 Monitoring: Started`);
+  
+  // Start monitoring system
+  startMonitoring();
+  
+  serverLogger.info(`📋 Available API Routes:`);
   serverLogger.info(`   - /api/auth (Authentication)`);
   serverLogger.info(`   - /api/users (User management)`);
   serverLogger.info(`   - /api/livekit (Video conferencing)`);
@@ -914,7 +942,6 @@ server.listen(PORT, () => {
   serverLogger.info(`   - /api/analytics (Analytics & reports)`);
   serverLogger.info(`   - /api/chat (Real-time chat system)`);
   serverLogger.info(`   - /api/verbfy-talk (Voice chat rooms)`);
-  serverLogger.info(`Socket.IO: Enabled for real-time communication`);
 });
 
 // Setup cron job for cleaning up empty rooms (every 5 minutes)

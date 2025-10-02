@@ -3,7 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import * as availabilityService from '../services/availabilityService';
 
 // Test endpoint to verify route is working
-export const testEndpoint = async (req: AuthRequest, res: Response) => {
+export const testEndpoint = async (req: AuthRequest, res: Response): Promise<void> => {
   console.log('=== TEST ENDPOINT HIT ===');
   console.log('Request method:', req.method);
   console.log('Request URL:', req.url);
@@ -22,7 +22,7 @@ export const testEndpoint = async (req: AuthRequest, res: Response) => {
 };
 
 // Set teacher availability for the week
-export const setAvailability = async (req: AuthRequest, res: Response) => {
+export const setAvailability = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const teacherId = req.user!.id;
     const { availabilitySlots, teacherTimezone } = req.body;
@@ -31,7 +31,8 @@ export const setAvailability = async (req: AuthRequest, res: Response) => {
 
     if (!availabilitySlots || !Array.isArray(availabilitySlots)) {
       console.error('Invalid availabilitySlots:', availabilitySlots);
-      return res.status(400).json({ message: 'Availability slots array is required' });
+      res.status(400).json({ message: 'Availability slots array is required' });
+      return;
     }
 
     // Validate slots structure
@@ -48,9 +49,10 @@ export const setAvailability = async (req: AuthRequest, res: Response) => {
           startTimeExists: slot.startTime !== undefined && slot.startTime !== null,
           endTimeExists: slot.endTime !== undefined && slot.endTime !== null
         });
-        return res.status(400).json({ 
+        res.status(400).json({ 
           message: 'Each slot must have dayOfWeek, startTime, and endTime' 
         });
+      return;
       }
 
       // Validate data types
@@ -63,16 +65,18 @@ export const setAvailability = async (req: AuthRequest, res: Response) => {
           startTimeType: typeof slot.startTime,
           endTimeType: typeof slot.endTime
         });
-        return res.status(400).json({ 
+        res.status(400).json({ 
           message: 'Invalid data types: dayOfWeek must be number, startTime and endTime must be strings' 
         });
+      return;
       }
       
       if (slot.dayOfWeek < 0 || slot.dayOfWeek > 6) {
         console.error(`Slot ${i} dayOfWeek out of range:`, slot.dayOfWeek);
-        return res.status(400).json({ 
+        res.status(400).json({ 
           message: 'dayOfWeek must be between 0 (Sunday) and 6 (Saturday)' 
         });
+      return;
       }
     }
 
@@ -94,7 +98,7 @@ export const setAvailability = async (req: AuthRequest, res: Response) => {
 };
 
 // Get teacher availability
-export const getTeacherAvailability = async (req: AuthRequest, res: Response) => {
+export const getTeacherAvailability = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const teacherId = req.params.teacherId || req.user!.id;
     const { studentTimezone } = req.query;
@@ -111,7 +115,7 @@ export const getTeacherAvailability = async (req: AuthRequest, res: Response) =>
 };
 
 // Get current teacher's availability
-export const getMyAvailability = async (req: AuthRequest, res: Response) => {
+export const getMyAvailability = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const teacherId = req.user!.id;
     const { studentTimezone } = req.query;
@@ -128,13 +132,14 @@ export const getMyAvailability = async (req: AuthRequest, res: Response) => {
 };
 
 // Get available slots for booking (for students)
-export const getAvailableSlotsForBooking = async (req: AuthRequest, res: Response) => {
+export const getAvailableSlotsForBooking = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const teacherId = req.params.teacherId;
     const { studentTimezone } = req.query;
     
     if (!teacherId) {
-      return res.status(400).json({ message: 'Teacher ID is required' });
+      res.status(400).json({ message: 'Teacher ID is required' });
+      return;
     }
     
     const availableSlots = await availabilityService.getAvailableSlotsForBooking(
@@ -149,7 +154,7 @@ export const getAvailableSlotsForBooking = async (req: AuthRequest, res: Respons
 };
 
 // Delete specific availability slot
-export const deleteAvailabilitySlot = async (req: AuthRequest, res: Response) => {
+export const deleteAvailabilitySlot = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const teacherId = req.user!.id;
     const { slotId } = req.params;

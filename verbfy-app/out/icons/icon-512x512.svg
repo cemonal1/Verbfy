@@ -1,0 +1,8 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="64" fill="#3b82f6"/>
+  <g transform="translate(128, 128) scale(2.6666666666666665)">
+    <path d="M24 72L48 24L72 72H60L48 48L36 72H24Z" fill="white"/>
+    <circle cx="48" cy="48" r="4" fill="white"/>
+    <text x="48" y="84" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="8" font-weight="bold">Verbfy</text>
+  </g>
+</svg>

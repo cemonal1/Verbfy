@@ -18,7 +18,8 @@ export const createAISession = async (req: AuthenticatedRequest, res: Response) 
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: 'User not authenticated' });
+      res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
     }
 
     const session = new AILearningSession({
@@ -53,12 +54,14 @@ export const getAIResponse = async (req: AuthenticatedRequest, res: Response) =>
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: 'User not authenticated' });
+      res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
     }
 
     const session = await AILearningSession.findById(sessionId);
     if (!session || !session.userId.equals(userId)) {
-      return res.status(404).json({ success: false, message: 'Session not found' });
+      res.status(404).json({ success: false, message: 'Session not found' });
+      return;
     }
 
     // Simulate AI response (in production, this would integrate with OpenAI API)
@@ -94,12 +97,14 @@ export const generateRecommendations = async (req: AuthenticatedRequest, res: Re
     const { topic, difficulty, limit = 5 } = req.body;
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: 'User not authenticated' });
+      res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
     }
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
     }
 
     // Get user's learning history
@@ -141,12 +146,14 @@ export const updateSessionProgress = async (req: AuthenticatedRequest, res: Resp
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: 'User not authenticated' });
+      res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
     }
 
     const session = await AILearningSession.findById(sessionId);
     if (!session || !session.userId.equals(userId)) {
-      return res.status(404).json({ success: false, message: 'Session not found' });
+      res.status(404).json({ success: false, message: 'Session not found' });
+      return;
     }
 
     // Update session metadata
@@ -176,7 +183,8 @@ export const getUserAISessions = async (req: AuthenticatedRequest, res: Response
     const { page = 1, limit = 10, sessionType, difficulty } = req.query;
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: 'User not authenticated' });
+      res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
     }
 
     const filter: any = { userId };
@@ -217,7 +225,8 @@ export const getAISessionAnalytics = async (req: AuthenticatedRequest, res: Resp
     const { timeRange = '30d' } = req.query;
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: 'User not authenticated' });
+      res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
     }
 
     const startDate = new Date();

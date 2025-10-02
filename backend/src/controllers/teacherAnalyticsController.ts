@@ -8,10 +8,11 @@ import { AuthRequest } from '../middleware/auth';
 
 export class TeacherAnalyticsController {
   // Generate comprehensive teacher analytics
-  static async generateTeacherAnalytics(req: AuthRequest, res: Response) {
+  static async generateTeacherAnalytics(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const teacherId = req.user.id;
       const { timeRange = '30d' } = req.query;
@@ -89,10 +90,11 @@ export class TeacherAnalyticsController {
   }
 
   // Get teacher analytics
-  static async getTeacherAnalytics(req: AuthRequest, res: Response) {
+  static async getTeacherAnalytics(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const teacherId = req.user.id;
       const { timeRange = '30d' } = req.query;
@@ -103,10 +105,11 @@ export class TeacherAnalyticsController {
       }).sort({ generatedAt: -1 });
 
       if (!analytics) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           message: 'Analytics not found'
         });
+        return;
       }
 
       res.json({
@@ -123,10 +126,11 @@ export class TeacherAnalyticsController {
   }
 
   // Get student performance analytics
-  static async getStudentPerformance(req: AuthRequest, res: Response) {
+  static async getStudentPerformance(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const teacherId = req.user.id;
       const { studentId } = req.params;
@@ -157,10 +161,11 @@ export class TeacherAnalyticsController {
   }
 
   // Get lesson analytics
-  static async getLessonAnalytics(req: AuthRequest, res: Response) {
+  static async getLessonAnalytics(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const teacherId = req.user.id;
       const { lessonId } = req.params;
@@ -172,10 +177,11 @@ export class TeacherAnalyticsController {
       });
 
       if (!lesson) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           message: 'Lesson not found'
         });
+        return;
       }
 
       // Get lesson progress
@@ -197,10 +203,11 @@ export class TeacherAnalyticsController {
   }
 
   // Get engagement metrics
-  static async getEngagementMetrics(req: AuthRequest, res: Response) {
+  static async getEngagementMetrics(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const teacherId = req.user.id;
       const { timeRange = '30d' } = req.query;
@@ -425,4 +432,4 @@ export class TeacherAnalyticsController {
       difficultyDistribution
     };
   }
-} 
+}

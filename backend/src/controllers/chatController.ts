@@ -4,17 +4,18 @@ import { Message, IMessage } from '../models/Message';
 import User from '../models/User';
 
 // Get all conversations for the current user
-export const getConversations = async (req: Request, res: Response) => {
+export const getConversations = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const userRole = (req as any).user.role;
 
     // Admins cannot participate in conversations
     if (userRole === 'admin') {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Admins cannot participate in conversations'
       });
+      return;
     }
 
     // Find conversations where the user is a participant
@@ -67,7 +68,7 @@ export const getConversations = async (req: Request, res: Response) => {
 };
 
 // Get or create a conversation between two users
-export const getOrCreateConversation = async (req: Request, res: Response) => {
+export const getOrCreateConversation = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const userRole = (req as any).user.role;
@@ -75,27 +76,30 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
 
     // Admins cannot participate in conversations
     if (userRole === 'admin') {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Admins cannot participate in conversations'
       });
+      return;
     }
 
     // Validate other user exists and has valid role
     const otherUser = await User.findById(otherUserId);
     if (!otherUser) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       });
+      return;
     }
 
     // Ensure users can only chat with opposite roles (student-teacher)
     if (userRole === otherUser.role) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Users can only chat with opposite roles'
       });
+      return;
     }
 
     // Check if conversation already exists
@@ -118,10 +122,11 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
 
     // Format response
     if (!conversation) {
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         message: 'Failed to retrieve conversation'
       });
+      return;
     }
 
     const otherParticipant = conversation.participants.find(
@@ -129,10 +134,11 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
     ) as any;
 
     if (!otherParticipant) {
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         message: 'Failed to retrieve conversation participant'
       });
+      return;
     }
 
     const formattedConversation = {
@@ -164,7 +170,7 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
 };
 
 // Get messages for a conversation
-export const getMessages = async (req: Request, res: Response) => {
+export const getMessages = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const userRole = (req as any).user.role;
@@ -173,10 +179,11 @@ export const getMessages = async (req: Request, res: Response) => {
 
     // Admins cannot access conversations
     if (userRole === 'admin') {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Admins cannot access conversations'
       });
+      return;
     }
 
     // Verify user is a participant in the conversation
@@ -187,10 +194,11 @@ export const getMessages = async (req: Request, res: Response) => {
     });
 
     if (!conversation) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Conversation not found or access denied'
       });
+      return;
     }
 
     // Get messages with pagination
@@ -240,7 +248,7 @@ export const getMessages = async (req: Request, res: Response) => {
 };
 
 // Send a message
-export const sendMessage = async (req: Request, res: Response) => {
+export const sendMessage = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const userRole = (req as any).user.role;
@@ -248,25 +256,28 @@ export const sendMessage = async (req: Request, res: Response) => {
 
     // Admins cannot send messages
     if (userRole === 'admin') {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Admins cannot send messages'
       });
+      return;
     }
 
     // Validate content
     if (!content || content.trim().length === 0) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Message content is required'
       });
+      return;
     }
 
     if (content.length > 1000) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'Message content cannot exceed 1000 characters'
       });
+      return;
     }
 
     // Verify user is a participant in the conversation
@@ -277,10 +288,11 @@ export const sendMessage = async (req: Request, res: Response) => {
     });
 
     if (!conversation) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Conversation not found or access denied'
       });
+      return;
     }
 
     // Create new message
@@ -321,7 +333,7 @@ export const sendMessage = async (req: Request, res: Response) => {
 };
 
 // Mark messages as read
-export const markAsRead = async (req: Request, res: Response) => {
+export const markAsRead = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const { conversationId } = req.params;
@@ -334,10 +346,11 @@ export const markAsRead = async (req: Request, res: Response) => {
     });
 
     if (!conversation) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Conversation not found or access denied'
       });
+      return;
     }
 
     // Mark all unread messages as read
@@ -368,7 +381,7 @@ export const markAsRead = async (req: Request, res: Response) => {
 };
 
 // Get unread message count
-export const getUnreadCount = async (req: Request, res: Response) => {
+export const getUnreadCount = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
 

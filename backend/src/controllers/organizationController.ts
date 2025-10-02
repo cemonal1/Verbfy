@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export class OrganizationController {
   // Create new organization
-  static async createOrganization(req: AuthRequest, res: Response) {
+  static async createOrganization(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const {
@@ -21,15 +21,17 @@ export class OrganizationController {
       } = req.body;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       // Validate required fields
       if (!name || !type || !contact?.email) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'Missing required fields: name, type, contact.email'
         });
+      return;
       }
 
       // Generate unique slug
@@ -124,36 +126,41 @@ export class OrganizationController {
   }
 
   // Get organization details
-  static async getOrganization(req: AuthRequest, res: Response) {
+  static async getOrganization(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { organizationId } = req.params;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       const user = await User.findById(userId);
       if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found' });
+        res.status(404).json({ success: false, message: 'User not found' });
+      return;
       }
 
       const orgId = organizationId || user.organizationId;
       if (!orgId) {
-        return res.status(404).json({ success: false, message: 'No organization found' });
+        res.status(404).json({ success: false, message: 'No organization found' });
+      return;
       }
 
       const organization = await Organization.findById(orgId)
         .populate('admins.userId', 'name email');
 
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+      return;
       }
 
       // Check if user has access to this organization
       const isAdmin = organization.admins.some(admin => admin.userId.toString() === userId);
       if (!isAdmin && user.organizationId?.toString() !== orgId) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+      return;
       }
 
       res.json({
@@ -170,25 +177,28 @@ export class OrganizationController {
   }
 
   // Update organization
-  static async updateOrganization(req: AuthRequest, res: Response) {
+  static async updateOrganization(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { organizationId } = req.params;
       const updateData = req.body;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       const organization = await Organization.findById(organizationId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+      return;
       }
 
       // Check if user is admin of this organization
       const admin = organization.admins.find(admin => admin.userId.toString() === userId);
       if (!admin) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+      return;
       }
 
       // Check permissions based on admin role
@@ -216,7 +226,8 @@ export class OrganizationController {
       }
 
       if (Object.keys(allowedUpdates).length === 0) {
-        return res.status(403).json({ success: false, message: 'Insufficient permissions' });
+        res.status(403).json({ success: false, message: 'Insufficient permissions' });
+      return;
       }
 
       const updatedOrganization = await Organization.findByIdAndUpdate(
@@ -240,34 +251,39 @@ export class OrganizationController {
   }
 
   // Get organization statistics
-  static async getOrganizationStats(req: AuthRequest, res: Response) {
+  static async getOrganizationStats(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { organizationId } = req.params;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       const user = await User.findById(userId);
       if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found' });
+        res.status(404).json({ success: false, message: 'User not found' });
+      return;
       }
 
       const orgId = organizationId || user.organizationId;
       if (!orgId) {
-        return res.status(404).json({ success: false, message: 'No organization found' });
+        res.status(404).json({ success: false, message: 'No organization found' });
+      return;
       }
 
       // Check permissions
       const organization = await Organization.findById(orgId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+      return;
       }
 
       const isAdmin = organization.admins.some(admin => admin.userId.toString() === userId);
       if (!isAdmin && user.organizationId?.toString() !== orgId) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+      return;
       }
 
       // Get statistics
@@ -326,43 +342,49 @@ export class OrganizationController {
   }
 
   // Manage organization admins
-  static async manageAdmins(req: AuthRequest, res: Response) {
+  static async manageAdmins(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { organizationId } = req.params;
       const { action, adminUserId, role, permissions } = req.body;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       const organization = await Organization.findById(organizationId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+      return;
       }
 
       // Check if user is owner or has admin management permissions
       const currentAdmin = organization.admins.find(admin => admin.userId.toString() === userId);
       if (!currentAdmin || (currentAdmin.role !== 'owner' && !currentAdmin.permissions.includes('roles.assign'))) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+      return;
       }
 
       switch (action) {
         case 'add':
           if (!adminUserId || !role) {
-            return res.status(400).json({ success: false, message: 'Missing required fields' });
+            res.status(400).json({ success: false, message: 'Missing required fields' });
+      return;
           }
 
           // Check if user exists and belongs to organization
           const userToAdd = await User.findOne({ _id: adminUserId, organizationId });
           if (!userToAdd) {
-            return res.status(404).json({ success: false, message: 'User not found in organization' });
+            res.status(404).json({ success: false, message: 'User not found in organization' });
+      return;
           }
 
           // Check if already admin
           const existingAdmin = organization.admins.find(admin => admin.userId.toString() === adminUserId);
           if (existingAdmin) {
-            return res.status(400).json({ success: false, message: 'User is already an admin' });
+            res.status(400).json({ success: false, message: 'User is already an admin' });
+      return;
           }
 
           organization.admins.push({
@@ -377,17 +399,20 @@ export class OrganizationController {
 
         case 'update':
           if (!adminUserId || !role) {
-            return res.status(400).json({ success: false, message: 'Missing required fields' });
+            res.status(400).json({ success: false, message: 'Missing required fields' });
+      return;
           }
 
           const adminToUpdate = organization.admins.find(admin => admin.userId.toString() === adminUserId);
           if (!adminToUpdate) {
-            return res.status(404).json({ success: false, message: 'Admin not found' });
+            res.status(404).json({ success: false, message: 'Admin not found' });
+      return;
           }
 
           // Only owner can update other owners
           if (adminToUpdate.role === 'owner' && currentAdmin.role !== 'owner') {
-            return res.status(403).json({ success: false, message: 'Only owner can update other owners' });
+            res.status(403).json({ success: false, message: 'Only owner can update other owners' });
+      return;
           }
 
           adminToUpdate.role = role;
@@ -399,22 +424,26 @@ export class OrganizationController {
 
         case 'remove':
           if (!adminUserId) {
-            return res.status(400).json({ success: false, message: 'Missing admin user ID' });
+            res.status(400).json({ success: false, message: 'Missing admin user ID' });
+      return;
           }
 
           const adminToRemove = organization.admins.find(admin => admin.userId.toString() === adminUserId);
           if (!adminToRemove) {
-            return res.status(404).json({ success: false, message: 'Admin not found' });
+            res.status(404).json({ success: false, message: 'Admin not found' });
+      return;
           }
 
           // Cannot remove owner
           if (adminToRemove.role === 'owner') {
-            return res.status(400).json({ success: false, message: 'Cannot remove owner' });
+            res.status(400).json({ success: false, message: 'Cannot remove owner' });
+      return;
           }
 
           // Cannot remove yourself unless you're owner
           if (adminToRemove.userId.toString() === userId && currentAdmin.role !== 'owner') {
-            return res.status(400).json({ success: false, message: 'Cannot remove yourself' });
+            res.status(400).json({ success: false, message: 'Cannot remove yourself' });
+      return;
           }
 
           organization.admins = organization.admins.filter(admin => admin.userId.toString() !== adminUserId);
@@ -422,7 +451,8 @@ export class OrganizationController {
           break;
 
         default:
-          return res.status(400).json({ success: false, message: 'Invalid action' });
+          res.status(400).json({ success: false, message: 'Invalid action' });
+      return;
       }
 
       await organization.save();
@@ -445,35 +475,40 @@ export class OrganizationController {
   }
 
   // Get organization users
-  static async getOrganizationUsers(req: AuthRequest, res: Response) {
+  static async getOrganizationUsers(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { organizationId } = req.params;
       const { page = 1, limit = 20, role, status, search } = req.query;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       const user = await User.findById(userId);
       if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found' });
+        res.status(404).json({ success: false, message: 'User not found' });
+      return;
       }
 
       const orgId = organizationId || user.organizationId;
       if (!orgId) {
-        return res.status(404).json({ success: false, message: 'No organization found' });
+        res.status(404).json({ success: false, message: 'No organization found' });
+      return;
       }
 
       // Check permissions
       const organization = await Organization.findById(orgId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+      return;
       }
 
       const isAdmin = organization.admins.some(admin => admin.userId.toString() === userId);
       if (!isAdmin && user.organizationId?.toString() !== orgId) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+      return;
       }
 
       // Build query
@@ -517,36 +552,41 @@ export class OrganizationController {
   }
 
   // Bulk operations
-  static async bulkOperations(req: AuthRequest, res: Response) {
+  static async bulkOperations(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
       const { organizationId } = req.params;
       const { operation, userIds, data } = req.body;
 
       if (!userId) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
+        res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
       }
 
       const organization = await Organization.findById(organizationId);
       if (!organization) {
-        return res.status(404).json({ success: false, message: 'Organization not found' });
+        res.status(404).json({ success: false, message: 'Organization not found' });
+      return;
       }
 
       // Check if user has bulk operations permission
       const admin = organization.admins.find(admin => admin.userId.toString() === userId);
       if (!admin || (!admin.permissions.includes('users.bulk_operations') && admin.role !== 'owner')) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
+        res.status(403).json({ success: false, message: 'Access denied' });
+      return;
       }
 
       if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-        return res.status(400).json({ success: false, message: 'User IDs required' });
+        res.status(400).json({ success: false, message: 'User IDs required' });
+      return;
       }
 
       let result;
       switch (operation) {
         case 'update_role':
           if (!data.role) {
-            return res.status(400).json({ success: false, message: 'Role required' });
+            res.status(400).json({ success: false, message: 'Role required' });
+      return;
           }
           result = await User.updateMany(
             { _id: { $in: userIds }, organizationId },
@@ -556,7 +596,8 @@ export class OrganizationController {
 
         case 'update_status':
           if (!data.status) {
-            return res.status(400).json({ success: false, message: 'Status required' });
+            res.status(400).json({ success: false, message: 'Status required' });
+      return;
           }
           result = await User.updateMany(
             { _id: { $in: userIds }, organizationId },
@@ -569,7 +610,8 @@ export class OrganizationController {
           break;
 
         default:
-          return res.status(400).json({ success: false, message: 'Invalid operation' });
+          res.status(400).json({ success: false, message: 'Invalid operation' });
+      return;
       }
 
       res.json({

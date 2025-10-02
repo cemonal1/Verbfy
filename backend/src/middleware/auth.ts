@@ -10,7 +10,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const auth = (req: AuthRequest, res: Response, next: NextFunction): void => {
   let token = req.header('Authorization')?.replace('Bearer ', '');
   if (!token && (req as any).cookies) {
     token = (req as any).cookies.accessToken;
@@ -22,7 +22,8 @@ export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
   
   if (!token) {
     console.log('Auth middleware - No token provided');
-    return res.status(401).json({ success: false, message: 'No token, authorization denied' });
+    res.status(401).json({ success: false, message: 'No token, authorization denied' });
+    return;
   }
   
   try {
@@ -36,15 +37,17 @@ export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
   }
 };
 
-export const requireRole = (roles: 'student' | 'teacher' | 'admin' | ('student' | 'teacher' | 'admin')[]) => (req: AuthRequest, res: Response, next: NextFunction) => {
+export const requireRole = (roles: 'student' | 'teacher' | 'admin' | ('student' | 'teacher' | 'admin')[]) => (req: AuthRequest, res: Response, next: NextFunction): void => {
   if (!req.user) {
-    return res.status(403).json({ success: false, message: 'Forbidden: authentication required' });
+    res.status(403).json({ success: false, message: 'Forbidden: authentication required' });
+    return;
   }
   
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
   
   if (!allowedRoles.includes(req.user.role)) {
-    return res.status(403).json({ success: false, message: 'Forbidden: insufficient role' });
+    res.status(403).json({ success: false, message: 'Forbidden: insufficient role' });
+    return;
   }
   next();
-}; 
+};

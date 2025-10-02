@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs';
 
 export class VerbfyTalkController {
   // Get all available rooms
-  static async getRooms(req: Request, res: Response) {
+  static async getRooms(req: Request, res: Response): Promise<void> {
     try {
       const { level, isPrivate, page = 1, limit = 10 } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
@@ -49,7 +49,7 @@ export class VerbfyTalkController {
   }
 
   // Create a new room
-  static async createRoom(req: Request, res: Response) {
+  static async createRoom(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
       const { name, description, isPrivate, password, topic, level, maxParticipants } = req.body;
@@ -90,7 +90,7 @@ export class VerbfyTalkController {
   }
 
   // Join a room
-  static async joinRoom(req: Request, res: Response) {
+  static async joinRoom(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
       const { roomId } = req.params;
@@ -101,27 +101,32 @@ export class VerbfyTalkController {
         .populate('participants.userId', 'name email avatar');
 
       if (!room) {
-        return res.status(404).json({ success: false, message: 'Room not found' });
+        res.status(404).json({ success: false, message: 'Room not found' });
+        return;
       }
 
       if (!room.isActive) {
-        return res.status(400).json({ success: false, message: 'Room is not active' });
+        res.status(400).json({ success: false, message: 'Room is not active' });
+        return;
       }
 
       // Check if room is full
       const activeParticipants = room.participants.filter((p: any) => p.isActive).length;
       if (activeParticipants >= room.maxParticipants) {
-        return res.status(400).json({ success: false, message: 'Room is full' });
+        res.status(400).json({ success: false, message: 'Room is full' });
+        return;
       }
 
       // Check password for private rooms
       if (room.isPrivate && room.password) {
         if (!password) {
-          return res.status(400).json({ success: false, message: 'Password required for private room' });
+          res.status(400).json({ success: false, message: 'Password required for private room' });
+          return;
         }
         const isValidPassword = await bcrypt.compare(password, room.password);
         if (!isValidPassword) {
-          return res.status(400).json({ success: false, message: 'Invalid password' });
+          res.status(400).json({ success: false, message: 'Invalid password' });
+          return;
         }
       }
 
@@ -131,7 +136,8 @@ export class VerbfyTalkController {
       );
       
       if (existingParticipant) {
-        return res.status(400).json({ success: false, message: 'Already in room' });
+        res.status(400).json({ success: false, message: 'Already in room' });
+        return;
       }
 
       // Check if user was previously in room but inactive (rejoin)
@@ -171,7 +177,7 @@ export class VerbfyTalkController {
   }
 
   // Leave a room
-  static async leaveRoom(req: Request, res: Response) {
+  static async leaveRoom(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
       const { roomId } = req.params;
@@ -181,7 +187,8 @@ export class VerbfyTalkController {
       const room = await VerbfyTalkRoom.findById(roomId);
       if (!room) {
         console.log(`❌ Room not found: ${roomId}`);
-        return res.status(404).json({ success: false, message: 'Room not found' });
+        res.status(404).json({ success: false, message: 'Room not found' });
+        return;
       }
 
       console.log(`📋 Room participants:`, room.participants.map((p: any) => ({
@@ -196,7 +203,8 @@ export class VerbfyTalkController {
 
       if (participantIndex === -1) {
         console.log(`❌ User ${userId} not found in active participants of room ${roomId}`);
-        return res.status(400).json({ success: false, message: 'Not in room' });
+        res.status(400).json({ success: false, message: 'Not in room' });
+        return;
       }
 
       // Mark participant as inactive and set leave time
@@ -224,7 +232,7 @@ export class VerbfyTalkController {
   }
 
   // Get room details
-  static async getRoomDetails(req: Request, res: Response) {
+  static async getRoomDetails(req: Request, res: Response): Promise<void> {
     try {
       const { roomId } = req.params;
 
@@ -233,7 +241,8 @@ export class VerbfyTalkController {
         .populate('participants.userId', 'name email avatar');
 
       if (!room) {
-        return res.status(404).json({ success: false, message: 'Room not found' });
+        res.status(404).json({ success: false, message: 'Room not found' });
+        return;
       }
 
       // Clean up duplicate participants before sending response
@@ -268,7 +277,7 @@ export class VerbfyTalkController {
   }
 
   // Update room (only by creator)
-  static async updateRoom(req: Request, res: Response) {
+  static async updateRoom(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
       const { roomId } = req.params;
@@ -276,11 +285,13 @@ export class VerbfyTalkController {
 
       const room = await VerbfyTalkRoom.findById(roomId);
       if (!room) {
-        return res.status(404).json({ success: false, message: 'Room not found' });
+        res.status(404).json({ success: false, message: 'Room not found' });
+        return;
       }
 
       if (room.createdBy.toString() !== userId) {
-        return res.status(403).json({ success: false, message: 'Not authorized' });
+        res.status(403).json({ success: false, message: 'Not authorized' });
+        return;
       }
 
       // Update fields
@@ -308,18 +319,20 @@ export class VerbfyTalkController {
   }
 
   // Delete room (only by creator)
-  static async deleteRoom(req: Request, res: Response) {
+  static async deleteRoom(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
       const { roomId } = req.params;
 
       const room = await VerbfyTalkRoom.findById(roomId);
       if (!room) {
-        return res.status(404).json({ success: false, message: 'Room not found' });
+        res.status(404).json({ success: false, message: 'Room not found' });
+        return;
       }
 
       if (room.createdBy.toString() !== userId) {
-        return res.status(403).json({ success: false, message: 'Not authorized' });
+        res.status(403).json({ success: false, message: 'Not authorized' });
+        return;
       }
 
       room.isActive = false;
@@ -336,7 +349,7 @@ export class VerbfyTalkController {
   }
 
   // Get user's rooms
-  static async getUserRooms(req: Request, res: Response) {
+  static async getUserRooms(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
       const { page = 1, limit = 10 } = req.query;
@@ -373,7 +386,7 @@ export class VerbfyTalkController {
 
 
   // Clean up empty rooms (cron job)
-  static async cleanupEmptyRooms() {
+  static async cleanupEmptyRooms(): Promise<void> {
     try {
       const emptyRooms = await VerbfyTalkRoom.find({
         isActive: true,

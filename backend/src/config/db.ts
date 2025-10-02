@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { createLogger } from '../utils/logger';
+import { createIndexes } from './indexes';
 
 dotenv.config();
 
@@ -38,16 +39,41 @@ export const connectDB = async () => {
       }
 
       await mongoose.connect(uri as string, {
-        maxPoolSize: 10, // Maximum number of connections in the pool
+        // Connection Pool Settings
+        maxPoolSize: 20, // Maximum number of connections in the pool (increased)
+        minPoolSize: 5, // Minimum number of connections in the pool
+        maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
+        waitQueueTimeoutMS: 5000, // How long to wait for a connection from the pool
+        
+        // Timeout Settings
         serverSelectionTimeoutMS: 5000, // Timeout for server selection
         socketTimeoutMS: 45000, // Timeout for socket operations
+        connectTimeoutMS: 10000, // Timeout for initial connection
+        
+        // Performance Settings
         bufferCommands: false, // Disable mongoose buffering
         retryWrites: true,
-        w: 'majority'
+        w: 'majority',
+        
+        // Monitoring Settings
+        monitorCommands: true, // Enable command monitoring
+        heartbeatFrequencyMS: 10000, // Heartbeat frequency
+        
+        // Compression
+        compressors: ['zlib'], // Enable compression
+        zlibCompressionLevel: 6 // Compression level
       } as any);
       
       isConnected = true;
       dbLogger.info('MongoDB connected successfully');
+      
+      // Create indexes for optimal performance
+      try {
+        await createIndexes();
+        dbLogger.info('Database indexes created successfully');
+      } catch (error) {
+        dbLogger.error('Failed to create database indexes:', error);
+      }
       
       // Set up connection event listeners
       mongoose.connection.on('error', (err) => {
@@ -64,6 +90,48 @@ export const connectDB = async () => {
         dbLogger.info('MongoDB reconnected');
         isConnected = true;
       });
+
+      // Connection pool monitoring
+      mongoose.connection.on('connectionPoolCreated', () => {
+        dbLogger.info('MongoDB connection pool created');
+      });
+
+      mongoose.connection.on('connectionPoolClosed', () => {
+        dbLogger.warn('MongoDB connection pool closed');
+      });
+
+      mongoose.connection.on('connectionCreated', () => {
+        dbLogger.debug('New MongoDB connection created');
+      });
+
+      mongoose.connection.on('connectionClosed', () => {
+        dbLogger.debug('MongoDB connection closed');
+      });
+
+      // Command monitoring for performance
+      if (process.env.NODE_ENV === 'development') {
+        mongoose.connection.on('commandStarted', (event) => {
+          dbLogger.debug(`MongoDB command started: ${event.commandName}`, {
+            command: event.command,
+            requestId: event.requestId
+          });
+        });
+
+        mongoose.connection.on('commandSucceeded', (event) => {
+          dbLogger.debug(`MongoDB command succeeded: ${event.commandName}`, {
+            duration: event.duration,
+            requestId: event.requestId
+          });
+        });
+
+        mongoose.connection.on('commandFailed', (event) => {
+          dbLogger.error(`MongoDB command failed: ${event.commandName}`, {
+            failure: event.failure,
+            duration: event.duration,
+            requestId: event.requestId
+          });
+        });
+      }
       
       return;
     } catch (err) {
@@ -96,6 +164,50 @@ export const connectDB = async () => {
 // Check if MongoDB is connected
 export const isMongoConnected = () => {
   return isConnected && mongoose.connection.readyState === 1;
+};
+
+// Get database connection metrics
+export const getDBMetrics = () => {
+  if (!mongoose.connection.db) {
+    return null;
+  }
+
+  const stats = mongoose.connection.db.stats();
+  const connectionStatus = {
+    readyState: mongoose.connection.readyState,
+    host: mongoose.connection.host,
+    port: mongoose.connection.port,
+    name: mongoose.connection.name,
+    isConnected: isConnected,
+    // Connection pool info (if available)
+    poolSize: mongoose.connection.db?.serverConfig?.s?.pool?.totalConnectionCount || 0,
+    availableConnections: mongoose.connection.db?.serverConfig?.s?.pool?.availableConnectionCount || 0,
+    checkedOutConnections: mongoose.connection.db?.serverConfig?.s?.pool?.checkedOutConnectionCount || 0
+  };
+
+  return {
+    connection: connectionStatus,
+    stats: stats
+  };
+};
+
+// Monitor connection pool health
+export const monitorConnectionPool = () => {
+  if (!isConnected) {
+    return null;
+  }
+
+  const metrics = getDBMetrics();
+  if (metrics) {
+    dbLogger.info('Database connection pool status:', {
+      totalConnections: metrics.connection.poolSize,
+      availableConnections: metrics.connection.availableConnections,
+      checkedOutConnections: metrics.connection.checkedOutConnections,
+      readyState: metrics.connection.readyState
+    });
+  }
+
+  return metrics;
 };
 
 // Graceful shutdown

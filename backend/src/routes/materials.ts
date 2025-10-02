@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import * as path from 'path';
+import * as fs from 'fs';
 import { auth, requireRole } from '../middleware/auth';
 import * as materialsController from '../controllers/materialsController';
 import { idempotencyMiddleware } from '../middleware/idempotency';

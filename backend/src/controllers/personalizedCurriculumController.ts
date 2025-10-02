@@ -8,10 +8,11 @@ import { AuthRequest } from '../middleware/auth';
 
 export class PersonalizedCurriculumController {
   // Get user's personalized curriculum
-  static async getCurriculum(req: AuthRequest, res: Response) {
+  static async getCurriculum(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const studentId = req.user.id;
 
@@ -20,7 +21,8 @@ export class PersonalizedCurriculumController {
         .populate('curriculumPath.tests.testId');
 
       if (!curriculum) {
-        return res.status(404).json({ message: 'No personalized curriculum found' });
+        res.status(404).json({ message: 'No personalized curriculum found' });
+        return;
       }
 
       res.json(curriculum);
@@ -30,10 +32,11 @@ export class PersonalizedCurriculumController {
   }
 
   // Create personalized curriculum
-  static async createCurriculum(req: AuthRequest, res: Response) {
+  static async createCurriculum(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const studentId = req.user.id;
       const { currentCEFRLevel, targetCEFRLevel, learningGoals } = req.body;
@@ -41,13 +44,15 @@ export class PersonalizedCurriculumController {
       // Check if curriculum already exists
       const existingCurriculum = await PersonalizedCurriculum.findOne({ student: studentId });
       if (existingCurriculum) {
-        return res.status(400).json({ message: 'Curriculum already exists for this student' });
+        res.status(400).json({ message: 'Curriculum already exists for this student' });
+        return;
       }
 
       // Get user's current progress
       const user = await User.findById(studentId);
       if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+        res.status(404).json({ message: 'User not found' });
+        return;
       }
 
       // Generate curriculum path
@@ -85,17 +90,19 @@ export class PersonalizedCurriculumController {
   }
 
   // Update curriculum progress
-  static async updateProgress(req: AuthRequest, res: Response) {
+  static async updateProgress(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const studentId = req.user.id;
       const { lessonId, testId, score, timeSpent } = req.body;
 
       const curriculum = await PersonalizedCurriculum.findOne({ student: studentId });
       if (!curriculum) {
-        return res.status(404).json({ message: 'Curriculum not found' });
+        res.status(404).json({ message: 'Curriculum not found' });
+        return;
       }
 
       // Update lesson progress
@@ -121,16 +128,18 @@ export class PersonalizedCurriculumController {
   }
 
   // Get personalized recommendations
-  static async getRecommendations(req: AuthRequest, res: Response) {
+  static async getRecommendations(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const studentId = req.user.id;
 
       const curriculum = await PersonalizedCurriculum.findOne({ student: studentId });
       if (!curriculum) {
-        return res.status(404).json({ message: 'Curriculum not found' });
+        res.status(404).json({ message: 'Curriculum not found' });
+        return;
       }
 
       // Generate new recommendations
@@ -143,17 +152,19 @@ export class PersonalizedCurriculumController {
   }
 
   // Update study schedule
-  static async updateStudySchedule(req: AuthRequest, res: Response) {
+  static async updateStudySchedule(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const studentId = req.user.id;
       const { studySchedule } = req.body;
 
       const curriculum = await PersonalizedCurriculum.findOne({ student: studentId });
       if (!curriculum) {
-        return res.status(404).json({ message: 'Curriculum not found' });
+        res.status(404).json({ message: 'Curriculum not found' });
+        return;
       }
 
       curriculum.studySchedule = studySchedule;
@@ -166,16 +177,18 @@ export class PersonalizedCurriculumController {
   }
 
   // Get curriculum analytics
-  static async getAnalytics(req: AuthRequest, res: Response) {
+  static async getAnalytics(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const studentId = req.user.id;
 
       const curriculum = await PersonalizedCurriculum.findOne({ student: studentId });
       if (!curriculum) {
-        return res.status(404).json({ message: 'Curriculum not found' });
+        res.status(404).json({ message: 'Curriculum not found' });
+        return;
       }
 
       // Get recent attempts
@@ -199,17 +212,19 @@ export class PersonalizedCurriculumController {
   }
 
   // Complete a recommendation
-  static async completeRecommendation(req: AuthRequest, res: Response) {
+  static async completeRecommendation(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
+        res.status(401).json({ message: 'User not authenticated' });
+        return;
       }
       const studentId = req.user.id;
       const { recommendationId } = req.params;
 
       const curriculum = await PersonalizedCurriculum.findOne({ student: studentId });
       if (!curriculum) {
-        return res.status(404).json({ message: 'Curriculum not found' });
+        res.status(404).json({ message: 'Curriculum not found' });
+        return;
       }
 
       // Find recommendation by index since _id might not be available
@@ -218,7 +233,8 @@ export class PersonalizedCurriculumController {
       );
       
       if (recommendationIndex === -1) {
-        return res.status(404).json({ message: 'Recommendation not found' });
+        res.status(404).json({ message: 'Recommendation not found' });
+        return;
       }
 
       curriculum.recommendations[recommendationIndex].isCompleted = true;

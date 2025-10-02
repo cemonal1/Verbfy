@@ -88,6 +88,15 @@ LessonSchema.index({ studentId: 1, status: 1 });
 LessonSchema.index({ startTime: 1 });
 LessonSchema.index({ status: 1, startTime: 1 });
 
+// Optimized compound indexes for frequent query patterns
+LessonSchema.index({ studentId: 1, status: 1, startTime: -1 }); // Student lessons with status and time sorting
+LessonSchema.index({ teacherId: 1, status: 1, startTime: -1 }); // Teacher lessons with status and time sorting
+LessonSchema.index({ status: 1, startTime: 1, teacherId: 1 }); // Scheduled lessons by time for teachers
+LessonSchema.index({ status: 1, startTime: 1, studentId: 1 }); // Scheduled lessons by time for students
+LessonSchema.index({ teacherId: 1, startTime: 1 }); // Teacher's lessons chronologically
+LessonSchema.index({ studentId: 1, startTime: 1 }); // Student's lessons chronologically
+LessonSchema.index({ type: 1, status: 1 }); // Lessons by type and status for analytics
+
 // Virtual for calculating if lesson is in the past
 LessonSchema.virtual('isPast').get(function() {
   return this.endTime < new Date();
@@ -125,4 +134,4 @@ LessonSchema.statics.getCompletedLessons = function(userId: string, role: 'teach
   }).sort({ startTime: -1 });
 };
 
-export const Lesson = mongoose.model<ILesson>('Lesson', LessonSchema); 
+export const Lesson = mongoose.model<ILesson>('Lesson', LessonSchema);
