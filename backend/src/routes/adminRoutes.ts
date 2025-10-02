@@ -13,6 +13,8 @@ import {
   deleteMaterial,
   // Payment Management
   getPayments,
+  approvePayment,
+  rejectPayment,
   refundPayment,
   // Logs & Activity
   getLogs,
@@ -49,6 +51,8 @@ router.delete('/materials/:id', idempotencyMiddleware, deleteMaterial);
 
 // Payment Management
 router.get('/payments', getPayments);
+router.patch('/payments/:id/approve', idempotencyMiddleware, approvePayment);
+router.patch('/payments/:id/reject', idempotencyMiddleware, rejectPayment);
 router.patch('/payments/:id/refund', idempotencyMiddleware, refundPayment);
 
 // Logs & Activity
@@ -60,4 +64,4 @@ router.get('/activities', getLogs);
 router.get('/getAllUsers', getUsers);
 router.patch('/users/:userId/status', idempotencyMiddleware, updateUserStatus);
 
-export default router; 
+export default router;

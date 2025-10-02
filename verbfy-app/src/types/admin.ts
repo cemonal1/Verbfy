@@ -8,6 +8,11 @@ export interface AdminUser {
   createdAt: string;
   lastLoginAt?: string;
   profilePicture?: string;
+  // Teacher approval fields
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
+  isApproved?: boolean;
+  bio?: string;
+  phone?: string;
 }
 
 export interface UserFilters {
@@ -19,21 +24,29 @@ export interface UserFilters {
 // Admin Material Moderation Types
 export interface AdminMaterial {
   _id: string;
-  title: string;
+  originalName: string;
+  savedName: string;
   description?: string;
   type: 'pdf' | 'image' | 'video' | 'audio' | 'document';
-  status: 'pending' | 'approved' | 'rejected';
+  mimeType: string;
   uploaderId: {
     _id: string;
     name: string;
     email: string;
   };
+  tags: string[];
+  role: 'teacher' | 'student' | 'admin';
+  isPublic: boolean;
+  fileSize: number;
+  downloadCount: number;
   createdAt: string;
+  updatedAt: string;
+  // Optional fields for backward compatibility
+  title?: string;
+  status?: 'pending' | 'approved' | 'rejected';
   moderatedAt?: string;
   moderatedBy?: string;
   moderationNote?: string;
-  fileSize: number;
-  downloadCount: number;
 }
 
 export interface MaterialFilters {
@@ -45,18 +58,35 @@ export interface MaterialFilters {
 // Admin Payment Management Types
 export interface AdminPayment {
   _id: string;
-  teacher: {
+  userId?: {
     _id: string;
     name: string;
     email: string;
   };
-  student: {
+  teacherId?: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  // Legacy properties for backward compatibility
+  teacher?: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  student?: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  user?: {
     _id: string;
     name: string;
     email: string;
   };
   status: 'pending' | 'completed' | 'cancelled' | 'refunded';
-  price: number;
+  price?: number;
+  amount?: number; // Alternative property name
   isPaid: boolean;
   createdAt: string;
   refundedAt?: string;
@@ -64,6 +94,9 @@ export interface AdminPayment {
   refundReason?: string;
   lessonType?: string;
   lessonLevel?: string;
+  paymentId?: string;
+  method?: string;
+  transactionId?: string;
 }
 
 export interface PaymentFilters {
@@ -247,4 +280,4 @@ export const getRoleColor = (role: string): string => {
     default:
       return 'text-gray-600 bg-gray-100';
   }
-}; 
+};

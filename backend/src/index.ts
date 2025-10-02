@@ -17,6 +17,7 @@ import UserModel from './models/User';
 import { VerbfyTalkRoom } from './models/VerbfyTalkRoom';
 import { verifyToken } from './utils/jwt';
 import { Types } from 'mongoose';
+import { createLogger } from './utils/logger';
 import livekitRoutes from './routes/livekitRoutes';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/userRoutes';
@@ -37,6 +38,7 @@ import verbfyLessonsRoutes from './routes/verbfyLessons';
 import cefrTestsRoutes from './routes/cefrTests';
 import personalizedCurriculumRoutes from './routes/personalizedCurriculum';
 import aiLearningRoutes from './routes/aiLearning';
+import adaptiveLearningRoutes from './routes/adaptiveLearning';
 import teacherAnalyticsRoutes from './routes/teacherAnalytics';
 import aiContentGenerationRoutes from './routes/aiContentGeneration';
 import organizationRoutes from './routes/organization';
@@ -47,18 +49,24 @@ import { VerbfyTalkController } from './controllers/verbfyTalkController';
 // Load environment variables and initialize Sentry
 dotenv.config();
 
+// Create context-specific loggers
+const serverLogger = createLogger('Server');
+const corsLogger = createLogger('CORS');
+const socketLogger = createLogger('Socket');
+const roomLogger = createLogger('Room');
+
 // Initialize Sentry with CommonJS require
 try {
   require('./instrument.js');
 } catch (error: any) {
-  console.warn('⚠️ Sentry initialization failed:', error?.message || 'Unknown error');
+  serverLogger.warn('Sentry initialization failed:', error?.message || 'Unknown error');
 }
 
 // Validate environment variables before starting the application
 try {
   validateEnvironment();
 } catch (error) {
-  console.error('❌ Environment validation failed:', error instanceof Error ? error.message : String(error));
+  serverLogger.error('Environment validation failed:', error instanceof Error ? error.message : String(error));
   process.exit(1);
 }
 
@@ -70,19 +78,19 @@ const server = createServer(app);
 app.set('trust proxy', 1);
 
 // CORS middleware - MUST BE FIRST, before any other middleware
-// Allow both apex and www domains in production
+// Centralized CORS origins configuration
 const defaultOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
 const extraOrigins = (process.env.CORS_EXTRA_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-// Add production domains explicitly
-const productionOrigins = [
-  'https://verbfy.com',
-  'https://www.verbfy.com',
-  'https://api.verbfy.com'
-];
+
+// Production domains from environment or defaults
+const productionDomains = process.env.PRODUCTION_DOMAINS 
+  ? process.env.PRODUCTION_DOMAINS.split(',').map(s => s.trim()).filter(Boolean)
+  : ['https://verbfy.com', 'https://www.verbfy.com', 'https://api.verbfy.com'];
+
 const allowedOrigins = [
   defaultOrigin, 
   ...extraOrigins,
-  ...(process.env.NODE_ENV === 'production' ? productionOrigins : [])
+  ...(process.env.NODE_ENV === 'production' ? productionDomains : [])
 ];
 
 // Enhanced CORS configuration
@@ -96,8 +104,8 @@ app.use(cors({
       return callback(null, true);
     }
     
-    console.log('❌ CORS blocked origin:', origin);
-    console.log('✅ Allowed origins:', allowedOrigins);
+    corsLogger.warn('CORS blocked origin:', origin);
+    corsLogger.info('Allowed origins:', allowedOrigins);
     return callback(new Error('Not allowed by CORS'), false);
   },
   credentials: true,
@@ -120,8 +128,13 @@ app.use(cors({
 
 // Add permission headers for WebRTC
 app.use((req, res, next) => {
-  res.setHeader('Permissions-Policy', 'microphone=(self "https://verbfy.com" "https://www.verbfy.com"), camera=(self "https://verbfy.com" "https://www.verbfy.com"), geolocation=(self "https://verbfy.com" "https://www.verbfy.com")');
-  res.setHeader('Feature-Policy', 'microphone self https://verbfy.com https://www.verbfy.com; camera self https://verbfy.com https://www.verbfy.com; geolocation self https://verbfy.com https://www.verbfy.com');
+  // Use production domains for WebRTC permissions
+  const webrtcDomains = process.env.NODE_ENV === 'production' 
+    ? productionDomains.map(domain => `"${domain}"`).join(' ')
+    : '"http://localhost:3000"';
+  
+  res.setHeader('Permissions-Policy', `microphone=(self ${webrtcDomains}), camera=(self ${webrtcDomains}), geolocation=(self ${webrtcDomains})`);
+  res.setHeader('Feature-Policy', `microphone self ${webrtcDomains.replace(/"/g, '')}; camera self ${webrtcDomains.replace(/"/g, '')}; geolocation self ${webrtcDomains.replace(/"/g, '')}`);
   next();
 });
 
@@ -146,7 +159,7 @@ try {
   const reqHandler = Sentry.Handlers?.requestHandler?.();
   if (reqHandler) app.use(reqHandler);
 } catch (error: any) {
-  console.warn('⚠️ Sentry request handler not available:', error?.message || 'Unknown error');
+  serverLogger.warn('Sentry request handler not available:', error?.message || 'Unknown error');
 }
 
 // Security middleware
@@ -199,7 +212,7 @@ try {
     fs.mkdirSync(uploadsRoot, { recursive: true });
   }
 } catch (e) {
-  console.warn('Could not ensure uploads directory exists:', e);
+  serverLogger.warn('Could not ensure uploads directory exists:', e);
 }
 app.use('/uploads', express.static(uploadsRoot));
 
@@ -208,18 +221,13 @@ const mainIo = new SocketIOServer(server, {
   path: '/socket.io',
   cors: {
     origin: (origin, callback) => {
-      const allowedOrigins = [
-        process.env.FRONTEND_URL || "http://localhost:3000",
-        "https://www.verbfy.com",
-        "https://verbfy.com",
-        "https://api.verbfy.com"
-      ];
+      // Use the same allowedOrigins as main CORS configuration
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      console.log('❌ Main Socket.IO CORS blocked origin:', origin);
-      console.log('✅ Allowed origins:', allowedOrigins);
+      corsLogger.warn('Socket.IO CORS blocked origin:', origin);
+      corsLogger.info('Allowed origins:', allowedOrigins);
       return callback(new Error('Not allowed by CORS'), false);
     },
     methods: ["GET", "POST", "OPTIONS"],
@@ -231,7 +239,11 @@ const mainIo = new SocketIOServer(server, {
       "Accept",
       "Authorization",
       "X-CSRF-Token",
-      "Cache-Control"
+      "x-csrf-token",
+      "Idempotency-Key",
+      "idempotency-key",
+      "Cache-Control",
+      "User-Agent"
     ]
   },
   transports: ['websocket', 'polling'],
@@ -303,16 +315,16 @@ voiceChatNamespace.use(authMiddleware);
 
 // Chat namespace events
 chatNamespace.on('connection', (socket: AuthenticatedSocket) => {
-  console.log('🔌 Chat namespace connected:', socket.user?.name);
+  socketLogger.info('Chat namespace connected:', socket.user?.name);
   
   socket.on('join-room', (data: { roomId: string }) => {
     socket.join(data.roomId);
-    console.log(`📋 User ${socket.user?.name} joined chat room: ${data.roomId}`);
+    socketLogger.info(`User ${socket.user?.name} joined chat room: ${data.roomId}`);
   });
   
   socket.on('leave-room', (data: { roomId: string }) => {
     socket.leave(data.roomId);
-    console.log(`📋 User ${socket.user?.name} left chat room: ${data.roomId}`);
+    socketLogger.info(`User ${socket.user?.name} left chat room: ${data.roomId}`);
   });
   
   socket.on('send-message', (data: { roomId: string; message: any }) => {
@@ -333,21 +345,21 @@ chatNamespace.on('connection', (socket: AuthenticatedSocket) => {
 
 // Notification namespace events
 notificationNamespace.on('connection', (socket: AuthenticatedSocket) => {
-  console.log('🔌 Notification namespace connected:', socket.user?.name);
+  socketLogger.info('Notification namespace connected:', socket.user?.name);
   
   socket.on('joinNotificationRoom', (userId: string) => {
     socket.join(`notification-${userId}`);
-    console.log(`📋 User ${socket.user?.name} joined notification room: ${userId}`);
+    socketLogger.info(`User ${socket.user?.name} joined notification room: ${userId}`);
   });
   
   socket.on('disconnect', () => {
-    console.log('🔌 Notification namespace disconnected:', socket.user?.name);
+    socketLogger.info('Notification namespace disconnected:', socket.user?.name);
   });
 });
 
 // VerbfyTalk namespace events
 verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
-  console.log('🔌 VerbfyTalk namespace connected:', socket.user?.name);
+  socketLogger.info('VerbfyTalk namespace connected:', socket.user?.name);
   
   // Store room information for this socket
   let currentRoomId: string | null = null;
@@ -370,7 +382,7 @@ verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
       
       socket.emit('rooms:list', roomsWithActiveCount);
     } catch (error) {
-      console.error('Error fetching rooms:', error);
+      roomLogger.error('Error fetching rooms:', error);
     }
   });
   
@@ -455,9 +467,9 @@ verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
          socket.emit('participants:update', activeParticipants);
        }
       
-      console.log(`📋 User ${socket.user?.name} joined VerbfyTalk room: ${data.roomId}`);
+      roomLogger.info(`User ${socket.user?.name} joined VerbfyTalk room: ${data.roomId}`);
     } catch (error) {
-      console.error('Error joining room:', error);
+      roomLogger.error('Error joining room:', error);
       socket.emit('room:error', { message: 'Failed to join room' });
     }
   });
@@ -484,7 +496,7 @@ verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
         if (activeParticipants === 0) {
           room.endedAt = new Date();
           room.isActive = false;
-          console.log(`🏁 Room ${room.name} (${data.roomId}) ended - no active participants`);
+          roomLogger.info(`Room ${room.name} (${data.roomId}) ended - no active participants`);
         }
         
         await room.save();
@@ -500,9 +512,9 @@ verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
       // Send confirmation to user
       socket.emit('room:left');
       
-      console.log(`📋 User ${socket.user?.name} left VerbfyTalk room: ${data.roomId}`);
+      roomLogger.info(`User ${socket.user?.name} left VerbfyTalk room: ${data.roomId}`);
     } catch (error) {
-      console.error('Error leaving room:', error);
+      roomLogger.error('Error leaving room:', error);
     }
   });
   
@@ -529,9 +541,9 @@ verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
       socket.join(room._id.toString());
       currentRoomId = room._id.toString();
       
-      console.log(`📋 User ${socket.user?.name} created and joined room: ${data.name}`);
+      roomLogger.info(`User ${socket.user?.name} created and joined room: ${data.name}`);
     } catch (error) {
-      console.error('Error creating room:', error);
+      roomLogger.error('Error creating room:', error);
       callback({ success: false });
     }
   });
@@ -593,7 +605,7 @@ verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
   
   // Handle disconnect
   socket.on('disconnect', async () => {
-    console.log('🔌 VerbfyTalk namespace disconnected:', socket.user?.name);
+    socketLogger.info('VerbfyTalk namespace disconnected:', socket.user?.name);
     
     // Clean up user from room if they were in one
     if (currentRoomId) {
@@ -613,7 +625,7 @@ verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
             if (activeParticipants === 0) {
               room.endedAt = new Date();
               room.isActive = false;
-              console.log(`🏁 Room ${room.name} (${currentRoomId}) ended - no active participants`);
+              roomLogger.info(`Room ${room.name} (${currentRoomId}) ended - no active participants`);
             }
             
             await room.save();
@@ -623,7 +635,7 @@ verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
           }
         }
       } catch (error) {
-        console.error('Error cleaning up user on disconnect:', error);
+        roomLogger.error('Error cleaning up user on disconnect:', error);
       }
     }
   });
@@ -631,16 +643,16 @@ verbfyTalkNamespace.on('connection', (socket: AuthenticatedSocket) => {
 
 // Voice Chat namespace events
 voiceChatNamespace.on('connection', (socket: AuthenticatedSocket) => {
-  console.log('🔌 Voice Chat namespace connected:', socket.user?.name);
+  socketLogger.info('Voice Chat namespace connected:', socket.user?.name);
   
   socket.on('join-room', (data: { roomId: string }) => {
     socket.join(data.roomId);
-    console.log(`📋 User ${socket.user?.name} joined voice chat room: ${data.roomId}`);
+    socketLogger.info(`User ${socket.user?.name} joined voice chat room: ${data.roomId}`);
   });
   
   socket.on('leave-room', (data: { roomId: string }) => {
     socket.leave(data.roomId);
-    console.log(`📋 User ${socket.user?.name} left voice chat room: ${data.roomId}`);
+    socketLogger.info(`User ${socket.user?.name} left voice chat room: ${data.roomId}`);
   });
   
   // Voice chat specific events
@@ -661,7 +673,7 @@ voiceChatNamespace.on('connection', (socket: AuthenticatedSocket) => {
   });
 });
 
-console.log('🔧 Socket.IO Setup - Main server initialized with namespaces');
+socketLogger.info('Socket.IO Setup - Main server initialized with namespaces');
 
 // Permissions policy headers already set above
 
@@ -683,21 +695,21 @@ mainIo.use((socket, next) => {
     }
 
     if (!token) {
-      console.log('🔌 Socket connection attempt without token');
+      socketLogger.warn('Socket connection attempt without token');
       return next(new Error('Unauthorized - No token provided'));
     }
 
     try {
     const payload = verifyToken(token);
     (socket as any).user = payload;
-      console.log('🔌 Socket authenticated for user:', payload.id);
+      socketLogger.info('Socket authenticated for user:', payload.id);
     next();
     } catch (jwtError: any) {
-      console.log('🔌 Socket JWT verification failed:', jwtError.message);
+      socketLogger.warn('Socket JWT verification failed:', jwtError.message);
       return next(new Error('Unauthorized - Invalid token'));
     }
   } catch (e) {
-    console.error('🔌 Socket middleware error:', e);
+    socketLogger.error('Socket middleware error:', e);
     return next(new Error('Unauthorized - Middleware error'));
   }
 });
@@ -733,7 +745,7 @@ app.use(verifyCsrf);
 // Request logging middleware (development only)
 if (process.env.NODE_ENV === 'development') {
   app.use((req, _res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    serverLogger.debug(`${req.method} ${req.path}`);
     next();
   });
 }
@@ -776,6 +788,7 @@ app.use('/api/verbfy-lessons', verbfyLessonsRoutes);
 app.use('/api/cefr-tests', cefrTestsRoutes);
 app.use('/api/personalized-curriculum', personalizedCurriculumRoutes);
 app.use('/api/ai-learning', aiLearningRoutes);
+app.use('/api/adaptive-learning', adaptiveLearningRoutes);
 app.use('/api/teacher-analytics', teacherAnalyticsRoutes);
 app.use('/api/ai-content-generation', aiContentGenerationRoutes);
 app.use('/api/organizations', organizationRoutes);
@@ -816,38 +829,38 @@ app.get('/api/test-sentry', (_req, res) => {
 
 // Socket.IO event handling
 mainIo.on('connection', (socket) => {
-  console.log(`🔌 User connected: ${socket.id}`);
+  socketLogger.info(`User connected: ${socket.id}`);
   
   // Get user from socket
   const user = (socket as any).user;
   if (user?.id) {
     socket.join(`user_${user.id}`);
-    console.log(`👤 User ${user.id} joined notification room`);
+    socketLogger.info(`User ${user.id} joined notification room`);
   }
 
   // Handle notification room joining
   socket.on('joinNotificationRoom', (userId: string) => {
     socket.join(`user_${userId}`);
-    console.log(`🔔 User ${userId} joined notification room`);
+    socketLogger.info(`User ${userId} joined notification room`);
   });
 
   // Join a conversation room
   socket.on('joinRoom', (conversationId: string) => {
     socket.join(conversationId);
-    console.log(`👥 User ${socket.id} joined room: ${conversationId}`);
+    socketLogger.info(`User ${socket.id} joined room: ${conversationId}`);
   });
 
   // Leave a conversation room
   socket.on('leaveRoom', (conversationId: string) => {
     socket.leave(conversationId);
-    console.log(`👋 User ${socket.id} left room: ${conversationId}`);
+    socketLogger.info(`User ${socket.id} left room: ${conversationId}`);
   });
 
   // Handle new message
   socket.on('sendMessage', (data: { conversationId: string; message: any }) => {
     // Broadcast the message to all users in the conversation room
     socket.to(data.conversationId).emit('receiveMessage', data.message);
-    console.log(`💬 Message sent in room ${data.conversationId}: ${data.message.content}`);
+    socketLogger.info(`Message sent in room ${data.conversationId}: ${data.message.content}`);
   });
 
   // Handle typing indicator
@@ -860,7 +873,7 @@ mainIo.on('connection', (socket) => {
 
   // Handle disconnect
   socket.on('disconnect', () => {
-    console.log(`🔌 User disconnected: ${socket.id}`);
+    socketLogger.info(`User disconnected: ${socket.id}`);
   });
 });
 
@@ -873,7 +886,7 @@ try {
   const errHandler = Sentry.Handlers?.errorHandler?.();
   if (errHandler) app.use(errHandler);
 } catch (error: any) {
-  console.warn('⚠️ Sentry error handler not available:', error?.message || 'Unknown error');
+  serverLogger.warn('Sentry error handler not available:', error?.message || 'Unknown error');
 }
 
 // Global error handler (must be last)
@@ -882,26 +895,26 @@ app.use(errorHandler);
 // Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
-  console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
-  console.log(`💾 Database: ${process.env.MONGO_URI ? 'Connected' : 'Not configured'}`);
-  console.log(`📊 Available API Routes:`);
-  console.log(`   - /api/auth (Authentication)`);
-  console.log(`   - /api/users (User management)`);
-  console.log(`   - /api/livekit (Video conferencing)`);
-  console.log(`   - /api/reservations (Lesson booking)`);
-  console.log(`   - /api/availability (Teacher availability)`);
-  console.log(`   - /api/notifications (Notifications)`);
-  console.log(`   - /api/materials (Learning materials - NEW)`);
-  console.log(`   - /api/lesson-materials (Lesson materials - Legacy)`);
-  console.log(`   - /api/admin (Admin functions)`);
-  console.log(`   - /api/messages (Messaging system)`);
-  console.log(`   - /api/analytics (Analytics & reports)`);
-  console.log(`   - /api/chat (Real-time chat system)`);
-  console.log(`   - /api/verbfy-talk (Voice chat rooms)`);
-  console.log(`🔌 Socket.IO: Enabled for real-time communication`);
+  serverLogger.info(`Server running on port ${PORT}`);
+  serverLogger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  serverLogger.info(`Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+  serverLogger.info(`API Base URL: http://localhost:${PORT}/api`);
+  serverLogger.info(`Database: ${process.env.MONGO_URI ? 'Connected' : 'Not configured'}`);
+  serverLogger.info(`Available API Routes:`);
+  serverLogger.info(`   - /api/auth (Authentication)`);
+  serverLogger.info(`   - /api/users (User management)`);
+  serverLogger.info(`   - /api/livekit (Video conferencing)`);
+  serverLogger.info(`   - /api/reservations (Lesson booking)`);
+  serverLogger.info(`   - /api/availability (Teacher availability)`);
+  serverLogger.info(`   - /api/notifications (Notifications)`);
+  serverLogger.info(`   - /api/materials (Learning materials - NEW)`);
+  serverLogger.info(`   - /api/lesson-materials (Lesson materials - Legacy)`);
+  serverLogger.info(`   - /api/admin (Admin functions)`);
+  serverLogger.info(`   - /api/messages (Messaging system)`);
+  serverLogger.info(`   - /api/analytics (Analytics & reports)`);
+  serverLogger.info(`   - /api/chat (Real-time chat system)`);
+  serverLogger.info(`   - /api/verbfy-talk (Voice chat rooms)`);
+  serverLogger.info(`Socket.IO: Enabled for real-time communication`);
 });
 
 // Setup cron job for cleaning up empty rooms (every 5 minutes)
@@ -909,11 +922,11 @@ setInterval(async () => {
   try {
     await VerbfyTalkController.cleanupEmptyRooms();
   } catch (error) {
-    console.error('❌ Cron job failed:', error);
+    serverLogger.error('Cron job failed:', error);
   }
 }, 5 * 60 * 1000); // 5 minutes
 
-console.log(`🧹 Room cleanup cron job started (every 5 minutes)`);
+serverLogger.info(`Room cleanup cron job started (every 5 minutes)`);
 
 // Export app for testing
-export { app }; 
+export { app };

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
 import { toast } from '../components/common/Toast';
 import { adminAPI } from '../lib/api';
 import {
@@ -67,6 +67,10 @@ interface AdminState {
     pages: number;
   } | null;
   
+  // Teachers
+  pendingTeachers: AdminUser[];
+  teachersLoading: boolean;
+  
   // Filters
   userFilters: UserFilters;
   materialFilters: MaterialFilters;
@@ -98,6 +102,9 @@ type AdminAction =
   | { type: 'UPDATE_MATERIAL'; payload: AdminMaterial }
   | { type: 'UPDATE_PAYMENT'; payload: AdminPayment }
   | { type: 'REMOVE_USER'; payload: string }
+  | { type: 'SET_PENDING_TEACHERS'; payload: AdminUser[] }
+  | { type: 'SET_TEACHERS_LOADING'; payload: boolean }
+  | { type: 'REMOVE_PENDING_TEACHER'; payload: string }
   | { type: 'REMOVE_MATERIAL'; payload: string };
 
 // Initial state
@@ -120,6 +127,8 @@ const initialState: AdminState = {
   logs: [],
   logsLoading: false,
   logsPagination: null,
+  pendingTeachers: [],
+  teachersLoading: false,
   userFilters: {},
   materialFilters: {},
   paymentFilters: {},
@@ -223,6 +232,15 @@ function adminReducer(state: AdminState, action: AdminAction): AdminState {
         materials: state.materials.filter(material => material._id !== action.payload),
         selectedMaterial: state.selectedMaterial?._id === action.payload ? null : state.selectedMaterial
       };
+    case 'SET_PENDING_TEACHERS':
+      return { ...state, pendingTeachers: action.payload };
+    case 'SET_TEACHERS_LOADING':
+      return { ...state, teachersLoading: action.payload };
+    case 'REMOVE_PENDING_TEACHER':
+      return {
+        ...state,
+        pendingTeachers: state.pendingTeachers.filter(teacher => teacher._id !== action.payload)
+      };
     default:
       return state;
   }
@@ -253,6 +271,8 @@ interface AdminContextType {
   
   // Payment actions
   loadPayments: (page?: number, filters?: PaymentFilters) => Promise<void>;
+  approvePayment: (id: string) => Promise<void>;
+  rejectPayment: (id: string, reason?: string) => Promise<void>;
   refundPayment: (id: string, data: RefundPaymentData) => Promise<void>;
   setSelectedPayment: (payment: AdminPayment | null) => void;
   setPaymentFilters: (filters: PaymentFilters) => void;
@@ -260,6 +280,11 @@ interface AdminContextType {
   // Log actions
   loadLogs: (page?: number, filters?: LogFilters) => Promise<void>;
   setLogFilters: (filters: LogFilters) => void;
+  
+  // Teacher actions
+  loadPendingTeachers: () => Promise<void>;
+  approveTeacher: (id: string) => Promise<void>;
+  rejectTeacher: (id: string, reason?: string) => Promise<void>;
 }
 
 // Create context
@@ -274,7 +299,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(adminReducer, initialState);
 
   // Overview actions
-  const loadOverview = async () => {
+  const loadOverview = useCallback(async () => {
     try {
       dispatch({ type: 'SET_OVERVIEW_LOADING', payload: true });
       dispatch({ type: 'SET_OVERVIEW_ERROR', payload: null });
@@ -293,7 +318,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
     } finally {
       dispatch({ type: 'SET_OVERVIEW_LOADING', payload: false });
     }
-  };
+  }, []);
 
   // User actions
   const loadUsers = async (page = 1, filters = {}) => {
@@ -459,6 +484,34 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
     }
   };
 
+  const approvePayment = async (id: string) => {
+    try {
+      const response = await adminAPI.approvePayment(id);
+      if (response.data.success) {
+        // Reload payments to get updated data
+        await loadPayments();
+        toast.success('Payment approved successfully');
+      }
+    } catch (error) {
+      console.error('Error approving payment:', error);
+      toast.error('Failed to approve payment');
+    }
+  };
+
+  const rejectPayment = async (id: string, reason?: string) => {
+    try {
+      const response = await adminAPI.rejectPayment(id, { reason });
+      if (response.data.success) {
+        // Reload payments to get updated data
+        await loadPayments();
+        toast.success('Payment rejected successfully');
+      }
+    } catch (error) {
+      console.error('Error rejecting payment:', error);
+      toast.error('Failed to reject payment');
+    }
+  };
+
   const refundPayment = async (id: string, data: RefundPaymentData) => {
     try {
       const response = await adminAPI.refundPayment(id, data);
@@ -507,6 +560,42 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
     dispatch({ type: 'SET_LOG_FILTERS', payload: filters });
   };
 
+  // Teacher actions
+  const loadPendingTeachers = useCallback(async () => {
+    try {
+      dispatch({ type: 'SET_TEACHERS_LOADING', payload: true });
+      const response = await adminAPI.getPendingTeachers();
+      dispatch({ type: 'SET_PENDING_TEACHERS', payload: response.data });
+    } catch (error) {
+      console.error('Error loading pending teachers:', error);
+      toast.error('Failed to load pending teachers');
+    } finally {
+      dispatch({ type: 'SET_TEACHERS_LOADING', payload: false });
+    }
+  }, []);
+
+  const approveTeacher = useCallback(async (id: string) => {
+    try {
+      await adminAPI.approveTeacher(id);
+      dispatch({ type: 'REMOVE_PENDING_TEACHER', payload: id });
+      toast.success('Teacher approved successfully');
+    } catch (error) {
+      console.error('Error approving teacher:', error);
+      toast.error('Failed to approve teacher');
+    }
+  }, []);
+
+  const rejectTeacher = useCallback(async (id: string, reason?: string) => {
+    try {
+      await adminAPI.rejectTeacher(id, reason ? { reason } : {});
+      dispatch({ type: 'REMOVE_PENDING_TEACHER', payload: id });
+      toast.success('Teacher rejected');
+    } catch (error) {
+      console.error('Error rejecting teacher:', error);
+      toast.error('Failed to reject teacher');
+    }
+  }, []);
+
   const value: AdminContextType = {
     state,
     loadOverview,
@@ -523,11 +612,16 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
     setSelectedMaterial,
     setMaterialFilters,
     loadPayments,
+    approvePayment,
+    rejectPayment,
     refundPayment,
     setSelectedPayment,
     setPaymentFilters,
     loadLogs,
-    setLogFilters
+    setLogFilters,
+    loadPendingTeachers,
+    approveTeacher,
+    rejectTeacher
   };
 
   return (
@@ -544,4 +638,4 @@ export const useAdmin = () => {
     throw new Error('useAdmin must be used within an AdminProvider');
   }
   return context;
-}; 
+};

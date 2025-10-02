@@ -16,10 +16,31 @@ import {
 import { formatCurrency, formatDate } from '../../src/types/admin';
 
 export default function AdminDashboard() {
-  useRoleGuard(['admin']);
+  const { hasAccess, isLoading: authLoading, user } = useRoleGuard(['admin']);
 
   const { state, loadOverview } = useAdmin();
   const { overview, overviewLoading, overviewError } = state;
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Additional security check
+  if (!hasAccess || !user || user.role !== 'admin') {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
+          <p className="text-gray-600 mt-2">You don't have permission to access this page.</p>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     loadOverview();
@@ -265,4 +286,4 @@ export default function AdminDashboard() {
       </div>
     </div>
   );
-} 
+}

@@ -50,6 +50,10 @@ export interface IAdaptivePath extends Document {
   status: 'active' | 'paused' | 'completed' | 'abandoned';
   createdAt: Date;
   updatedAt: Date;
+  
+  // Methods
+  updateProgress(completedModuleId: mongoose.Types.ObjectId): void;
+  calculateEffectiveness(): number;
 }
 
 const AdaptivePathSchema = new Schema<IAdaptivePath>({
@@ -287,4 +291,4 @@ AdaptivePathSchema.methods.calculateEffectiveness = function(): number {
          (engagementScore * engagementWeight);
 };
 
-export default mongoose.model<IAdaptivePath>('AdaptivePath', AdaptivePathSchema); 
+export default mongoose.model<IAdaptivePath>('AdaptivePath', AdaptivePathSchema);

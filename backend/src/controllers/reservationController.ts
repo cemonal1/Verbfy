@@ -420,7 +420,10 @@ export const getUpcomingReservations = async (req: AuthRequest, res: Response) =
         date: reservation.actualDate,
         startTime: reservation.startTime,
         endTime: reservation.endTime,
-        status: reservation.status
+        status: reservation.status,
+        lessonType: reservation.lessonType || 'General Lesson',
+        lessonLevel: reservation.lessonLevel || 'Intermediate',
+        lessonDuration: reservation.lessonDuration || 60
       }))
     });
 
@@ -512,4 +515,4 @@ export const getReservationById = async (req: AuthRequest, res: Response) => {
       message: error.message || 'Failed to fetch reservation' 
     });
   }
-}; 
+};

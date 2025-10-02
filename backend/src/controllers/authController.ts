@@ -4,7 +4,10 @@ import bcrypt from 'bcryptjs';
 import { signAccessToken, signRefreshToken, verifyToken, verifyRefreshToken } from '../utils/jwt';
 import { sendEmail } from '../utils/email';
 import crypto from 'crypto';
-// removed duplicate import
+import { createLogger } from '../utils/logger';
+
+// Create context-specific logger
+const authLogger = createLogger('Auth');
 
 // Helper: set refresh token cookie
 const setRefreshTokenCookie = (res: Response, token: string) => {
@@ -93,28 +96,28 @@ export const me = async (req: Request, res: Response) => {
 
 export const register = async (req: Request, res: Response) => {
   try {
-    console.log('Registration request received:', req.body);
+    authLogger.info('Registration request received', { email: req.body.email, role: req.body.role });
     
     const { name, email, password, role } = req.body;
     if (!name || !email || !password || !role) {
-      console.log('Missing required fields:', { name: !!name, email: !!email, password: !!password, role: !!role });
+      authLogger.warn('Missing required fields', { name: !!name, email: !!email, password: !!password, role: !!role });
       return res.status(400).json({ success: false, message: 'All fields required' });
     }
     if (typeof password !== 'string' || password.length < 8) {
       return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long' });
     }
 
-    console.log('Checking for existing user with email:', email);
+    authLogger.debug('Checking for existing user', { email });
     const existing = await User.findOne({ email });
     if (existing) {
-      console.log('Email already registered:', email);
+      authLogger.warn('Email already registered', { email });
       return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    console.log('Hashing password...');
+    authLogger.debug('Hashing password');
     const hashed = await bcrypt.hash(password, 10);
     
-    console.log('Creating new user...');
+    authLogger.debug('Creating new user');
     // Teachers require admin approval
     const requiresApproval = role === 'teacher';
     const user = await User.create({
@@ -125,18 +128,18 @@ export const register = async (req: Request, res: Response) => {
       isApproved: requiresApproval ? false : true,
       approvalStatus: requiresApproval ? 'pending' : 'approved',
     });
-    console.log('User created:', { id: user._id, name: user.name, email: user.email, role: user.role });
+    authLogger.info('User created successfully', { id: user._id, name: user.name, email: user.email, role: user.role });
 
-    console.log('Generating tokens...');
+    authLogger.debug('Generating tokens');
     const effectiveRole = user.role === 'teacher' && user.isApproved === false ? 'student' : user.role;
     const accessToken = signAccessToken({ id: user._id, name: user.name, email: user.email, role: effectiveRole });
     const refreshToken = signRefreshToken({ id: user._id, version: user.refreshTokenVersion });
     
-    console.log('Setting refresh token cookie...');
+    authLogger.debug('Setting authentication cookies');
     setRefreshTokenCookie(res, refreshToken);
     setAccessTokenCookie(res, accessToken);
     
-    console.log('Registration successful');
+    authLogger.info('Registration successful', { userId: user._id, role: user.role });
     if (requiresApproval) {
       // Notify admins
       try {
@@ -169,38 +172,38 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   try {
-    console.log('Login request received:', { email: req.body.email });
+    authLogger.info('Login request received', { email: req.body.email });
     
     const { email, password } = req.body;
     if (!email || !password) {
-      console.log('Missing required fields:', { email: !!email, password: !!password });
+      authLogger.warn('Missing required fields', { email: !!email, password: !!password });
       return res.status(400).json({ success: false, message: 'All fields required' });
     }
 
-    console.log('Finding user with email:', email);
+    authLogger.debug('Finding user', { email });
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('User not found:', email);
+      authLogger.warn('User not found', { email });
       return res.status(400).json({ success: false, message: 'Invalid credentials' });
     }
 
-    console.log('Comparing passwords...');
+    authLogger.debug('Comparing passwords');
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
-      console.log('Password mismatch for user:', email);
+      authLogger.warn('Password mismatch', { email });
       return res.status(400).json({ success: false, message: 'Invalid credentials' });
     }
 
-    console.log('Generating tokens...');
+    authLogger.debug('Generating tokens');
     const loginEffectiveRole = user.role === 'teacher' && user.isApproved === false ? 'student' : user.role;
     const accessToken = signAccessToken({ id: user._id, name: user.name, email: user.email, role: loginEffectiveRole });
     const refreshToken = signRefreshToken({ id: user._id, version: user.refreshTokenVersion });
     
-    console.log('Setting refresh token cookie...');
+    authLogger.debug('Setting authentication cookies');
     setRefreshTokenCookie(res, refreshToken);
     setAccessTokenCookie(res, accessToken);
     
-    console.log('Login successful:', { userId: user._id, role: user.role });
+    authLogger.info('Login successful', { userId: user._id, role: user.role });
     res.json({
       success: true,
       accessToken,
@@ -214,27 +217,27 @@ export const login = async (req: Request, res: Response) => {
 
 export const refreshToken = async (req: Request, res: Response) => {
   try {
-    console.log('Refresh token request received');
+    authLogger.debug('Refresh token request received');
     const token = (req as any).cookies?.refreshToken || req.cookies?.refreshToken;
     if (!token) {
-      console.log('No refresh token in cookies');
+      authLogger.warn('No refresh token in cookies');
       return res.status(401).json({ success: false, message: 'No refresh token' });
     }
     
-    console.log('Verifying refresh token...');
+    authLogger.debug('Verifying refresh token');
     let payload: any;
     try {
       payload = verifyRefreshToken(token) as { id: string; version: number };
-      console.log('Refresh token verified successfully for user:', payload.id);
+      authLogger.debug('Refresh token verified successfully', { userId: payload.id });
     } catch (error) {
-      console.error('Refresh token verification failed:', error);
+      authLogger.warn('Refresh token verification failed', { error: error instanceof Error ? error.message : 'Unknown error' });
       return res.status(401).json({ success: false, message: 'Invalid refresh token' });
     }
     
-    console.log('Finding user with ID:', payload.id);
+    authLogger.debug('Finding user', { userId: payload.id });
     const user = await User.findById(payload.id);
     if (!user || user.refreshTokenVersion !== payload.version) {
-      console.log('User not found or token version mismatch:', { 
+      authLogger.warn('User not found or token version mismatch', { 
         userFound: !!user, 
         userVersion: user?.refreshTokenVersion, 
         tokenVersion: payload.version 
@@ -242,18 +245,18 @@ export const refreshToken = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: 'Invalid refresh token' });
     }
     
-    console.log('Rotating refresh token...');
+    authLogger.debug('Rotating refresh token');
     // Rotate refresh token (single-use)
     user.refreshTokenVersion += 1;
     await user.save();
     
-    console.log('Generating new tokens...');
+    authLogger.debug('Generating new tokens');
     const newAccessToken = signAccessToken({ id: user._id, name: user.name, email: user.email, role: user.role });
     const newRefreshToken = signRefreshToken({ id: user._id, version: user.refreshTokenVersion });
     setRefreshTokenCookie(res, newRefreshToken);
     setAccessTokenCookie(res, newAccessToken);
     
-    console.log('Token refresh successful for user:', user._id);
+    authLogger.info('Token refresh successful', { userId: user._id });
     res.json({ success: true, accessToken: newAccessToken });
   } catch (err) {
     console.error('Refresh token error:', err);

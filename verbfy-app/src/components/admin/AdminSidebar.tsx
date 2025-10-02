@@ -6,7 +6,8 @@ import {
   UsersIcon, 
   DocumentTextIcon, 
   ClockIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  AcademicCapIcon
 } from '@heroicons/react/24/outline';
 
 interface AdminSidebarProps {
@@ -29,6 +30,12 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ className = '' }) => {
       href: '/admin/users',
       icon: UsersIcon,
       current: currentPath === '/admin/users'
+    },
+    {
+      name: 'Teachers',
+      href: '/admin/teachers',
+      icon: AcademicCapIcon,
+      current: currentPath === '/admin/teachers'
     },
     {
       name: 'Materials',
@@ -105,4 +112,4 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ className = '' }) => {
   );
 };
 
-export default AdminSidebar; 
+export default AdminSidebar;

@@ -1,10 +1,16 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import { createLogger } from '../utils/logger';
+
 dotenv.config();
+
+// Create context-specific logger
+const dbLogger = createLogger('Database');
 
 // In tests, we use an in-memory MongoDB. Avoid throwing due to missing env.
 const MONGO_URI = process.env.MONGO_URI;
 let memServer: any = null;
+let isConnected = false;
 
 // Helper: sleep for ms milliseconds
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -14,7 +20,7 @@ export const connectDB = async () => {
   let attempt = 0;
   let delay = 1000; // start with 1s
   
-  console.log('🔌 Connecting to MongoDB...');
+  dbLogger.info('Connecting to MongoDB...');
   
   while (attempt < maxRetries) {
     try {
@@ -25,7 +31,7 @@ export const connectDB = async () => {
           const { MongoMemoryServer } = await import('mongodb-memory-server');
           memServer = await MongoMemoryServer.create();
           uri = memServer.getUri();
-          console.log('🧪 Using in-memory MongoDB for tests');
+          dbLogger.info('Using in-memory MongoDB for tests');
         } else {
           throw new Error('MONGO_URI environment variable is required');
         }
@@ -40,36 +46,56 @@ export const connectDB = async () => {
         w: 'majority'
       } as any);
       
-      console.log('✅ MongoDB connected successfully');
+      isConnected = true;
+      dbLogger.info('MongoDB connected successfully');
       
       // Set up connection event listeners
       mongoose.connection.on('error', (err) => {
-        console.error('❌ MongoDB connection error:', err);
+        dbLogger.error('MongoDB connection error:', err);
+        isConnected = false;
       });
       
       mongoose.connection.on('disconnected', () => {
-        console.warn('⚠️  MongoDB disconnected');
+        dbLogger.warn('MongoDB disconnected');
+        isConnected = false;
       });
       
       mongoose.connection.on('reconnected', () => {
-        console.log('🔄 MongoDB reconnected');
+        dbLogger.info('MongoDB reconnected');
+        isConnected = true;
       });
       
       return;
     } catch (err) {
       attempt++;
-      console.error(`❌ MongoDB connection failed (attempt ${attempt}/${maxRetries}):`, err);
+      dbLogger.error(`MongoDB connection failed (attempt ${attempt}/${maxRetries}):`, err);
       
       if (attempt >= maxRetries) {
-        console.error('❌ Could not connect to MongoDB after maximum retries. Exiting.');
+        dbLogger.error('Could not connect to MongoDB after maximum retries.');
+        
+        // In development, don't exit the process - allow the app to run without MongoDB
+        if (process.env.NODE_ENV === 'development') {
+          dbLogger.warn('Running in development mode without MongoDB connection');
+          dbLogger.warn('Some features requiring database will not work');
+          isConnected = false;
+          return;
+        }
+        
+        // In production, exit the process
+        dbLogger.error('Exiting process due to MongoDB connection failure');
         process.exit(1);
       }
       
-      console.log(`🔁 Retrying in ${delay / 1000}s...`);
+      dbLogger.info(`Retrying in ${delay / 1000}s...`);
       await sleep(delay);
       delay *= 2; // exponential backoff
     }
   }
+};
+
+// Check if MongoDB is connected
+export const isMongoConnected = () => {
+  return isConnected && mongoose.connection.readyState === 1;
 };
 
 // Graceful shutdown
@@ -80,21 +106,22 @@ export const disconnectDB = async () => {
       await memServer.stop();
       memServer = null;
     }
-    console.log('✅ MongoDB disconnected gracefully');
+    isConnected = false;
+    dbLogger.info('MongoDB disconnected gracefully');
   } catch (err) {
-    console.error('❌ Error disconnecting from MongoDB:', err);
+    dbLogger.error('Error disconnecting from MongoDB:', err);
   }
 };
 
 // Handle process termination
 process.on('SIGINT', async () => {
-  console.log('🛑 Received SIGINT, shutting down gracefully...');
+  dbLogger.info('Received SIGINT, shutting down gracefully...');
   await disconnectDB();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('🛑 Received SIGTERM, shutting down gracefully...');
+  dbLogger.info('Received SIGTERM, shutting down gracefully...');
   await disconnectDB();
   process.exit(0);
-}); 
+});

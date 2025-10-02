@@ -91,12 +91,17 @@ function StudentDashboardPage() {
   }, [user]);
 
   // Calculate stats from real data
-  const completedLessons = bookings.filter(b => b.status === 'completed').length;
-  const upcomingLessons = upcomingReservations.length;
-  const totalBookings = bookings.length;
+  const completedLessons = (bookings || []).filter(b => b?.status === 'completed').length;
+  const upcomingLessons = (upcomingReservations || []).length;
+  const totalBookings = (bookings || []).length;
 
   // Format upcoming lessons for display
-  const formattedUpcomingLessons = upcomingReservations.map(reservation => {
+  const formattedUpcomingLessons = (upcomingReservations || []).map(reservation => {
+    // Ensure reservation and required fields exist
+    if (!reservation || !reservation.teacher) {
+      return null;
+    }
+
     // Ensure date is properly formatted
     const lessonDate = new Date(reservation.date);
     const formattedDate = isNaN(lessonDate.getTime()) 
@@ -114,16 +119,16 @@ function StudentDashboardPage() {
     
     return {
       reservationId: reservation.id,
-      teacher: reservation.teacher.name,
+      teacher: reservation.teacher?.name || 'Unknown Teacher',
       topic: `${lessonType} - ${lessonLevel}`,
       date: formattedDate,
-      time: `${reservation.startTime} - ${reservation.endTime}`,
-      duration: `${reservation.lessonDuration || calculateDuration(reservation.startTime, reservation.endTime)} min`,
-      status: reservation.status,
+      time: `${reservation.startTime || '00:00'} - ${reservation.endTime || '00:00'}`,
+      duration: `${reservation.lessonDuration || calculateDuration(reservation.startTime || '00:00', reservation.endTime || '00:00')} min`,
+      status: reservation.status || 'unknown',
       lessonType: lessonType,
       lessonLevel: lessonLevel
     };
-  });
+  }).filter(Boolean); // Remove any null entries
 
   // Progress data for learning progress section
   const progressData = [
@@ -397,4 +402,4 @@ function StudentDashboardPage() {
     );
   }
 
-export default StudentDashboardPage; 
+export default StudentDashboardPage;

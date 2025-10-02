@@ -1,9 +1,17 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import User from '../models/User';
 import { Material } from '../models/Material';
 import { Reservation } from '../models/Reservation';
 import { Notification } from '../models/Notification';
 import AuditLog from '../models/AuditLog';
+
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    role: string;
+  };
+}
 
 // User Management
 export const getUsers = async (req: Request, res: Response) => {
@@ -437,64 +445,7 @@ export const deleteMaterial = async (req: Request, res: Response) => {
   }
 };
 
-// Payment Management
-export const getPayments = async (req: Request, res: Response) => {
-  try {
-    const { page = 1, limit = 20, userId, status, startDate, endDate } = req.query;
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
-    const skip = (pageNum - 1) * limitNum;
-
-    // Build query
-    const query: any = {};
-    
-    if (userId) {
-      query.$or = [{ teacher: userId }, { student: userId }];
-    }
-    
-    if (status) {
-      query.status = status;
-    }
-    
-    if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date(startDate as string);
-      if (endDate) query.createdAt.$lte = new Date(endDate as string);
-    }
-
-    // Get payments with pagination
-    const payments = await Reservation.find(query)
-      .populate('teacher', 'name email')
-      .populate('student', 'name email')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .lean();
-
-    // Get total count for pagination
-    const total = await Reservation.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: {
-        payments,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total,
-          pages: Math.ceil(total / limitNum)
-        }
-      },
-      message: 'Payments retrieved successfully'
-    });
-  } catch (error) {
-    console.error('Error getting payments:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve payments'
-    });
-  }
-};
+// Payment Management functions moved to end of file
 
 export const refundPayment = async (req: Request, res: Response) => {
   try {
@@ -736,3 +687,175 @@ export const getOverview = async (req: Request, res: Response) => {
     });
   }
 }; 
+
+// Payment Management
+export const getPayments = async (req: Request, res: Response) => {
+  try {
+    const { page = 1, limit = 20, status, search, startDate, endDate } = req.query;
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build query
+    const query: any = {};
+    
+    if (status) {
+      query.status = status;
+    }
+    
+    if (search) {
+      query.$or = [
+        { 'user.name': { $regex: search, $options: 'i' } },
+        { 'user.email': { $regex: search, $options: 'i' } },
+        { transactionId: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate as string);
+      }
+      if (endDate) {
+        query.createdAt.$lte = new Date(endDate as string);
+      }
+    }
+
+    // Get payments with pagination
+    const payments = await Reservation.find(query)
+      .populate('userId', 'name email')
+      .populate('teacherId', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+
+    // Get total count for pagination
+    const total = await Reservation.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: {
+        payments,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum)
+        }
+      },
+      message: 'Payments retrieved successfully'
+    });
+  } catch (error) {
+    console.error('Error getting payments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve payments'
+    });
+  }
+};
+
+export const approvePayment = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user?.id;
+
+    // Find the payment/reservation
+    const payment = await Reservation.findById(id);
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment not found'
+      });
+    }
+
+    // Update payment status
+    payment.status = 'completed';
+    payment.isPaid = true;
+    payment.paymentApprovedBy = adminId ? new mongoose.Types.ObjectId(adminId) : undefined;
+    payment.paymentApprovedAt = new Date();
+    await payment.save();
+
+    // Create audit log
+    await AuditLog.create({
+      adminId,
+      action: 'approve_payment',
+      targetType: 'Reservation',
+      targetId: id,
+      details: {
+        paymentId: id,
+        amount: payment.price,
+        previousStatus: 'pending',
+        newStatus: 'completed'
+      }
+    });
+
+    // Send notification to user
+    // You can implement notification logic here
+
+    res.json({
+      success: true,
+      message: 'Payment approved successfully'
+    });
+  } catch (error) {
+    console.error('Error approving payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to approve payment'
+    });
+  }
+};
+
+export const rejectPayment = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const adminId = req.user?.id;
+
+    // Find the payment/reservation
+    const payment = await Reservation.findById(id);
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment not found'
+      });
+    }
+
+    // Update payment status
+    payment.status = 'cancelled';
+    payment.isPaid = false;
+    payment.paymentRejectedBy = adminId ? new mongoose.Types.ObjectId(adminId) : undefined;
+    payment.paymentRejectedAt = new Date();
+    payment.rejectionReason = reason;
+    await payment.save();
+
+    // Create audit log
+    await AuditLog.create({
+      adminId,
+      action: 'reject_payment',
+      targetType: 'Reservation',
+      targetId: id,
+      details: {
+        paymentId: id,
+        amount: payment.price,
+        reason,
+        previousStatus: 'pending',
+        newStatus: 'cancelled'
+      }
+    });
+
+    // Send notification to user
+    // You can implement notification logic here
+
+    res.json({
+      success: true,
+      message: 'Payment rejected successfully'
+    });
+  } catch (error) {
+    console.error('Error rejecting payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reject payment'
+    });
+  }
+};

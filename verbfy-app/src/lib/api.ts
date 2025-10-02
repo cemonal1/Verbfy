@@ -426,6 +426,14 @@ export const adminAPI = {
     return api.get('/api/admin/payments', { params });
   },
 
+  approvePayment: (id: string) => {
+    return api.patch(`/api/admin/payments/${id}/approve`);
+  },
+
+  rejectPayment: (id: string, data: { reason?: string }) => {
+    return api.patch(`/api/admin/payments/${id}/reject`, data);
+  },
+
   refundPayment: (id: string, data: { reason?: string }) => {
     return api.patch(`/api/admin/payments/${id}/refund`, data);
   },
@@ -433,6 +441,19 @@ export const adminAPI = {
   // Logs & Activity
   getLogs: (params?: any) => {
     return api.get('/api/admin/logs', { params });
+  },
+
+  // Teacher Approval
+  getPendingTeachers: () => {
+    return api.get('/api/admin/teachers/pending');
+  },
+
+  approveTeacher: (id: string) => {
+    return api.patch(`/api/admin/teachers/${id}/approve`);
+  },
+
+  rejectTeacher: (id: string, data: { reason?: string }) => {
+    return api.patch(`/api/admin/teachers/${id}/reject`, data);
   },
 };
 
@@ -1149,4 +1170,4 @@ export const aiFeaturesAPI = {
   },
 };
 
-export default api; 
+export default api;

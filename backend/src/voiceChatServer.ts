@@ -31,17 +31,23 @@ export class VoiceChatServer {
   private users: Map<string, User> = new Map(); // socketId -> User
 
   constructor(server: HTTPServer) {
+    // Get centralized CORS origins
+    const defaultOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const extraOrigins = (process.env.CORS_EXTRA_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+    const productionDomains = process.env.PRODUCTION_DOMAINS 
+      ? process.env.PRODUCTION_DOMAINS.split(',').map(s => s.trim()).filter(Boolean)
+      : ['https://verbfy.com', 'https://www.verbfy.com', 'https://api.verbfy.com'];
+    
+    const allowedOrigins = [
+      defaultOrigin, 
+      ...extraOrigins,
+      ...(process.env.NODE_ENV === 'production' ? productionDomains : [])
+    ];
+
     this.io = new SocketIOServer(server, {
       path: '/voice-chat',
       cors: {
         origin: (origin, callback) => {
-          const allowedOrigins = [
-            process.env.FRONTEND_URL || "http://localhost:3000",
-            "https://www.verbfy.com",
-            "https://verbfy.com",
-            "http://localhost:3000"
-          ];
-          
           // Allow requests with no origin (mobile apps, etc.)
           if (!origin) return callback(null, true);
           

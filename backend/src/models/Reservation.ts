@@ -14,6 +14,12 @@ export interface IReservation extends Document {
   lessonDuration?: number; // Duration in minutes
   dayOfWeek?: number; // Day of the week (0-6, Sunday-Saturday) for recurring reservations
   feedback?: string; // Student feedback after lesson
+  price?: number; // Lesson price
+  paymentApprovedBy?: mongoose.Types.ObjectId; // Admin who approved payment
+  paymentApprovedAt?: Date; // When payment was approved
+  paymentRejectedBy?: mongoose.Types.ObjectId; // Admin who rejected payment
+  paymentRejectedAt?: Date; // When payment was rejected
+  rejectionReason?: string; // Reason for payment rejection
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,6 +76,26 @@ const ReservationSchema: Schema = new Schema({
   },
   feedback: {
     type: String
+  },
+  price: {
+    type: Number
+  },
+  paymentApprovedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  paymentApprovedAt: {
+    type: Date
+  },
+  paymentRejectedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  paymentRejectedAt: {
+    type: Date
+  },
+  rejectionReason: {
+    type: String
   }
 }, {
   timestamps: true
@@ -81,4 +107,4 @@ ReservationSchema.index({ student: 1, actualDate: 1 });
 ReservationSchema.index({ status: 1 });
 ReservationSchema.index({ dayOfWeek: 1 });
 
-export const Reservation = mongoose.model<IReservation>('Reservation', ReservationSchema); 
+export const Reservation = mongoose.model<IReservation>('Reservation', ReservationSchema);

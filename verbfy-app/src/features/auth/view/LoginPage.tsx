@@ -5,6 +5,10 @@ import { useLoginViewModel } from '../viewmodel/useLoginViewModel';
 import HomeButton from '@/components/shared/HomeButton';
 import BrandLogo from '@/components/shared/BrandLogo';
 import { useI18n } from '@/lib/i18n';
+import { createLogger } from '@/utils/logger';
+
+// Create context-specific logger
+const authLogger = createLogger('Auth');
 
 export default function LoginPage() {
   const { 
@@ -49,7 +53,7 @@ export default function LoginPage() {
       }
       
       const data: any = event.data || {};
-      console.log('OAuth message received:', data);
+      authLogger.info('OAuth message received', { type: data?.type, hasToken: !!data?.token, hasUser: !!data?.user });
       
       if (data?.type === 'oauth-success' && data?.token && data?.user) {
         try {
@@ -291,4 +295,4 @@ export default function LoginPage() {
       <HomeButton />
     </div>
   );
-} 
+}
