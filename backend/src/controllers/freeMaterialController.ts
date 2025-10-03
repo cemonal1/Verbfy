@@ -82,7 +82,7 @@ export class FreeMaterialController {
       sortOptions[sortBy as string] = sortOrder === 'desc' ? -1 : 1;
 
       const materials = await FreeMaterial.find(filter)
-        .populate('uploadedBy', 'name email avatar')
+        .populate('uploadedBy', 'name email profileImage')
         .sort(sortOptions)
         .skip(skip)
         .limit(Number(limit));
@@ -108,7 +108,7 @@ export class FreeMaterialController {
   static async getFeaturedMaterials(req: Request, res: Response): Promise<void> {
     try {
       const materials = await FreeMaterial.find({ isActive: true, isFeatured: true })
-        .populate('uploadedBy', 'name email avatar')
+        .populate('uploadedBy', 'name email profileImage')
         .sort({ rating: -1, downloadCount: -1 })
         .limit(6);
 
@@ -127,7 +127,7 @@ export class FreeMaterialController {
       const { id } = req.params;
 
       const material = await FreeMaterial.findById(id)
-        .populate('uploadedBy', 'name email avatar');
+        .populate('uploadedBy', 'name email profileImage');
 
       if (!material) {
         res.status(404).json({ success: false, message: 'Material not found' });
@@ -192,7 +192,7 @@ export class FreeMaterialController {
         await material.save();
 
         const populatedMaterial = await FreeMaterial.findById(material._id)
-          .populate('uploadedBy', 'name email avatar');
+          .populate('uploadedBy', 'name email profileImage');
 
         res.status(201).json({
           success: true,
@@ -235,7 +235,7 @@ export class FreeMaterialController {
       await material.save();
 
       const updatedMaterial = await FreeMaterial.findById(id)
-        .populate('uploadedBy', 'name email avatar');
+        .populate('uploadedBy', 'name email profileImage');
 
       res.json({
         success: true,
@@ -372,4 +372,4 @@ export class FreeMaterialController {
     if (mimeType.includes('powerpoint')) return 'presentation';
     return 'document';
   }
-} 
+}

@@ -125,20 +125,8 @@ LessonFileSchema.methods.softDelete = function() {
   return this.save();
 };
 
-// Static method to get files by category
-LessonFileSchema.statics.getFilesByCategory = function(lessonId: string, category: string) {
-  const mimeTypePattern = (this as any).getCategoryMimePattern(category);
-  return this.find({ 
-    lessonId, 
-    isDeleted: { $ne: true },
-    mimeType: { $regex: mimeTypePattern, $options: 'i' }
-  })
-  .populate('uploadedBy', 'name email role')
-  .sort({ uploadedAt: -1 });
-};
-
-// Static method to get mime type pattern for category
-LessonFileSchema.statics.getCategoryMimePattern = function(category: string): string {
+// Helper function to get mime type pattern for category
+const getCategoryMimePattern = (category: string): string => {
   switch (category) {
     case 'image': return '^image/';
     case 'video': return '^video/';
@@ -148,6 +136,23 @@ LessonFileSchema.statics.getCategoryMimePattern = function(category: string): st
     case 'presentation': return '(powerpoint|presentation)';
     default: return '.*';
   }
+};
+
+// Static method to get mime type pattern for category
+LessonFileSchema.statics.getCategoryMimePattern = function(category: string): string {
+  return getCategoryMimePattern(category);
+};
+
+// Static method to get files by category
+LessonFileSchema.statics.getFilesByCategory = function(lessonId: string, category: string) {
+  const mimeTypePattern = getCategoryMimePattern(category);
+  return this.find({ 
+    lessonId, 
+    isDeleted: { $ne: true },
+    mimeType: { $regex: mimeTypePattern, $options: 'i' }
+  })
+  .populate('uploadedBy', 'name email role')
+  .sort({ uploadedAt: -1 });
 };
 
 // Static method to get lesson file statistics

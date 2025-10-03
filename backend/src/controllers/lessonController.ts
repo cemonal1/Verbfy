@@ -28,7 +28,7 @@ export class LessonController {
       
       // Get lessons with pagination
       const lessons = await Lesson.find(query)
-        .populate('teacherId', 'name email avatar')
+        .populate('teacherId', 'name email profileImage')
         .populate('studentId', 'name email')
         .populate('materials', 'title type fileUrl')
         .sort({ startTime: -1 })
@@ -104,7 +104,7 @@ export class LessonController {
         cacheKey,
         async () => {
           return await Lesson.findById(id)
-            .populate('teacherId', 'name email avatar')
+            .populate('teacherId', 'name email profileImage')
             .populate('studentId', 'name email')
             .populate('materials', 'title type fileUrl');
         },

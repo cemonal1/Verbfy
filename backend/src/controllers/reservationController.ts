@@ -459,7 +459,7 @@ export const getStudentReservations = async (req: AuthRequest, res: Response): P
     const skip = (Number(page) - 1) * Number(limit);
     
     const reservations = await Reservation.find({ student: studentId })
-      .populate('teacher', 'name email avatar')
+      .populate('teacher', 'name email profileImage')
       .sort({ actualDate: -1 })
       .skip(skip)
       .limit(Number(limit));

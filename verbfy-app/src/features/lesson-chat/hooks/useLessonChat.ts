@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/context/AuthContext';
+import { tokenStorage } from '@/utils/secureStorage';
 
 export interface LessonMessage {
   id: string;
@@ -39,7 +40,7 @@ interface UseLessonChatProps {
 }
 
 export const useLessonChat = ({ lessonId, enabled = true }: UseLessonChatProps) => {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState<LessonMessage[]>([]);
@@ -50,6 +51,7 @@ export const useLessonChat = ({ lessonId, enabled = true }: UseLessonChatProps) 
 
   // Initialize socket connection
   useEffect(() => {
+    const token = tokenStorage.getToken();
     if (!enabled || !user || !token || !lessonId) return;
 
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
@@ -174,7 +176,7 @@ export const useLessonChat = ({ lessonId, enabled = true }: UseLessonChatProps) 
         newSocket.disconnect();
       }
     };
-  }, [enabled, user, token, lessonId]);
+  }, [enabled, user, lessonId]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -230,6 +232,9 @@ export const useLessonChat = ({ lessonId, enabled = true }: UseLessonChatProps) 
 
   // Load chat history
   const loadChatHistory = useCallback(async () => {
+    const token = tokenStorage.getToken();
+    if (!token) return;
+    
     try {
       const response = await fetch(`/api/lesson-chat/${lessonId}/messages`, {
         headers: {
@@ -244,7 +249,7 @@ export const useLessonChat = ({ lessonId, enabled = true }: UseLessonChatProps) 
     } catch (error) {
       console.error('Failed to load chat history:', error);
     }
-  }, [lessonId, token]);
+  }, [lessonId]);
 
   // Load chat history when joining
   useEffect(() => {

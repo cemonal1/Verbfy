@@ -16,8 +16,8 @@ export class VerbfyTalkController {
       if (isPrivate !== undefined) filter.isPrivate = isPrivate === 'true';
 
       const rooms = await VerbfyTalkRoom.find(filter)
-        .populate('createdBy', 'name email avatar')
-        .populate('participants.userId', 'name email avatar')
+        .populate('createdBy', 'name email profileImage')
+        .populate('participants.userId', 'name email profileImage')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit));
@@ -76,8 +76,8 @@ export class VerbfyTalkController {
       await room.save();
 
       const populatedRoom = await VerbfyTalkRoom.findById(room._id)
-        .populate('createdBy', 'name email avatar')
-        .populate('participants.userId', 'name email avatar');
+        .populate('createdBy', 'name email profileImage')
+        .populate('participants.userId', 'name email profileImage');
 
       res.status(201).json({
         success: true,
@@ -97,8 +97,8 @@ export class VerbfyTalkController {
       const { password } = req.body;
 
       const room = await VerbfyTalkRoom.findById(roomId)
-        .populate('createdBy', 'name email avatar')
-        .populate('participants.userId', 'name email avatar');
+        .populate('createdBy', 'name email profileImage')
+        .populate('participants.userId', 'name email profileImage');
 
       if (!room) {
         res.status(404).json({ success: false, message: 'Room not found' });
@@ -162,8 +162,8 @@ export class VerbfyTalkController {
       await room.save();
 
       const updatedRoom = await VerbfyTalkRoom.findById(roomId)
-        .populate('createdBy', 'name email avatar')
-        .populate('participants.userId', 'name email avatar');
+        .populate('createdBy', 'name email profileImage')
+        .populate('participants.userId', 'name email profileImage');
 
       res.json({
         success: true,
@@ -237,8 +237,8 @@ export class VerbfyTalkController {
       const { roomId } = req.params;
 
       const room = await VerbfyTalkRoom.findById(roomId)
-        .populate('createdBy', 'name email avatar')
-        .populate('participants.userId', 'name email avatar');
+        .populate('createdBy', 'name email profileImage')
+        .populate('participants.userId', 'name email profileImage');
 
       if (!room) {
         res.status(404).json({ success: false, message: 'Room not found' });
@@ -305,8 +305,8 @@ export class VerbfyTalkController {
       await room.save();
 
       const updatedRoom = await VerbfyTalkRoom.findById(roomId)
-        .populate('createdBy', 'name email avatar')
-        .populate('participants.userId', 'name email avatar');
+        .populate('createdBy', 'name email profileImage')
+        .populate('participants.userId', 'name email profileImage');
 
       res.json({
         success: true,
@@ -358,8 +358,8 @@ export class VerbfyTalkController {
       const rooms = await VerbfyTalkRoom.find({
         'participants.userId': userId
       })
-        .populate('createdBy', 'name email avatar')
-        .populate('participants.userId', 'name email avatar')
+        .populate('createdBy', 'name email profileImage')
+        .populate('participants.userId', 'name email profileImage')
         .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(Number(limit));

@@ -263,16 +263,25 @@ export class LessonChatController {
       }
 
       const reservation = await Reservation.findById(lessonId)
-        .populate('teacher', 'name email role avatar')
-        .populate('student', 'name email role avatar');
+        .populate('teacher', 'name email role profileImage')
+        .populate('student', 'name email role profileImage');
 
       if (!reservation) {
         res.status(404).json({ error: 'Lesson not found' });
         return;
       }
 
-      const teacher = reservation.teacher as IUser;
-      const student = reservation.student as IUser;
+      // Check if teacher and student are properly populated
+      if (typeof reservation.teacher !== 'object' || typeof reservation.student !== 'object' ||
+          !reservation.teacher || !reservation.student ||
+          typeof (reservation.teacher as any).name !== 'string' ||
+          typeof (reservation.student as any).name !== 'string') {
+        res.status(500).json({ error: 'Lesson participants not found' });
+        return;
+      }
+
+      const teacher = reservation.teacher as unknown as IUser;
+      const student = reservation.student as unknown as IUser;
 
       const participants = [
         {

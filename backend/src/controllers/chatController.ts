@@ -23,7 +23,7 @@ export const getConversations = async (req: Request, res: Response): Promise<voi
       participants: userId,
       isActive: true
     })
-    .populate('participants', 'name email role avatar')
+    .populate('participants', 'name email role profileImage')
     .populate('lastMessage.sender', 'name')
     .sort({ updatedAt: -1 });
 
@@ -106,7 +106,7 @@ export const getOrCreateConversation = async (req: Request, res: Response): Prom
     let conversation = await Conversation.findOne({
       participants: { $all: [userId, otherUserId] },
       isActive: true
-    }).populate('participants', 'name email role avatar');
+    }).populate('participants', 'name email role profileImage');
 
     // Create new conversation if it doesn't exist
     if (!conversation) {
@@ -117,7 +117,7 @@ export const getOrCreateConversation = async (req: Request, res: Response): Prom
       
       // Populate participants after saving
       conversation = await Conversation.findById(conversation._id)
-        .populate('participants', 'name email role avatar');
+        .populate('participants', 'name email role profileImage');
     }
 
     // Format response
@@ -205,7 +205,7 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
     
     const messages = await Message.find({ conversationId })
-      .populate('sender', 'name email role avatar')
+      .populate('sender', 'name email role profileImage')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit as string));
@@ -316,7 +316,7 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
 
     // Populate sender details
     const populatedMessage = await Message.findById(message._id)
-      .populate('sender', 'name email role avatar');
+      .populate('sender', 'name email role profileImage');
 
     res.status(201).json({
       success: true,
