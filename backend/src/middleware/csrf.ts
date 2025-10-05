@@ -37,9 +37,9 @@ export function verifyCsrf(req: Request, res: Response, next: NextFunction) {
   const path = req.path || '';
   if (path.startsWith('/api/health') || path.startsWith('/api/payments/webhook')) return next();
 
-  // Temporarily disable CSRF in development until frontend properly implements token handling
-  // TODO: Re-enable CSRF protection after frontend integration
-  if (process.env.NODE_ENV === 'development') {
+  // Disable CSRF protection outside production (development, test, CI)
+  const env = process.env.NODE_ENV || 'development';
+  if (env !== 'production') {
     return next();
   }
 

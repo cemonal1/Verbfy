@@ -34,6 +34,8 @@ import notificationRoutes from './routes/notificationRoutes';
 import lessonMaterialRoutes from './routes/lessonMaterialRoutes';
 import lessonRoutes from './routes/lessons';
 import adminRoutes from './routes/adminRoutes';
+import adminAuthRoutes from './routes/adminAuth';
+import adminSystemRoutes from './routes/adminSystemRoutes';
 import messagesRoutes from './routes/messages';
 import analyticsRoutes from './routes/analytics';
 import materialsRoutes from './routes/materials';
@@ -46,6 +48,7 @@ import cefrTestsRoutes from './routes/cefrTests';
 import personalizedCurriculumRoutes from './routes/personalizedCurriculum';
 import aiLearningRoutes from './routes/aiLearning';
 import adaptiveLearningRoutes from './routes/adaptiveLearning';
+import { adminNotificationService } from './services/adminNotificationService';
 import teacherAnalyticsRoutes from './routes/teacherAnalytics';
 import aiContentGenerationRoutes from './routes/aiContentGeneration';
 import organizationRoutes from './routes/organization';
@@ -308,17 +311,60 @@ const authMiddleware = async (socket: AuthenticatedSocket, next: any) => {
   }
 };
 
+// Admin authentication middleware with role verification
+const adminAuthMiddleware = async (socket: AuthenticatedSocket, next: any) => {
+  const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    return next(new Error('Authentication failed: No token provided'));
+  }
+
+  try {
+    const decoded = verifyToken(token) as any;
+    if (!decoded || !decoded.id) {
+      return next(new Error('Authentication failed: Invalid token'));
+    }
+    
+    // Verify user exists in database
+    const user = await UserModel.findById(decoded.id);
+    if (!user) {
+      return next(new Error('Authentication failed: User not found'));
+    }
+
+    // Verify admin role
+    if (user.role !== 'admin') {
+      return next(new Error('Authorization failed: Admin role required'));
+    }
+
+    socket.user = {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role
+    };
+
+    next();
+  } catch (error) {
+    return next(new Error('Authentication failed: Token verification failed'));
+  }
+};
+
 // Create namespaces for different features
 const chatNamespace = mainIo.of('/chat');
 const notificationNamespace = mainIo.of('/notifications');
 const verbfyTalkNamespace = mainIo.of('/verbfy-talk');
 const voiceChatNamespace = mainIo.of('/voice-chat');
+const adminNamespace = mainIo.of('/admin');
+
+// Initialize admin notification service with the Socket.IO server
+adminNotificationService.setSocketServer(mainIo);
 
 // Apply authentication to all namespaces
 chatNamespace.use(authMiddleware);
 notificationNamespace.use(authMiddleware);
 verbfyTalkNamespace.use(authMiddleware);
 voiceChatNamespace.use(authMiddleware);
+adminNamespace.use(adminAuthMiddleware);
 
 // Chat namespace events
 chatNamespace.on('connection', (socket: AuthenticatedSocket) => {
@@ -344,7 +390,6 @@ chatNamespace.on('connection', (socket: AuthenticatedSocket) => {
   socket.on('typing', (data: { roomId: string; isTyping: boolean }) => {
     socket.to(data.roomId).emit('user-typing', {
       userId: socket.user?.id,
-      userName: socket.user?.name,
       isTyping: data.isTyping
     });
   });
@@ -680,7 +725,148 @@ voiceChatNamespace.on('connection', (socket: AuthenticatedSocket) => {
   });
 });
 
-socketLogger.info('Socket.IO Setup - Main server initialized with namespaces');
+// Admin namespace events
+adminNamespace.on('connection', (socket: AuthenticatedSocket) => {
+  socketLogger.info('Admin namespace connected:', socket.user?.name);
+  
+  // Join admin room for broadcast notifications
+  socket.join('admin-room');
+  
+  // Notify other admins of new admin connection
+  socket.to('admin-room').emit('admin:connected', {
+    adminId: socket.user?.id,
+    adminName: socket.user?.name,
+    timestamp: new Date().toISOString()
+  });
+  
+  // System monitoring events
+  socket.on('admin:subscribe-system-health', () => {
+    socket.join('system-health');
+    socketLogger.info(`Admin ${socket.user?.name} subscribed to system health updates`);
+  });
+  
+  socket.on('admin:unsubscribe-system-health', () => {
+    socket.leave('system-health');
+    socketLogger.info(`Admin ${socket.user?.name} unsubscribed from system health updates`);
+  });
+  
+  // Security monitoring events
+  socket.on('admin:subscribe-security-alerts', () => {
+    socket.join('security-alerts');
+    socketLogger.info(`Admin ${socket.user?.name} subscribed to security alerts`);
+  });
+  
+  socket.on('admin:unsubscribe-security-alerts', () => {
+    socket.leave('security-alerts');
+    socketLogger.info(`Admin ${socket.user?.name} unsubscribed from security alerts`);
+  });
+  
+  // User management events
+  socket.on('admin:subscribe-user-activities', () => {
+    socket.join('user-activities');
+    socketLogger.info(`Admin ${socket.user?.name} subscribed to user activities`);
+  });
+  
+  socket.on('admin:unsubscribe-user-activities', () => {
+    socket.leave('user-activities');
+    socketLogger.info(`Admin ${socket.user?.name} unsubscribed from user activities`);
+  });
+  
+  // Admin chat/communication
+  socket.on('admin:send-message', (data: { message: string; type: 'info' | 'warning' | 'urgent' }) => {
+    socket.to('admin-room').emit('admin:message', {
+      adminId: socket.user?.id,
+      adminName: socket.user?.name,
+      message: data.message,
+      type: data.type,
+      timestamp: new Date().toISOString()
+    });
+    socketLogger.info(`Admin ${socket.user?.name} sent message: ${data.message}`);
+  });
+  
+  // Cache management events
+  socket.on('admin:cache-cleared', (data: { pattern?: string; success: boolean }) => {
+    socket.to('admin-room').emit('admin:cache-update', {
+      action: 'cleared',
+      pattern: data.pattern,
+      success: data.success,
+      adminId: socket.user?.id,
+      adminName: socket.user?.name,
+      timestamp: new Date().toISOString()
+    });
+  });
+  
+  // User action notifications
+  socket.on('admin:user-action', (data: { 
+    action: 'banned' | 'unbanned' | 'role-changed' | 'deleted';
+    targetUserId: string;
+    targetUserName: string;
+    details?: any;
+  }) => {
+    socket.to('admin-room').emit('admin:user-action-notification', {
+      action: data.action,
+      targetUserId: data.targetUserId,
+      targetUserName: data.targetUserName,
+      details: data.details,
+      adminId: socket.user?.id,
+      adminName: socket.user?.name,
+      timestamp: new Date().toISOString()
+    });
+  });
+  
+  // Payment management notifications
+  socket.on('admin:payment-action', (data: {
+    action: 'approved' | 'rejected' | 'refunded';
+    paymentId: string;
+    amount: number;
+    userId: string;
+    details?: any;
+  }) => {
+    socket.to('admin-room').emit('admin:payment-notification', {
+      action: data.action,
+      paymentId: data.paymentId,
+      amount: data.amount,
+      userId: data.userId,
+      details: data.details,
+      adminId: socket.user?.id,
+      adminName: socket.user?.name,
+      timestamp: new Date().toISOString()
+    });
+  });
+  
+  // Teacher approval notifications
+  socket.on('admin:teacher-action', (data: {
+    action: 'approved' | 'rejected';
+    teacherId: string;
+    teacherName: string;
+    details?: any;
+  }) => {
+    socket.to('admin-room').emit('admin:teacher-notification', {
+      action: data.action,
+      teacherId: data.teacherId,
+      teacherName: data.teacherName,
+      details: data.details,
+      adminId: socket.user?.id,
+      adminName: socket.user?.name,
+      timestamp: new Date().toISOString()
+    });
+  });
+  
+  // Disconnect handling
+  socket.on('disconnect', (reason) => {
+    socketLogger.info(`Admin ${socket.user?.name} disconnected from admin namespace: ${reason}`);
+    
+    // Notify other admins of disconnection
+    socket.to('admin-room').emit('admin:disconnected', {
+      adminId: socket.user?.id,
+      adminName: socket.user?.name,
+      reason,
+      timestamp: new Date().toISOString()
+    });
+  });
+});
+
+socketLogger.info('Socket.IO Setup - Main server initialized with namespaces including admin namespace');
 
 // Permissions policy headers already set above
 
@@ -728,7 +914,7 @@ app.use((req, _res, next) => {
 });
 
 // Connect to MongoDB
-connectDB();
+process.env.NODE_ENV !== 'test' && connectDB();
 
 // Initialize cache service
 cacheService.connect();
@@ -795,7 +981,9 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/materials', materialsRoutes);
 app.use('/api/lesson-materials', lessonMaterialRoutes);
 app.use('/api/lessons', lessonRoutes);
+app.use('/api/admin', adminAuthRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/system', adminSystemRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/chat', chatRoutes);
@@ -918,44 +1106,49 @@ app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  serverLogger.info(`🚀 Server running on port ${PORT}`);
-  serverLogger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  serverLogger.info(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
-  serverLogger.info(`🔗 API Base URL: http://localhost:${PORT}/api`);
-  serverLogger.info(`🗄️ Database: ${process.env.MONGO_URI ? 'Connected' : 'Not configured'}`);
-  serverLogger.info(`🔌 Socket.IO: Enabled for real-time communication`);
-  serverLogger.info(`📈 Monitoring: Started`);
-  
-  // Start monitoring system
-  startMonitoring();
-  
-  serverLogger.info(`📋 Available API Routes:`);
-  serverLogger.info(`   - /api/auth (Authentication)`);
-  serverLogger.info(`   - /api/users (User management)`);
-  serverLogger.info(`   - /api/livekit (Video conferencing)`);
-  serverLogger.info(`   - /api/reservations (Lesson booking)`);
-  serverLogger.info(`   - /api/availability (Teacher availability)`);
-  serverLogger.info(`   - /api/notifications (Notifications)`);
-  serverLogger.info(`   - /api/materials (Learning materials - NEW)`);
-  serverLogger.info(`   - /api/lesson-materials (Lesson materials - Legacy)`);
-  serverLogger.info(`   - /api/admin (Admin functions)`);
-  serverLogger.info(`   - /api/messages (Messaging system)`);
-  serverLogger.info(`   - /api/analytics (Analytics & reports)`);
-  serverLogger.info(`   - /api/chat (Real-time chat system)`);
-  serverLogger.info(`   - /api/verbfy-talk (Voice chat rooms)`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(PORT, () => {
+    serverLogger.info(`🚀 Server running on port ${PORT}`);
+    serverLogger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    serverLogger.info(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+    serverLogger.info(`🔗 API Base URL: http://localhost:${PORT}/api`);
+    serverLogger.info(`🗄️ Database: ${process.env.MONGO_URI ? 'Connected' : 'Not configured'}`);
+    serverLogger.info(`🔌 Socket.IO: Enabled for real-time communication`);
+    serverLogger.info(`📈 Monitoring: Started`);
+    
+    // Start monitoring system
+    startMonitoring();
+    
+    serverLogger.info(`📋 Available API Routes:`);
+    serverLogger.info(`   - /api/auth (Authentication)`);
+    serverLogger.info(`   - /api/users (User management)`);
+    serverLogger.info(`   - /api/livekit (Video conferencing)`);
+    serverLogger.info(`   - /api/reservations (Lesson booking)`);
+    serverLogger.info(`   - /api/availability (Teacher availability)`);
+    serverLogger.info(`   - /api/notifications (Notifications)`);
+    serverLogger.info(`   - /api/materials (Learning materials - NEW)`);
+    serverLogger.info(`   - /api/lesson-materials (Lesson materials - Legacy)`);
+    serverLogger.info(`   - /api/admin (Admin functions)`);
+    serverLogger.info(`   - /api/messages (Messaging system)`);
+    serverLogger.info(`   - /api/analytics (Analytics & reports)`);
+    serverLogger.info(`   - /api/chat (Real-time chat system)`);
+    serverLogger.info(`   - /api/verbfy-talk (Voice chat rooms)`);
+  });
+}
+
 
 // Setup cron job for cleaning up empty rooms (every 5 minutes)
-setInterval(async () => {
-  try {
-    await VerbfyTalkController.cleanupEmptyRooms();
-  } catch (error) {
-    serverLogger.error('Cron job failed:', error);
-  }
-}, 5 * 60 * 1000); // 5 minutes
-
-serverLogger.info(`Room cleanup cron job started (every 5 minutes)`);
+if ((process.env.NODE_ENV || 'development') !== 'test') {
+  setInterval(async () => {
+    try {
+      await VerbfyTalkController.cleanupEmptyRooms();
+    } catch (error) {
+      serverLogger.error('Cron job failed:', error);
+    }
+  }, 5 * 60 * 1000); // 5 minutes
+  
+  serverLogger.info(`Room cleanup cron job started (every 5 minutes)`);
+}
 
 // Export app for testing
 export { app };

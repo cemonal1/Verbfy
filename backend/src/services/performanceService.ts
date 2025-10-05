@@ -40,6 +40,12 @@ class PerformanceService {
   private cpuUsage = process.cpuUsage();
 
   constructor() {
+    const env = process.env.NODE_ENV || 'development';
+    if (env === 'test') {
+      perfLogger.info('PerformanceService disabled in test environment');
+      return;
+    }
+
     // Start collecting metrics every 30 seconds
     setInterval(() => {
       this.collectMetrics();

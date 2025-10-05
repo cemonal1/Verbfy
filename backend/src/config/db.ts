@@ -141,17 +141,17 @@ export const connectDB = async () => {
       if (attempt >= maxRetries) {
         dbLogger.error('Could not connect to MongoDB after maximum retries.');
         
-        // In development, don't exit the process - allow the app to run without MongoDB
-        if (process.env.NODE_ENV === 'development') {
-          dbLogger.warn('Running in development mode without MongoDB connection');
-          dbLogger.warn('Some features requiring database will not work');
-          isConnected = false;
-          return;
-        }
-        
-        // In production, exit the process
-        dbLogger.error('Exiting process due to MongoDB connection failure');
-        process.exit(1);
+        // In non-production (development/test), don't exit the process - allow the app to run without MongoDB
+        if (process.env.NODE_ENV !== 'production') {
+           dbLogger.warn('Running in development mode without MongoDB connection');
+           dbLogger.warn('Some features requiring database will not work');
+           isConnected = false;
+           return;
+         }
+         
+         // In production, exit the process
+         dbLogger.error('Exiting process due to MongoDB connection failure');
+         process.exit(1);
       }
       
       dbLogger.info(`Retrying in ${delay / 1000}s...`);

@@ -5,6 +5,7 @@ import User from '../../models/User'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import authRoutes from '../../routes/auth'
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from '@jest/globals'
 
 // Create test app instance
 const app = express()
@@ -206,7 +207,7 @@ beforeAll(async () => {
       })
 
       // Generate token
-      token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET!)
+      token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET!)
     })
 
     it('should get user profile with valid token', async () => {
@@ -250,4 +251,4 @@ beforeAll(async () => {
       expect(response.body.message).toContain('Logged out successfully')
     })
   })
-}) 
+})

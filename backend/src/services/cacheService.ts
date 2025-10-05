@@ -6,9 +6,20 @@ const logger = createLogger('Cache');
 class CacheService {
   private client: RedisClientType | null = null;
   private isConnected = false;
+  // In-memory fallback for test environment
+  private useMemoryFallback = false;
+  private memoryCache = new Map<string, { value: string; expiresAt: number }>();
 
   async connect(): Promise<void> {
     try {
+      // Use in-memory cache during tests or when explicitly enabled
+      if (process.env.NODE_ENV === 'test' || process.env.CACHE_USE_MEMORY === 'true') {
+        this.useMemoryFallback = true;
+        this.isConnected = true;
+        logger.info('Using in-memory cache fallback for tests');
+        return;
+      }
+
       const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
       
       this.client = createClient({
@@ -44,6 +55,12 @@ class CacheService {
   }
 
   async disconnect(): Promise<void> {
+    if (this.useMemoryFallback) {
+      this.memoryCache.clear();
+      this.isConnected = false;
+      this.useMemoryFallback = false;
+      return;
+    }
     if (this.client) {
       await this.client.disconnect();
       this.client = null;
@@ -52,6 +69,20 @@ class CacheService {
   }
 
   async get<T>(key: string): Promise<T | null> {
+    if (this.useMemoryFallback) {
+      const entry = this.memoryCache.get(key);
+      if (!entry) return null;
+      if (Date.now() > entry.expiresAt) {
+        this.memoryCache.delete(key);
+        return null;
+      }
+      try {
+        return JSON.parse(entry.value) as T;
+      } catch {
+        return null;
+      }
+    }
+
     if (!this.isConnected || !this.client) {
       return null;
     }
@@ -66,6 +97,17 @@ class CacheService {
   }
 
   async set(key: string, value: any, ttlSeconds: number = 3600): Promise<boolean> {
+    if (this.useMemoryFallback) {
+      const expiresAt = Date.now() + ttlSeconds * 1000;
+      try {
+        this.memoryCache.set(key, { value: JSON.stringify(value), expiresAt });
+        return true;
+      } catch (error) {
+        logger.error(`Memory cache set error for key ${key}:`, error);
+        return false;
+      }
+    }
+
     if (!this.isConnected || !this.client) {
       return false;
     }
@@ -80,6 +122,10 @@ class CacheService {
   }
 
   async del(key: string): Promise<boolean> {
+    if (this.useMemoryFallback) {
+      return this.memoryCache.delete(key);
+    }
+
     if (!this.isConnected || !this.client) {
       return false;
     }
@@ -94,6 +140,14 @@ class CacheService {
   }
 
   async exists(key: string): Promise<boolean> {
+    if (this.useMemoryFallback) {
+      const entry = this.memoryCache.get(key);
+      if (!entry) return false;
+      const valid = Date.now() <= entry.expiresAt;
+      if (!valid) this.memoryCache.delete(key);
+      return valid;
+    }
+
     if (!this.isConnected || !this.client) {
       return false;
     }
@@ -108,6 +162,11 @@ class CacheService {
   }
 
   async flush(): Promise<boolean> {
+    if (this.useMemoryFallback) {
+      this.memoryCache.clear();
+      return true;
+    }
+
     if (!this.isConnected || !this.client) {
       return false;
     }
@@ -118,6 +177,42 @@ class CacheService {
     } catch (error) {
       logger.error('Cache flush error:', error);
       return false;
+    }
+  }
+
+  async flushAll(): Promise<boolean> {
+    return this.flush();
+  }
+
+  async deletePattern(pattern: string): Promise<number> {
+    if (this.useMemoryFallback) {
+      // Support simple glob pattern with '*'
+      const regex = new RegExp('^' + pattern.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&').replace(/\*/g, '.*') + '$');
+      let count = 0;
+      for (const key of Array.from(this.memoryCache.keys())) {
+        if (regex.test(key)) {
+          this.memoryCache.delete(key);
+          count++;
+        }
+      }
+      return count;
+    }
+
+    if (!this.isConnected || !this.client) {
+      return 0;
+    }
+
+    try {
+      const keys = await this.client.keys(pattern);
+      if (keys.length === 0) {
+        return 0;
+      }
+      
+      await this.client.del(keys);
+      return keys.length;
+    } catch (error) {
+      logger.error(`Cache delete pattern error for pattern ${pattern}:`, error);
+      return 0;
     }
   }
 
@@ -164,7 +259,7 @@ class CacheService {
   }
 
   isHealthy(): boolean {
-    return this.isConnected;
+    return this.isConnected || this.useMemoryFallback;
   }
 }
 

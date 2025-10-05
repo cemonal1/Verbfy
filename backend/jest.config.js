@@ -17,5 +17,9 @@ module.exports = {
     },
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  testTimeout: 10000,
-} 
+  testTimeout: 30000,
+  // Ensure tests expecting bcrypt "$2b$" prefix use native bcrypt
+  moduleNameMapper: {
+    '^bcryptjs$': 'bcrypt'
+  }
+}

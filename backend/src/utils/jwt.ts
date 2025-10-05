@@ -34,7 +34,12 @@ const SECRET = JWT_SECRET!;
 const REFRESH_SECRET = JWT_REFRESH_SECRET!;
 
 export const signAccessToken = (payload: any): string => {
-  const token = jwt.sign(payload, SECRET, { expiresIn: '15m' });
+  // Ensure backward compatibility for tests/clients expecting `userId` in JWT payload
+  const normalized = { ...payload };
+  if (normalized.userId === undefined && normalized.id !== undefined) {
+    normalized.userId = normalized.id;
+  }
+  const token = jwt.sign(normalized, SECRET, { expiresIn: '15m' });
   return token;
 };
 
@@ -61,4 +66,4 @@ export const verifyRefreshToken = (token: string): any => {
     console.error('Refresh token verification failed:', error);
     throw error;
   }
-}; 
+};

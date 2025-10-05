@@ -66,29 +66,33 @@ export const me = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     
+    const payload = { 
+      _id: user._id,
+      id: user._id, 
+      name: user.name, 
+      email: user.email, 
+      role: user.role,
+      isApproved: user.isApproved,
+      approvalStatus: user.approvalStatus,
+      cefrLevel: user.cefrLevel,
+      overallProgress: user.overallProgress,
+      currentStreak: user.currentStreak,
+      longestStreak: user.longestStreak,
+      totalStudyTime: user.totalStudyTime,
+      achievements: user.achievements,
+      subscriptionStatus: user.subscriptionStatus,
+      subscriptionType: user.subscriptionType,
+      subscriptionExpiry: user.subscriptionExpiry,
+      lessonTokens: user.lessonTokens,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+
     res.json({ 
       success: true,
-      user: { 
-        _id: user._id,
-        id: user._id, 
-        name: user.name, 
-        email: user.email, 
-        role: user.role,
-        isApproved: user.isApproved,
-        approvalStatus: user.approvalStatus,
-        cefrLevel: user.cefrLevel,
-        overallProgress: user.overallProgress,
-        currentStreak: user.currentStreak,
-        longestStreak: user.longestStreak,
-        totalStudyTime: user.totalStudyTime,
-        achievements: user.achievements,
-        subscriptionStatus: user.subscriptionStatus,
-        subscriptionType: user.subscriptionType,
-        subscriptionExpiry: user.subscriptionExpiry,
-        lessonTokens: user.lessonTokens,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-      } 
+      user: payload,
+      // Duplicate top-level fields for backward compatibility with older clients/tests
+      ...payload
     });
   } catch (err) {
     console.error('Auth me error:', err);
@@ -111,11 +115,19 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      authLogger.warn('Invalid email format', { email });
+      res.status(400).json({ success: false, message: 'Invalid email format' });
+      return;
+    }
+
     authLogger.debug('Checking for existing user', { email });
     const existing = await User.findOne({ email });
     if (existing) {
-      authLogger.warn('Email already registered', { email });
-      res.status(400).json({ success: false, message: 'Email already registered' });
+      authLogger.warn('Email already exists', { email });
+      res.status(400).json({ success: false, message: 'Email already exists' });
       return;
     }
 
@@ -167,6 +179,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     res.status(201).json({
       success: true,
       accessToken,
+      token: accessToken, // backward compatibility for clients/tests expecting "token"
       user: { id: user._id, name: user.name, email: user.email, role: user.role, isApproved: user.isApproved, approvalStatus: user.approvalStatus }
     });
   } catch (err) {
@@ -190,7 +203,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const user = await User.findOne({ email });
     if (!user) {
       authLogger.warn('User not found', { email });
-      res.status(400).json({ success: false, message: 'Invalid credentials' });
+      res.status(401).json({ success: false, message: 'Invalid credentials' });
       return;
     }
 
@@ -198,7 +211,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       authLogger.warn('Password mismatch', { email });
-      res.status(400).json({ success: false, message: 'Invalid credentials' });
+      res.status(401).json({ success: false, message: 'Invalid credentials' });
       return;
     }
 
@@ -215,6 +228,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     res.json({
       success: true,
       accessToken,
+      token: accessToken, // backward compatibility for clients/tests expecting "token"
       user: { id: user._id, name: user.name, email: user.email, role: user.role, isApproved: user.isApproved, approvalStatus: user.approvalStatus }
     });
   } catch (err) {
@@ -277,7 +291,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
 
 export const logout = async (_req: Request, res: Response): Promise<void> => {
   res.clearCookie('refreshToken', { path: '/api/auth' });
-  res.json({ success: true, message: 'Logged out' });
+  res.json({ success: true, message: 'Logged out successfully' });
 };
 
 export const getTeachers = async (_req: Request, res: Response): Promise<void> => {

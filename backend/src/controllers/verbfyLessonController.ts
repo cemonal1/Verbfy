@@ -82,13 +82,46 @@ export class VerbfyLessonController {
         res.status(401).json({ message: 'User not authenticated' });
         return;
       }
-      const lessonData = req.body;
-      lessonData.createdBy = req.user.id;
+      const payload: any = req.body;
 
-      const lesson = new VerbfyLesson(lessonData);
+      // Normalize payload to VerbfyLesson schema
+      const normalized: any = {
+        title: payload.title,
+        description: payload.description,
+        lessonType: payload.lessonType || payload.type, // accept `type` alias
+        cefrLevel: payload.cefrLevel,
+        difficulty: payload.difficulty,
+        category: payload.category || 'General',
+        estimatedDuration: payload.estimatedDuration || 30,
+        content: {
+          instructions: (payload.content?.instructions) || 'Follow the instructions',
+          materials: (payload.content?.materials) || [],
+          exercises: (payload.content?.exercises) || payload.exercises || [],
+          vocabulary: (payload.content?.vocabulary) || [],
+          grammar: (payload.content?.grammar) || [],
+        },
+        learningObjectives: payload.learningObjectives || ['Practice and improve skills'],
+        prerequisites: payload.prerequisites || [],
+        tags: payload.tags || [],
+        isActive: payload.isActive !== undefined ? payload.isActive : true,
+        isPremium: payload.isPremium !== undefined ? payload.isPremium : false,
+        createdBy: req.user.id,
+      };
+
+      const lesson = new VerbfyLesson(normalized);
       await lesson.save();
 
-      res.status(201).json(lesson);
+      // Respond in simplified format expected by tests
+      res.status(201).json({
+        _id: lesson._id,
+        title: lesson.title,
+        description: lesson.description,
+        type: lesson.lessonType,
+        cefrLevel: lesson.cefrLevel,
+        difficulty: lesson.difficulty,
+        exercises: lesson.content.exercises,
+        createdBy: lesson.createdBy,
+      });
     } catch (error: any) {
       res.status(500).json({ message: 'Error creating lesson', error: error.message });
     }
@@ -163,32 +196,25 @@ export class VerbfyLessonController {
       const attempt = new LessonAttempt({
         student: studentId,
         lessonId,
+        resourceType: 'lesson',
         lessonType: lesson.lessonType,
-        startTime: new Date(),
-        maxScore: lesson.content.exercises.reduce((sum, ex) => sum + ex.points, 0),
-        status: 'in_progress'
+        cefrLevel: lesson.cefrLevel,
+        startedAt: new Date(),
+        maxScore: lesson.content.exercises.reduce((sum, ex) => sum + ex.points, 0)
       });
 
       await attempt.save();
 
+      // Respond in simplified format expected by tests
       res.json({
-        attemptId: attempt._id,
-        lesson: {
-          id: lesson._id,
-          title: lesson.title,
-          description: lesson.description,
-          instructions: lesson.content.instructions,
-          materials: lesson.content.materials,
-          exercises: lesson.content.exercises.map((ex, index) => ({
-            index,
-            type: ex.type,
-            question: ex.question,
-            options: ex.options,
-            points: ex.points,
-            audioUrl: ex.audioUrl,
-            imageUrl: ex.imageUrl
-          }))
-        }
+        lessonId: lesson._id,
+        sessionId: attempt._id,
+        exercises: lesson.content.exercises.map((ex) => ({
+          type: ex.type,
+          question: ex.question,
+          options: ex.options,
+          points: ex.points,
+        })),
       });
     } catch (error: any) {
       res.status(500).json({ message: 'Error starting lesson', error: error.message });

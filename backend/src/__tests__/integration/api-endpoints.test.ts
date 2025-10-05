@@ -3,19 +3,27 @@ import mongoose from 'mongoose'
 import express from 'express'
 import User from '../../models/User'
 import { Material } from '../../models/Material'
-import { Lesson } from '../../models/Lesson'
+import { VerbfyLesson } from '../../models/VerbfyLesson'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import authRoutes from '../../routes/auth'
 import userRoutes from '../../routes/userRoutes'
 import materialsRoutes from '../../routes/materials'
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from '@jest/globals'
 
 // Create test app instance
 const app = express()
 app.use(express.json())
+import verbfyLessonsRoutes from '../../routes/verbfyLessons'
+app.use('/verbfy-lessons', verbfyLessonsRoutes)
 app.use('/auth', authRoutes)
 app.use('/users', userRoutes)
 app.use('/materials', materialsRoutes)
+
+// 404 JSON handler for tests
+app.use((req, res) => {
+  return res.status(404).json({ message: 'Not Found' })
+})
 
 describe('API Endpoints Integration', () => {
   let authToken: string
@@ -36,7 +44,7 @@ beforeAll(async () => {
     // Clear database
     await User.deleteMany({})
     await Material.deleteMany({})
-    await Lesson.deleteMany({})
+    await VerbfyLesson.deleteMany({})
 
     // Create test user
     const hashedPassword = await bcrypt.hash('password123', 10)
@@ -48,7 +56,7 @@ beforeAll(async () => {
     })
 
     // Generate auth token
-    authToken = jwt.sign({ userId: testUser._id }, process.env.JWT_SECRET!)
+    authToken = jwt.sign({ id: testUser._id, role: testUser.role }, process.env.JWT_SECRET!)
   })
 
   describe('User Management Endpoints', () => {
@@ -88,7 +96,7 @@ beforeAll(async () => {
         role: 'admin',
       })
 
-      const adminToken = jwt.sign({ userId: adminUser._id }, process.env.JWT_SECRET!)
+      const adminToken = jwt.sign({ id: adminUser._id, role: 'admin' }, process.env.JWT_SECRET!)
 
       const response = await request(app)
         .get('/users')
@@ -111,6 +119,7 @@ beforeAll(async () => {
           cefrLevel: 'A1',
           difficulty: 'Beginner',
           createdBy: testUser._id,
+          savedName: 'test-material-1'
         },
         {
           title: 'Vocabulary Set 1',
@@ -119,6 +128,7 @@ beforeAll(async () => {
           cefrLevel: 'A2',
           difficulty: 'Intermediate',
           createdBy: testUser._id,
+          savedName: 'test-material-2'
         },
       ])
 
@@ -204,21 +214,39 @@ beforeAll(async () => {
   describe('Lessons Endpoints', () => {
     it('should get lessons list', async () => {
       // Create test lessons
-      await Lesson.create([
+      await VerbfyLesson.create([
         {
           title: 'Grammar Lesson 1',
           description: 'Basic grammar rules',
-          type: 'VerbfyGrammar',
+          lessonType: 'VerbfyGrammar',
           cefrLevel: 'A1',
           difficulty: 'Beginner',
+          category: 'General',
+          estimatedDuration: 30,
+          content: {
+            instructions: 'Follow the instructions',
+            materials: [],
+            exercises: [],
+          },
+          learningObjectives: ['Improve grammar'],
+          tags: ['grammar'],
           createdBy: testUser._id,
         },
         {
           title: 'Reading Lesson 1',
           description: 'Reading comprehension',
-          type: 'VerbfyRead',
+          lessonType: 'VerbfyRead',
           cefrLevel: 'A2',
           difficulty: 'Intermediate',
+          category: 'General',
+          estimatedDuration: 30,
+          content: {
+            instructions: 'Follow the instructions',
+            materials: [],
+            exercises: [],
+          },
+          learningObjectives: ['Improve reading'],
+          tags: ['reading'],
           createdBy: testUser._id,
         },
       ])
@@ -264,21 +292,29 @@ beforeAll(async () => {
 
     it('should start lesson session', async () => {
       // Create test lesson
-      const lesson = await Lesson.create({
+      const lesson = await VerbfyLesson.create({
         title: 'Test Lesson',
         description: 'Test lesson description',
-        type: 'VerbfyGrammar',
+        lessonType: 'VerbfyGrammar',
         cefrLevel: 'A1',
         difficulty: 'Beginner',
-        exercises: [
-          {
-            type: 'multiple-choice',
-            question: 'Test question?',
-            options: ['A', 'B', 'C'],
-            correctAnswer: 'A',
-            points: 10,
-          },
-        ],
+        category: 'General',
+        estimatedDuration: 30,
+        content: {
+          instructions: 'Follow the instructions',
+          materials: [],
+          exercises: [
+            {
+              type: 'multiple-choice',
+              question: 'Test question?',
+              options: ['A', 'B', 'C'],
+              correctAnswer: 'A',
+              points: 10,
+            },
+          ],
+        },
+        learningObjectives: ['Objective'],
+        tags: ['tag'],
         createdBy: testUser._id,
       })
 
@@ -351,7 +387,7 @@ beforeAll(async () => {
         role: 'student',
       })
 
-      const studentToken = jwt.sign({ userId: studentUser._id }, process.env.JWT_SECRET!)
+      const studentToken = jwt.sign({ id: studentUser._id, role: 'student' }, process.env.JWT_SECRET!)
 
       // Try to access admin-only route
       const response = await request(app)
@@ -362,4 +398,4 @@ beforeAll(async () => {
       expect(response.body).toHaveProperty('message')
     })
   })
-}) 
+})

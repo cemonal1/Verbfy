@@ -50,6 +50,25 @@ export const getStudents = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+// Admin: Get all users with basic pagination
+export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const page = parseInt((req.query.page as string) || '1', 10);
+    const limit = parseInt((req.query.limit as string) || '20', 10);
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await Promise.all([
+      UserModel.find({}).select('name email role isActive createdAt').skip(skip).limit(limit).sort({ createdAt: -1 }),
+      UserModel.countDocuments({})
+    ]);
+
+    res.json({ users, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+  } catch (error: any) {
+    console.error('Error fetching all users:', error);
+    res.status(500).json({ message: error.message || 'Failed to fetch users' });
+  }
+};
+
 // Get current user profile
 export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -71,7 +90,8 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    res.json({ success: true, user });
+    // Return plain user object for compatibility with integration tests
+    res.json(user);
   } catch (error: any) {
     console.error('Error fetching current user:', error);
     res.status(500).json({ success: false, message: error.message || 'Failed to fetch user profile' });
@@ -114,7 +134,7 @@ export const updateCurrentUser = async (req: AuthRequest, res: Response): Promis
 
     const updatedUser = await UserModel.findByIdAndUpdate(
       userId,
-      { $set: updateData },
+      { $set: { ...updateData } },
       { new: true, runValidators: true }
     ).select('-password -refreshTokenVersion');
 
@@ -135,7 +155,8 @@ export const updateCurrentUser = async (req: AuthRequest, res: Response): Promis
       await cacheService.del('students:active');
     }
 
-    res.json({ success: true, user: updatedUser });
+    // Return plain updated user object for compatibility with integration tests
+    res.json(updatedUser);
   } catch (error: any) {
     console.error('Error updating user profile:', error);
     res.status(500).json({ success: false, message: error.message || 'Failed to update user profile' });

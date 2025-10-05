@@ -8,6 +8,7 @@ import { ToastProvider } from '../common/Toast';
 import NotificationBadge from '../notification/NotificationBadge';
 import { NotificationProvider } from '@/context/NotificationContext';
 import NotificationPanel from '../notification/NotificationPanel';
+import AdminNotificationBell from '../admin/AdminNotificationBell';
 import { useI18n } from '@/lib/i18n';
 
 interface DashboardLayoutProps {
@@ -402,6 +403,8 @@ export default function DashboardLayout({
                 onClick={() => setNotificationPanelOpen(true)}
                 className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
               />
+              {/* Admin Notification Bell - only show for admin users */}
+              {user?.role === 'admin' && <AdminNotificationBell />}
             </div>
           </div>
         </div>
@@ -423,4 +426,4 @@ export default function DashboardLayout({
       </ToastProvider>
     </div>
   );
-} 
+}

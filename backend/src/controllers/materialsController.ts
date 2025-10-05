@@ -171,13 +171,15 @@ export const getMaterials = async (req: Request, res: Response): Promise<void> =
       // Students can only see public materials or their own
       filter.$or = [
         { isPublic: true },
-        { uploaderId: userId }
+        { uploaderId: userId },
+        { createdBy: userId }
       ];
     } else if (userRole === 'teacher') {
       // Teachers can see public materials, their own, and materials from their students
       filter.$or = [
         { isPublic: true },
         { uploaderId: userId },
+        { createdBy: userId },
         { role: 'student' } // Teachers can see student materials
       ];
     }
@@ -196,18 +198,15 @@ export const getMaterials = async (req: Request, res: Response): Promise<void> =
     // Get total count for pagination
     const total = await Material.countDocuments(filter);
 
+    // Return shape aligned with integration tests
     res.json({
-      success: true,
-      data: {
-        materials,
-        pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
-          total,
-          pages: Math.ceil(total / parseInt(limit as string))
-        }
-      },
-      message: 'Materials retrieved successfully'
+      materials,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total,
+        pages: Math.ceil(total / parseInt(limit as string))
+      }
     });
 
   } catch (error) {
@@ -237,8 +236,9 @@ export const getMaterialById = async (req: Request, res: Response): Promise<void
     }
 
     // Check access permissions
+    const ownerId = material.uploaderId?.toString() || material.createdBy?.toString();
     const canAccess = material.isPublic || 
-                     material.uploaderId.toString() === userId ||
+                     ownerId === userId ||
                      userRole === 'admin' ||
                      (userRole === 'teacher' && material.role === 'student');
 
@@ -283,8 +283,9 @@ export const previewMaterial = async (req: Request, res: Response): Promise<void
     }
 
     // Check access permissions
+    const ownerId = material.uploaderId?.toString() || material.createdBy?.toString();
     const canAccess = material.isPublic || 
-                     material.uploaderId.toString() === userId ||
+                     ownerId === userId ||
                      userRole === 'admin' ||
                      (userRole === 'teacher' && material.role === 'student');
 
@@ -296,9 +297,18 @@ export const previewMaterial = async (req: Request, res: Response): Promise<void
       return;
     }
 
+    // Ensure file-backed material
+    if (!material.savedName) {
+      res.status(400).json({
+        success: false,
+        message: 'No file available for preview'
+      });
+      return;
+    }
+
     // Check if file type is previewable
     const previewableTypes = ['pdf', 'image'];
-    if (!previewableTypes.includes(material.type)) {
+    if (!previewableTypes.includes(material.type || '')) {
       res.status(400).json({
         success: false,
         message: 'File type not previewable'
@@ -308,7 +318,8 @@ export const previewMaterial = async (req: Request, res: Response): Promise<void
 
     // Construct file path
     const uploadsDir = path.join(__dirname, '../../uploads/materials');
-    const filePath = path.join(uploadsDir, material.savedName);
+    const savedName: string = material.savedName as string;
+    const filePath = path.join(uploadsDir, savedName);
 
     // Check if file exists
     if (!fs.existsSync(filePath)) {
@@ -320,8 +331,10 @@ export const previewMaterial = async (req: Request, res: Response): Promise<void
     }
 
     // Set appropriate headers
-    res.setHeader('Content-Type', material.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${material.originalName}"`);
+    const mime = material.mimeType || 'application/octet-stream';
+    const displayName = material.originalName || material.title || savedName;
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `inline; filename="${displayName}"`);
 
     // Increment download count
     material.downloadCount += 1;
@@ -357,8 +370,9 @@ export const downloadMaterial = async (req: Request, res: Response): Promise<voi
     }
 
     // Check access permissions
+    const ownerId = material.uploaderId?.toString() || material.createdBy?.toString();
     const canAccess = material.isPublic || 
-                     material.uploaderId.toString() === userId ||
+                     ownerId === userId ||
                      userRole === 'admin' ||
                      (userRole === 'teacher' && material.role === 'student');
 
@@ -370,9 +384,19 @@ export const downloadMaterial = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    // Ensure file-backed material
+    if (!material.savedName) {
+      res.status(400).json({
+        success: false,
+        message: 'No file available for download'
+      });
+      return;
+    }
+
     // Construct file path
     const uploadsDir = path.join(__dirname, '../../uploads/materials');
-    const filePath = path.join(uploadsDir, material.savedName);
+    const savedName: string = material.savedName as string;
+    const filePath = path.join(uploadsDir, savedName);
 
     // Check if file exists
     if (!fs.existsSync(filePath)) {
@@ -384,8 +408,10 @@ export const downloadMaterial = async (req: Request, res: Response): Promise<voi
     }
 
     // Set appropriate headers for download
-    res.setHeader('Content-Type', material.mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename="${material.originalName}"`);
+    const mime = material.mimeType || 'application/octet-stream';
+    const displayName = material.originalName || material.title || savedName;
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `attachment; filename="${displayName}"`);
 
     // Increment download count
     material.downloadCount += 1;
@@ -403,11 +429,49 @@ export const downloadMaterial = async (req: Request, res: Response): Promise<voi
   }
 };
 
+// Create material via JSON (no file upload)
+export const createJsonMaterial = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      res.status(401).json({ message: 'User not authenticated' });
+      return;
+    }
+
+    const { title, description, category, cefrLevel, difficulty, content, isPublic } = req.body;
+
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      res.status(400).json({ message: 'Title is required' });
+      return;
+    }
+
+    const material = new Material({
+      title: title.trim(),
+      description: description || '',
+      category,
+      cefrLevel,
+      difficulty,
+      content,
+      createdBy: userId,
+      isPublic: Boolean(isPublic),
+      role: (req as any).user?.role,
+      tags: []
+    });
+
+    await material.save();
+
+    res.status(201).json(material);
+  } catch (error) {
+    console.error('Create JSON material error:', error);
+    res.status(500).json({ message: 'Failed to create material' });
+  }
+};
+
 // Update material
 export const updateMaterial = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { tags, description, isPublic } = req.body;
+    const { tags, description, isPublic, title, category, cefrLevel, difficulty, content } = req.body;
     const userId = (req as any).user.id;
     const userRole = (req as any).user.role;
 
@@ -422,7 +486,8 @@ export const updateMaterial = async (req: Request, res: Response): Promise<void>
     }
 
     // Check if user can update this material
-    const canUpdate = material.uploaderId.toString() === userId || userRole === 'admin';
+    const ownerId = material.uploaderId?.toString() || material.createdBy?.toString();
+    const canUpdate = ownerId === userId || userRole === 'admin';
 
     if (!canUpdate) {
       res.status(403).json({
@@ -434,22 +499,34 @@ export const updateMaterial = async (req: Request, res: Response): Promise<void>
 
     // Update fields
     if (tags !== undefined) {
-      material.tags = tags.split(',').map((tag: string) => tag.trim());
+      material.tags = Array.isArray(tags) ? tags : String(tags).split(',').map((tag: string) => tag.trim());
     }
     if (description !== undefined) {
       material.description = description;
     }
     if (isPublic !== undefined) {
-      material.isPublic = isPublic === 'true';
+      material.isPublic = isPublic === 'true' || isPublic === true;
+    }
+    if (title !== undefined) {
+      material.title = title;
+    }
+    if (category !== undefined) {
+      material.category = category;
+    }
+    if (cefrLevel !== undefined) {
+      material.cefrLevel = cefrLevel;
+    }
+    if (difficulty !== undefined) {
+      material.difficulty = difficulty;
+    }
+    if (content !== undefined) {
+      material.content = content;
     }
 
     await material.save();
 
-    res.json({
-      success: true,
-      data: material,
-      message: 'Material updated successfully'
-    });
+    // Return the updated material directly to align with tests
+    res.json(material);
 
   } catch (error) {
     console.error('Update material error:', error);
@@ -478,7 +555,8 @@ export const deleteMaterial = async (req: Request, res: Response): Promise<void>
     }
 
     // Check if user can delete this material
-    const canDelete = material.uploaderId.toString() === userId || userRole === 'admin';
+    const ownerId = material.uploaderId?.toString() || material.createdBy?.toString();
+    const canDelete = ownerId === userId || userRole === 'admin';
 
     if (!canDelete) {
       res.status(403).json({
@@ -488,12 +566,13 @@ export const deleteMaterial = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    // Delete physical file
+    // Delete physical file (only if uploaded file exists)
     const uploadsDir = path.join(__dirname, '../../uploads/materials');
-    const filePath = path.join(uploadsDir, material.savedName);
-
-    if (fs.existsSync(filePath)) {
-      await unlinkAsync(filePath);
+    if (material.savedName) {
+      const filePath = path.join(uploadsDir, material.savedName);
+      if (fs.existsSync(filePath)) {
+        await unlinkAsync(filePath);
+      }
     }
 
     // Delete database record

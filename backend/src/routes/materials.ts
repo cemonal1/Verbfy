@@ -104,6 +104,13 @@ router.post('/upload',
   materialsController.uploadMaterial
 );
 
+// Create material via JSON (teachers and admins only)
+router.post('/',
+  requireRole(['teacher', 'admin']),
+  idempotencyMiddleware,
+  materialsController.createJsonMaterial
+);
+
 // Get all materials with filters
 router.get('/', materialsController.getMaterials);
 
@@ -125,4 +132,4 @@ router.put('/:id', idempotencyMiddleware, materialsController.updateMaterial);
 // Delete material (owner or admin only)
 router.delete('/:id', idempotencyMiddleware, materialsController.deleteMaterial);
 
-export default router; 
+export default router;

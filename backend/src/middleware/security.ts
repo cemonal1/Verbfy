@@ -261,21 +261,23 @@ export const ipWhitelist = (allowedIPs: string[] = TRUSTED_IPS) => {
 /**
  * Clean up tracking maps periodically
  */
-setInterval(() => {
-  const now = Date.now();
-  const oneHour = 3600000;
-  
-  // Clean suspicious activity tracker
-  for (const [ip, activity] of suspiciousActivityTracker.entries()) {
-    if (now - activity.lastSeen > oneHour) {
-      suspiciousActivityTracker.delete(ip);
+if ((process.env.NODE_ENV || 'development') !== 'test') {
+  setInterval(() => {
+    const now = Date.now();
+    const oneHour = 3600000;
+    
+    // Clean suspicious activity tracker
+    for (const [ip, activity] of suspiciousActivityTracker.entries()) {
+      if (now - activity.lastSeen > oneHour) {
+        suspiciousActivityTracker.delete(ip);
+      }
     }
-  }
-  
-  // Clean request tracker
-  for (const [ip, tracker] of requestTracker.entries()) {
-    if (now - tracker.windowStart > oneHour) {
-      requestTracker.delete(ip);
+    
+    // Clean request tracker
+    for (const [ip, tracker] of requestTracker.entries()) {
+      if (now - tracker.windowStart > oneHour) {
+        requestTracker.delete(ip);
+      }
     }
-  }
-}, 300000); // Clean every 5 minutes
+  }, 300000); // Clean every 5 minutes
+}

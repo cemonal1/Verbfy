@@ -37,6 +37,9 @@ router.get('/teachers', auth, shortCache, userController.getTeachers);
 // Get all students (accessible by teachers)
 router.get('/students', auth, requireRole('teacher'), shortCache, userController.getStudents);
 
+// Admin: list all users
+router.get('/', auth, requireRole('admin'), userController.getAllUsers);
+
 // Get current user profile
 router.get('/profile', auth, userDataCache, userController.getCurrentUser);
 

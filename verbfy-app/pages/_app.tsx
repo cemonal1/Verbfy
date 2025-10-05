@@ -4,6 +4,7 @@ import { ToastProvider } from '@/components/common/Toast';
 import { ChatProvider } from '@/context/ChatContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { AdminProvider } from '@/context/AdminContext';
+import { AdminNotificationProvider } from '@/context/AdminNotificationContext';
 import '@/styles/globals.css';
 import { I18nProvider } from '@/lib/i18n';
 import { performanceUtils } from '@/utils/performance';
@@ -44,9 +45,11 @@ export default function App({ Component, pageProps }: AppProps) {
           <ChatProvider>
             <NotificationProvider>
               <AdminProvider>
-                <OfflineBanner />
-                <Component {...pageProps} />
-                <InstallBanner />
+                <AdminNotificationProvider>
+                  <OfflineBanner />
+                  <Component {...pageProps} />
+                  <InstallBanner />
+                </AdminNotificationProvider>
               </AdminProvider>
             </NotificationProvider>
           </ChatProvider>

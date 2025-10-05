@@ -1,6 +1,8 @@
 import request from 'supertest';
 import { app } from '../../index';
 
+import { describe, it, expect } from '@jest/globals'
+
 describe('Auth email flows', () => {
   it('forgot password responds OK even for unknown email', async () => {
     const res = await request(app).post('/api/auth/password/forgot').send({ email: 'unknown@example.com' });

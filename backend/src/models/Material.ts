@@ -1,15 +1,22 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IMaterial extends Document {
-  uploaderId: mongoose.Types.ObjectId;
-  originalName: string;
-  savedName: string;
-  type: 'pdf' | 'image' | 'video' | 'document' | 'audio';
-  mimeType: string;
-  fileSize: number;
+  uploaderId?: mongoose.Types.ObjectId;
+  originalName?: string;
+  savedName?: string;
+  type?: 'pdf' | 'image' | 'video' | 'document' | 'audio';
+  mimeType?: string;
+  fileSize?: number;
   tags: string[];
-  role: 'teacher' | 'student' | 'admin';
+  role?: 'teacher' | 'student' | 'admin';
+  // Content-based fields
+  title?: string;
   description?: string;
+  category?: string;
+  cefrLevel?: string;
+  difficulty?: string;
+  content?: string;
+  createdBy?: mongoose.Types.ObjectId;
   isPublic: boolean;
   downloadCount: number;
   createdAt: Date;
@@ -20,29 +27,29 @@ const MaterialSchema = new Schema<IMaterial>({
   uploaderId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
   },
   originalName: {
     type: String,
-    required: true
+    required: false
   },
   savedName: {
     type: String,
-    required: true,
+    required: false,
     unique: true
   },
   type: {
     type: String,
     enum: ['pdf', 'image', 'video', 'document', 'audio'],
-    required: true
+    required: false
   },
   mimeType: {
     type: String,
-    required: true
+    required: false
   },
   fileSize: {
     type: Number,
-    required: true
+    required: false
   },
   tags: [{
     type: String,
@@ -51,11 +58,35 @@ const MaterialSchema = new Schema<IMaterial>({
   role: {
     type: String,
     enum: ['teacher', 'student', 'admin'],
-    required: true
+    required: false
+  },
+  // Content-based fields
+  title: {
+    type: String,
+    trim: true
   },
   description: {
     type: String,
     trim: true
+  },
+  category: {
+    type: String,
+    trim: true
+  },
+  cefrLevel: {
+    type: String,
+    trim: true
+  },
+  difficulty: {
+    type: String,
+    trim: true
+  },
+  content: {
+    type: String
+  },
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
   },
   isPublic: {
     type: Boolean,
@@ -86,10 +117,12 @@ MaterialSchema.index({ role: 1, isPublic: 1 }); // Materials by role and visibil
 MaterialSchema.index({ 
   originalName: 'text', 
   description: 'text', 
-  tags: 'text' 
+  tags: 'text',
+  title: 'text'
 }, { 
   weights: { 
     originalName: 10, 
+    title: 8,
     tags: 5, 
     description: 1 
   },

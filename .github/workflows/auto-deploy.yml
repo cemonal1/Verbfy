@@ -1,9 +1,13 @@
 name: Auto Deploy to Hetzner
-
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+concurrency:
+  group: auto-deploy-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
 
 jobs:
   deploy:
@@ -19,24 +23,28 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install SSH key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.HETZNER_SSH_KEY }}
-          known_hosts: ${{ secrets.HETZNER_KNOWN_HOSTS }}
 
       - name: Deploy to Hetzner Server
-        run: |
-          echo "🚀 Starting deployment to Hetzner server..."
-          
-          # SSH into server and run deployment
-          ssh -o StrictHostKeyChecking=no root@46.62.161.121 << 'EOF'
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          APP_DIR: ${{ secrets.HETZNER_PATH }}
+          GIT_REPO: ${{ secrets.GIT_REPO }}
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          envs: APP_DIR,GIT_REPO
+          script: |
             set -e
             
             echo "📂 Navigating to project directory..."
-            cd /root/Verbfy
+            if [ ! -d "$APP_DIR" ]; then sudo mkdir -p "$APP_DIR"; sudo chown -R $USER:$USER "$APP_DIR"; fi
+            cd "$APP_DIR"
             
             echo "🔄 Pulling latest changes from GitHub..."
+            if [ ! -d .git ]; then
+              git clone "$GIT_REPO" .
+            fi
             git fetch origin
             git reset --hard origin/main
             
@@ -45,7 +53,6 @@ jobs:
             ./deploy-production.sh
             
             echo "✅ Deployment completed successfully!"
-          EOF
 
       - name: Verify Deployment
         run: |
