@@ -14,7 +14,7 @@ const path = require('path');
 // Konfigürasyon
 const PORT = process.env.WEBHOOK_PORT || 9000;
 const SECRET = process.env.WEBHOOK_SECRET || 'verbfy-webhook-secret';
-const PROJECT_DIR = process.env.PROJECT_DIR || '/root/Verbfy';
+const PROJECT_DIR = process.env.PROJECT_DIR || '/opt/verbfy';
 const LOG_FILE = '/var/log/verbfy-webhook.log';
 
 // Log fonksiyonu

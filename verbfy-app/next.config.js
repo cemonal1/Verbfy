@@ -122,7 +122,7 @@ const nextConfig = {
   swcMinify: true,
   
   // Enable static export for Cloudflare Pages (disabled in development)
-  ...(process.env.NODE_ENV === 'production' && {
+  ...(process.env.NODE_ENV === 'production' && process.env.NEXT_STATIC_EXPORT === 'true' && {
     output: 'export',
     trailingSlash: true,
   }),

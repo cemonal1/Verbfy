@@ -13,8 +13,8 @@ print_warning() { echo -e "\033[33m⚠️  $1\033[0m"; }
 
 # Log dosyası
 LOG_FILE="/var/log/verbfy-deploy.log"
-BACKUP_DIR="/root/verbfy-backups"
-PROJECT_DIR="/root/Verbfy"
+BACKUP_DIR="/opt/verbfy-backups"
+PROJECT_DIR="/opt/verbfy"
 
 # Log fonksiyonu
 log() {
@@ -29,8 +29,8 @@ rollback() {
     if [ -d "$BACKUP_DIR/latest" ]; then
         cd "$PROJECT_DIR"
         git reset --hard HEAD~1
-        docker-compose -f docker-compose.production.yml down
-        docker-compose -f docker-compose.production.yml up -d
+        docker-compose -f docker-compose.hetzner.yml down
+        docker-compose -f docker-compose.hetzner.yml up -d
         print_info "Rollback tamamlandı"
         log "INFO: Rollback completed"
     fi
@@ -123,9 +123,31 @@ cd ..
 
 # Docker servislerini güncelle
 print_info "🐳 Docker servisleri güncelleniyor..."
-docker-compose -f docker-compose.production.yml down
-docker-compose -f docker-compose.production.yml pull
-docker-compose -f docker-compose.production.yml up -d --build
+docker-compose -f docker-compose.hetzner.yml down
+docker-compose -f docker-compose.hetzner.yml pull
+docker-compose -f docker-compose.hetzner.yml up -d --build
+
+# SSL sertifikaları (Let's Encrypt) - webroot üzerinden alma/yenileme ve Nginx reload
+print_info "🔐 SSL sertifikaları kontrol ediliyor..."
+if [ -z "$CERTBOT_EMAIL" ]; then
+    print_warning "CERTBOT_EMAIL tanımlı değil, sertifika yenileme atlanıyor. Ortam değişkenini ayarlayın: export CERTBOT_EMAIL='you@example.com'"
+else
+    # Certbot'u çalıştır (webroot HTTP-01)
+    if docker-compose -f docker-compose.hetzner.yml run --rm certbot; then
+        print_success "Certbot sertifikaları başarıyla alındı/yenilendi"
+    else
+        print_warning "Certbot çalıştırma başarısız oldu; Nginx mevcut sertifikalarla devam ediyor"
+    fi
+
+    # Sertifikaların varlığını doğrula ve Nginx’i reload et
+    if [ -f "/etc/letsencrypt/live/api.verbfy.com/fullchain.pem" ] && [ -f "/etc/letsencrypt/live/verbfy.com/fullchain.pem" ]; then
+        print_success "SSL sertifikaları mevcut: api.verbfy.com ve verbfy.com"
+        docker exec verbfy-nginx nginx -s reload || true
+        log "INFO: Nginx reloaded after certificate update"
+    else
+        print_warning "SSL sertifikaları bulunamadı; lütfen DNS ve webroot yapılandırmasını kontrol edin"
+    fi
+fi
 
 # Servis sağlık kontrolü
 print_info "🔍 Servis sağlık kontrolü yapılıyor..."

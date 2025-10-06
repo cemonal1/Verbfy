@@ -1,0 +1,2 @@
+# Placeholder to ensure nginx/webroot directory exists for Let's Encrypt HTTP-01 challenges.
+# Certbot will write token files here, served by Nginx at /.well-known/acme-challenge/.

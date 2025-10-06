@@ -13,8 +13,11 @@ services:
       - ./backend/.env
     environment:
       NODE_ENV: production
+      REDIS_URL: redis://verbfy-redis:6379
     volumes:
       - ./backend/uploads:/app/uploads
+    depends_on:
+      - verbfy-redis
     networks:
       - verbfy
 
@@ -41,15 +44,43 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./nginx/webroot:/var/www/html
       - /var/log/nginx:/var/log/nginx
     depends_on:
       - verbfy-backend
       - verbfy-frontend
+      - verbfy-redis
+    networks:
+      - verbfy
+
+  verbfy-redis:
+    image: redis:7-alpine
+    container_name: verbfy-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - verbfy
+
+  certbot:
+    image: certbot/certbot
+    container_name: verbfy-certbot
+    depends_on:
+      - nginx
+    volumes:
+      - ./nginx/webroot:/var/www/html
+      - /etc/letsencrypt:/etc/letsencrypt
+    command: certonly --webroot --webroot-path=/var/www/html --email ${CERTBOT_EMAIL} --agree-tos --no-eff-email -d verbfy.com -d www.verbfy.com -d api.verbfy.com
     networks:
       - verbfy
 
 networks:
   verbfy:
     driver: bridge
+
+volumes:
+  redis-data:
 
 
