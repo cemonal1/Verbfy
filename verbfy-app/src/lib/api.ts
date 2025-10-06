@@ -71,7 +71,7 @@ if ((api as any)?.interceptors?.request) {
           const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/);
           const csrf = match ? decodeURIComponent(match[1]) : undefined;
           if (csrf) {
-            (config.headers as any)['X-CSRF-Token'] = csrf;
+            (config.headers as any)['x-csrf-token'] = csrf;
           }
           (config.headers as any)['Idempotency-Key'] = uuidv4();
         }
