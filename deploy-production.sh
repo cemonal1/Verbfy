@@ -50,8 +50,8 @@ build_frontend() {
     print_status "Building frontend application..."
     cd verbfy-app
     
-    # Install dependencies
-    npm ci --only=production
+    # Install dependencies (include devDependencies for TypeScript type checking)
+    npm ci
     
     # Build the application
     npm run build
@@ -65,8 +65,8 @@ build_backend() {
     print_status "Building backend application..."
     cd backend
     
-    # Install dependencies
-    npm ci --only=production
+    # Install dependencies (include devDependencies for TypeScript compilation)
+    npm ci
     
     # Build TypeScript
     npm run build
