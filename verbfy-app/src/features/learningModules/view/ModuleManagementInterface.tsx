@@ -31,9 +31,13 @@ export const ModuleManagementInterface: React.FC<ModuleManagementInterfaceProps>
     try {
       setLoading(true);
       const response = await verbfyLessonsAPI.getLessons(filters);
-      setLessons(response.lessons);
+      // Guard against undefined/null or missing lessons key
+      const lessonsData = response && Array.isArray(response.lessons) ? response.lessons : [];
+      setLessons(lessonsData);
     } catch (error) {
       console.error('Error fetching lessons:', error);
+      // Fallback to empty list on error to keep UI responsive
+      setLessons([]);
     } finally {
       setLoading(false);
     }
@@ -306,4 +310,4 @@ export const ModuleManagementCreateModal: React.FC<{ onClose: () => void; onSave
       </div>
     </div>
   );
-}; 
+};

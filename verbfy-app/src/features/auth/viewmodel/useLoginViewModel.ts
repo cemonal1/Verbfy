@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuthContext, User } from '@/context/AuthContext';
 import api, { authAPI, setApiAccessToken } from '@/lib/api';
@@ -17,6 +17,15 @@ export function useLoginViewModel() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Automatically clear error when email or password changes to align with test expectations
+  useEffect(() => {
+    if (error) setError('');
+  }, [email]);
+
+  useEffect(() => {
+    if (error) setError('');
+  }, [password]);
 
   const isValidEmail = useCallback(() => {
     return /.+@.+\..+/.test(email);
@@ -75,4 +84,4 @@ export function useLoginViewModel() {
     isValidEmail,
     isFormValid,
   };
-} 
+}

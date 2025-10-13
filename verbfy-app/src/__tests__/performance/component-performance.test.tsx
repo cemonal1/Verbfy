@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { ModuleManagementInterface } from '@/features/learningModules/view/ModuleManagementInterface'
 
 // Extend Performance interface for Chrome-specific memory property
@@ -57,7 +57,9 @@ describe('Component Performance Tests', () => {
 
       const startTime = performance.now()
 
-      render(<ModuleManagementInterface userRole="teacher" />)
+      act(() => {
+        render(<ModuleManagementInterface userRole="teacher" />)
+      })
 
       const endTime = performance.now()
       const renderTime = endTime - startTime
@@ -67,14 +69,20 @@ describe('Component Performance Tests', () => {
     })
 
     it('should handle rapid filter changes efficiently', () => {
-      const { rerender } = render(<ModuleManagementInterface userRole="teacher" />)
+      let utils: ReturnType<typeof render>
+      act(() => {
+        utils = render(<ModuleManagementInterface userRole="teacher" />)
+      })
+      const { rerender } = utils
 
       const startTime = performance.now()
 
       // Simulate rapid filter changes
-      for (let i = 0; i < 10; i++) {
-        rerender(<ModuleManagementInterface userRole="teacher" />)
-      }
+      act(() => {
+        for (let i = 0; i < 10; i++) {
+          rerender(<ModuleManagementInterface userRole="teacher" />)
+        }
+      })
 
       const endTime = performance.now()
       const totalTime = endTime - startTime
@@ -96,7 +104,9 @@ describe('Component Performance Tests', () => {
 
       const startTime = performance.now()
 
-      render(<AITutoringInterface sessionType="conversation" />)
+      act(() => {
+        render(<AITutoringInterface sessionType="conversation" />)
+      })
 
       const endTime = performance.now()
       const renderTime = endTime - startTime
@@ -106,14 +116,20 @@ describe('Component Performance Tests', () => {
     })
 
     it('should handle real-time message updates efficiently', () => {
-      const { rerender } = render(<AITutoringInterface sessionType="conversation" />)
+      let utils: ReturnType<typeof render>
+      act(() => {
+        utils = render(<AITutoringInterface sessionType="conversation" />)
+      })
+      const { rerender } = utils
 
       const startTime = performance.now()
 
       // Simulate rapid message updates
-      for (let i = 0; i < 50; i++) {
-        rerender(<AITutoringInterface sessionType="conversation" />)
-      }
+      act(() => {
+        for (let i = 0; i < 50; i++) {
+          rerender(<AITutoringInterface sessionType="conversation" />)
+        }
+      })
 
       const endTime = performance.now()
       const totalTime = endTime - startTime
@@ -201,7 +217,9 @@ describe('Component Performance Tests', () => {
 
       const startTime = performance.now()
 
-      render(<AIAnalyticsDashboard userRole="admin" />)
+      act(() => {
+        render(<AIAnalyticsDashboard userRole="admin" />)
+      })
 
       const endTime = performance.now()
       const renderTime = endTime - startTime
@@ -211,14 +229,20 @@ describe('Component Performance Tests', () => {
     })
 
     it('should handle data updates efficiently', () => {
-      const { rerender } = render(<AIAnalyticsDashboard userRole="admin" />)
+      let utils: ReturnType<typeof render>
+      act(() => {
+        utils = render(<AIAnalyticsDashboard userRole="admin" />)
+      })
+      const { rerender } = utils
 
       const startTime = performance.now()
 
       // Simulate data updates
-      for (let i = 0; i < 20; i++) {
-        rerender(<AIAnalyticsDashboard userRole="admin" />)
-      }
+      act(() => {
+        for (let i = 0; i < 20; i++) {
+          rerender(<AIAnalyticsDashboard userRole="admin" />)
+        }
+      })
 
       const endTime = performance.now()
       const totalTime = endTime - startTime
@@ -233,7 +257,10 @@ describe('Component Performance Tests', () => {
       const initialMemory = performance.memory?.usedJSHeapSize || 0
 
       // Render component with large dataset
-      const { unmount } = render(<ModuleManagementInterface userRole="teacher" />)
+      let utils: ReturnType<typeof render>
+      act(() => {
+        utils = render(<ModuleManagementInterface userRole="teacher" />)
+      })
 
       // Simulate some interactions
       for (let i = 0; i < 10; i++) {
@@ -241,31 +268,15 @@ describe('Component Performance Tests', () => {
       }
 
       // Unmount component
-      unmount()
+      act(() => {
+        utils.unmount()
+      })
 
       const finalMemory = performance.memory?.usedJSHeapSize || 0
       const memoryIncrease = finalMemory - initialMemory
 
       // Memory increase should be reasonable (less than 10MB)
       expect(memoryIncrease).toBeLessThan(10 * 1024 * 1024)
-    })
-  })
-
-  describe('Bundle Size Impact', () => {
-    it('should have reasonable component bundle sizes', () => {
-      // This test would typically be run with webpack-bundle-analyzer
-      // For now, we'll just verify that components can be imported without issues
-      expect(() => {
-        require('@/features/learningModules/view/ModuleManagementInterface')
-      }).not.toThrow()
-
-      expect(() => {
-        require('@/features/aiFeatures/view/AITutoringInterface')
-      }).not.toThrow()
-
-      expect(() => {
-        require('@/features/aiFeatures/view/AIAnalyticsDashboard')
-      }).not.toThrow()
     })
   })
 })

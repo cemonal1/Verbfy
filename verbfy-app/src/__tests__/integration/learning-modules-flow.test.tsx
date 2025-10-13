@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { useRouter } from 'next/router'
 import { AuthContext } from '@/context/AuthContext'
 import { ModuleManagementInterface } from '@/features/learningModules/view/ModuleManagementInterface'
@@ -105,11 +105,13 @@ describe('Learning Modules Flow Integration', () => {
         pagination: { page: 1, limit: 10, total: 2 },
       })
 
-      render(
-        <AuthContext.Provider value={mockAuthContext}>
-          <ModuleManagementInterface userRole="teacher" />
-        </AuthContext.Provider>
-      )
+      act(() => {
+        render(
+          <AuthContext.Provider value={mockAuthContext}>
+            <ModuleManagementInterface userRole="teacher" />
+          </AuthContext.Provider>
+        )
+      })
 
       // Wait for lessons to load
       await waitFor(() => {
@@ -157,11 +159,13 @@ describe('Learning Modules Flow Integration', () => {
 
       ;(verbfyLessonsAPI.createLesson as jest.Mock).mockResolvedValue(newLesson)
 
-      render(
-        <AuthContext.Provider value={mockAuthContext}>
-          <ModuleManagementInterface userRole="teacher" />
-        </AuthContext.Provider>
-      )
+      act(() => {
+        render(
+          <AuthContext.Provider value={mockAuthContext}>
+            <ModuleManagementInterface userRole="teacher" />
+          </AuthContext.Provider>
+        )
+      })
 
       // Wait for initial load
       await waitFor(() => {
@@ -222,11 +226,13 @@ describe('Learning Modules Flow Integration', () => {
       // Mock window.confirm
       window.confirm = jest.fn(() => true)
 
-      render(
-        <AuthContext.Provider value={mockAuthContext}>
-          <ModuleManagementInterface userRole="teacher" />
-        </AuthContext.Provider>
-      )
+      act(() => {
+        render(
+          <AuthContext.Provider value={mockAuthContext}>
+            <ModuleManagementInterface userRole="teacher" />
+          </AuthContext.Provider>
+        )
+      })
 
       // Wait for lessons to load
       await waitFor(() => {
@@ -292,11 +298,13 @@ describe('Learning Modules Flow Integration', () => {
         completedAt: new Date().toISOString(),
       })
 
-      render(
-        <AuthContext.Provider value={mockAuthContext}>
-          <StudentLearningInterface lessonId="1" />
-        </AuthContext.Provider>
-      )
+      act(() => {
+        render(
+          <AuthContext.Provider value={mockAuthContext}>
+            <StudentLearningInterface lessonId="1" />
+          </AuthContext.Provider>
+        )
+      })
 
       // Wait for lesson to load
       await waitFor(() => {
@@ -342,11 +350,13 @@ describe('Learning Modules Flow Integration', () => {
       const mockError = new Error('Lesson not found')
       ;(verbfyLessonsAPI.startLesson as jest.Mock).mockRejectedValue(mockError)
 
-      render(
-        <AuthContext.Provider value={mockAuthContext}>
-          <StudentLearningInterface lessonId="999" />
-        </AuthContext.Provider>
-      )
+      act(() => {
+        render(
+          <AuthContext.Provider value={mockAuthContext}>
+            <StudentLearningInterface lessonId="999" />
+          </AuthContext.Provider>
+        )
+      })
 
       // Should show error message
       await waitFor(() => {
