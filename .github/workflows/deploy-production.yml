@@ -96,7 +96,8 @@ jobs:
           # Install and build backend
           cd backend && npm ci && npm run build && cd ..
           
-          # Frontend will be built in Docker container during deployment
+          # Install and build frontend to catch any build errors early
+          cd verbfy-app && npm ci && npm run build && cd ..
 
       - name: Validate deployment secrets
         if: success()
@@ -219,7 +220,7 @@ jobs:
           fi
 
       - name: Notify deployment status
-        if: always()
+        if: always() && secrets.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
