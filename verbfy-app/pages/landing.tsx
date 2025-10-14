@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -43,6 +43,11 @@ export default function LandingPage({ featuredTeachers, featuredMaterials, prici
   // List of GIFs to cycle through on click (place these files in /public)
   const gifSources = ['/logo.gif', '/logo-2.gif', '/logo-3.gif'];
   const [gifIndex, setGifIndex] = useState<number | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Tailwind purges dynamic classes; map explicit gradient classes to ensure icons render
   const gradientByColor: Record<string, string> = {
@@ -230,14 +235,14 @@ export default function LandingPage({ featuredTeachers, featuredMaterials, prici
                   title="Play next animation"
                 >
                   <Image
-                    src={gifIndex !== null ? gifSources[gifIndex] : '/logo.png'}
+                    src={isClient && gifIndex !== null ? gifSources[gifIndex] : '/logo.png'}
                     alt="Verbfy logo"
                     width={1200}
                     height={1200}
                     className="w-full h-auto"
                     priority
                     sizes="(min-width:1024px) 30vw, (min-width:640px) 40vw, 60vw"
-                    unoptimized={gifIndex !== null}
+                    unoptimized={isClient && gifIndex !== null}
                   />
                 </div>
                 {/* Slogan intentionally removed per request */}

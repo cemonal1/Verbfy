@@ -85,8 +85,38 @@ if ((api as any)?.interceptors?.request) {
 // Response interceptor for error handling
 if ((api as any)?.interceptors?.response) {
   api.interceptors.response.use(
-    (response: any) => response,
+    (response: any) => {
+      // Handle potential JSON parse errors in successful responses
+      try {
+        if (response.data && typeof response.data === 'string') {
+          // Try to parse JSON if response is a string
+          try {
+            response.data = JSON.parse(response.data);
+          } catch (parseError) {
+            console.warn('Failed to parse response as JSON:', parseError);
+            // Keep original string data if parsing fails
+          }
+        }
+      } catch (error) {
+        console.warn('Error processing response data:', error);
+      }
+      return response;
+    },
     (error: any) => {
+      // Handle network errors
+      if (!error.response) {
+        console.error('Network error:', error.message);
+        if (typeof window !== 'undefined') {
+          try {
+            const { toast } = require('react-hot-toast');
+            toast.error('Network error. Please check your connection.');
+          } catch {
+            console.error('Network error. Please check your connection.');
+          }
+        }
+        return Promise.reject(error);
+      }
+
       // Handle rate limiting
       if (error.response?.status === 429) {
         const retryAfter = error.response?.data?.retryAfter || 15;
@@ -102,20 +132,50 @@ if ((api as any)?.interceptors?.response) {
             alert(`Too many requests. Please wait ${retryAfter} minutes before trying again.`);
           }
         }
-        
-        // Don't redirect to login for rate limiting
-        return Promise.reject(error);
       }
-      
-      if (error.response?.status === 401) {
-        tokenStorage.clear();
-        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-          window.location.href = '/login';
+
+      // Handle JSON parse errors in error responses
+      if (error.response?.data && typeof error.response.data === 'string') {
+        try {
+          error.response.data = JSON.parse(error.response.data);
+        } catch (parseError) {
+          console.warn('Failed to parse error response as JSON:', parseError);
+          // Create a structured error response
+          error.response.data = {
+            success: false,
+            message: error.response.data || 'An error occurred',
+            error: 'JSON_PARSE_ERROR'
+          };
         }
       }
-      if (!error.response) {
-        console.error('Network error:', error.message);
+
+      // Handle 401 unauthorized errors
+      if (error.response?.status === 401) {
+        console.warn('Unauthorized access - redirecting to login');
+        if (typeof window !== 'undefined') {
+          // Clear token and redirect to login
+          try {
+            tokenStorage.removeToken();
+            window.location.href = '/auth/login';
+          } catch (storageError) {
+            console.error('Error clearing token:', storageError);
+          }
+        }
       }
+
+      // Handle 500 server errors
+      if (error.response?.status >= 500) {
+        console.error('Server error:', error.response.status);
+        if (typeof window !== 'undefined') {
+          try {
+            const { toast } = require('react-hot-toast');
+            toast.error('Server error. Please try again later.');
+          } catch {
+            console.error('Server error. Please try again later.');
+          }
+        }
+      }
+      
       return Promise.reject(error);
     }
   );
@@ -459,58 +519,54 @@ export const adminAPI = {
 
 // VerbfyTalk API functions
 export const verbfyTalkAPI = {
-  // Get all available rooms
+  // Get all rooms
   getRooms: async (filters?: RoomFilters): Promise<RoomsResponse> => {
-    const params = new URLSearchParams();
-    if (filters?.level) params.append('level', filters.level);
-    if (filters?.isPrivate !== undefined) params.append('isPrivate', filters.isPrivate.toString());
-    if (filters?.page) params.append('page', filters.page.toString());
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-
-    const response = await api.get(`/api/verbfy-talk?${params.toString()}`);
-    return response.data;
+    const response = await api.get('/api/verbfy-talk', { 
+      params: filters 
+    });
+    return response.data as RoomsResponse;
   },
 
   // Get user's rooms
   getUserRooms: async (page = 1, limit = 10): Promise<RoomsResponse> => {
-    const response = await api.get(`/api/verbfy-talk/my-rooms?page=${page}&limit=${limit}`);
-    return response.data;
+    const response = await api.get('/api/verbfy-talk/my-rooms', { params: { page, limit } });
+    return response.data as RoomsResponse;
   },
 
   // Create a new room
   createRoom: async (roomData: CreateRoomData): Promise<RoomResponse> => {
     const response = await api.post('/api/verbfy-talk', roomData);
-    return response.data;
+    return response.data as RoomResponse;
   },
 
   // Get room details
   getRoomDetails: async (roomId: string): Promise<RoomResponse> => {
     const response = await api.get(`/api/verbfy-talk/${roomId}`);
-    return response.data;
+    return response.data as RoomResponse;
   },
 
   // Join a room
   joinRoom: async (roomId: string, joinData?: JoinRoomData): Promise<RoomResponse> => {
     const response = await api.post(`/api/verbfy-talk/${roomId}/join`, joinData || {});
-    return response.data;
+    return response.data as RoomResponse;
   },
 
   // Leave a room
   leaveRoom: async (roomId: string): Promise<{ success: boolean; message: string }> => {
     const response = await api.post(`/api/verbfy-talk/${roomId}/leave`);
-    return response.data;
+    return response.data as { success: boolean; message: string };
   },
 
-  // Update room
+  // Update room (only by creator)
   updateRoom: async (roomId: string, roomData: Partial<CreateRoomData>): Promise<RoomResponse> => {
     const response = await api.put(`/api/verbfy-talk/${roomId}`, roomData);
-    return response.data;
+    return response.data as RoomResponse;
   },
 
-  // Delete room
+  // Delete room (only by creator)
   deleteRoom: async (roomId: string): Promise<{ success: boolean; message: string }> => {
     const response = await api.delete(`/api/verbfy-talk/${roomId}`);
-    return response.data;
+    return response.data as { success: boolean; message: string };
   }
 };
 

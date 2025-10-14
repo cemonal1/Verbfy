@@ -16,7 +16,7 @@ interface VerbfyTalkRoom {
 export class VerbfyTalkServer {
   private io: SocketIOServer;
   private rooms: Map<string, VerbfyTalkRoom> = new Map();
-  private userRooms: Map<string, string> = new Map(); // userId -> roomId
+  private userRooms: Map<string, Set<string>> = new Map(); // userId -> Set of roomIds
 
   constructor(server: HTTPServer) {
     // Get centralized CORS origins
@@ -170,6 +170,10 @@ export class VerbfyTalkServer {
         this.handleRoomMessage(socket, data);
       });
 
+      socket.on('message:send', (data: { roomId: string; message: string }) => {
+        this.handleMessageSend(socket, data);
+      });
+
       // Lesson chat events
       socket.on('lesson:send-message', (data: { lessonId: string; message: string; messageType?: string }) => {
         this.handleLessonMessage(socket, data);
@@ -198,6 +202,14 @@ export class VerbfyTalkServer {
     try {
       console.log(`🎤 User ${socket.id} trying to join room: ${roomId}`);
 
+      // Check if user is already in this room
+      const userRoomSet = this.userRooms.get(socket.id) || new Set();
+      if (userRoomSet.has(roomId)) {
+        console.log(`⚠️ User ${socket.id} already in room: ${roomId}`);
+        socket.emit('room:already-joined', { roomId });
+        return;
+      }
+
       // Get or create room
       let room = this.rooms.get(roomId);
       if (!room) {
@@ -223,7 +235,12 @@ export class VerbfyTalkServer {
       // Join the room
       socket.join(roomId);
       room.users.add(socket.id);
-      this.userRooms.set(socket.id, roomId);
+      
+      // Add room to user's room set
+      if (!this.userRooms.has(socket.id)) {
+        this.userRooms.set(socket.id, new Set());
+      }
+      this.userRooms.get(socket.id)!.add(roomId);
 
       // Get user info from authentication
       const user = (socket as any).user;
@@ -234,7 +251,10 @@ export class VerbfyTalkServer {
       };
 
       // Notify other users in the room
-      socket.to(roomId).emit('userJoined', userInfo);
+      socket.to(roomId).emit('participant:joined', {
+        participant: userInfo,
+        roomId: roomId
+      });
 
       // Send room info to the joining user
       const roomUsers = Array.from(room.users).map(userId => ({
@@ -246,11 +266,14 @@ export class VerbfyTalkServer {
       }));
 
       socket.emit('room:joined', {
-        _id: roomId,
-        name: `Room ${roomId}`,
-        maxParticipants: room.maxUsers,
-        participants: roomUsers,
-        isActive: true
+        room: {
+          _id: roomId,
+          name: `Room ${roomId}`,
+          maxParticipants: room.maxUsers,
+          participants: roomUsers,
+          isActive: true
+        },
+        roomId: roomId
       });
 
       // Update participants list for all users in the room
@@ -296,7 +319,7 @@ export class VerbfyTalkServer {
       };
       
       this.rooms.set(roomId, room);
-      this.userRooms.set(socket.id, roomId);
+      this.userRooms.set(socket.id, new Set([roomId]));
       
       socket.join(roomId);
       
@@ -312,11 +335,12 @@ export class VerbfyTalkServer {
   private handleWebRTCOffer(socket: any, data: { to: string; offer: any; roomId: string }) {
     try {
       const { to, offer, roomId } = data;
-      console.log(`📡 WebRTC offer from ${socket.id} to ${to}`);
+      console.log(`📡 WebRTC offer from ${socket.id} to ${to} in room ${roomId}`);
       
       this.io.to(to).emit('webrtc:offer', {
         from: socket.id,
-        offer
+        offer,
+        roomId
       });
     } catch (error) {
       console.error('❌ Error handling WebRTC offer:', error);
@@ -326,11 +350,12 @@ export class VerbfyTalkServer {
   private handleWebRTCAnswer(socket: any, data: { to: string; answer: any; roomId: string }) {
     try {
       const { to, answer, roomId } = data;
-      console.log(`📡 WebRTC answer from ${socket.id} to ${to}`);
+      console.log(`📡 WebRTC answer from ${socket.id} to ${to} in room ${roomId}`);
       
       this.io.to(to).emit('webrtc:answer', {
         from: socket.id,
-        answer
+        answer,
+        roomId
       });
     } catch (error) {
       console.error('❌ Error handling WebRTC answer:', error);
@@ -340,11 +365,12 @@ export class VerbfyTalkServer {
   private handleICECandidate(socket: any, data: { to: string; candidate: any; roomId: string }) {
     try {
       const { to, candidate, roomId } = data;
-      console.log(`📡 ICE candidate from ${socket.id} to ${to}`);
+      console.log(`📡 ICE candidate from ${socket.id} to ${to} in room ${roomId}`);
       
       this.io.to(to).emit('webrtc:ice-candidate', {
         from: socket.id,
-        candidate
+        candidate,
+        roomId
       });
     } catch (error) {
       console.error('❌ Error handling ICE candidate:', error);
@@ -398,6 +424,37 @@ export class VerbfyTalkServer {
       this.io.to(roomId).emit('room:message', message);
     } catch (error) {
       console.error('❌ Error handling room message:', error);
+    }
+  }
+
+  private handleMessageSend(socket: any, data: { roomId: string; message: string }) {
+    try {
+      const { roomId, message } = data;
+      const user = (socket as any).user;
+      
+      if (!user) {
+        socket.emit('error', { message: 'User not authenticated' });
+        return;
+      }
+
+      const messageData = {
+        id: Date.now().toString(),
+        userId: user.id,
+        userName: user.name,
+        message: message.trim(),
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log(`💬 VerbfyTalk message in room ${roomId} from ${user.name}: ${message}`);
+      
+      // Broadcast to all users in the room including the sender
+      this.io.to(roomId).emit('message:received', {
+        message: messageData,
+        roomId: roomId
+      });
+    } catch (error) {
+      console.error('❌ Error handling message send:', error);
+      socket.emit('error', { message: 'Failed to send message' });
     }
   }
 
@@ -533,7 +590,10 @@ export class VerbfyTalkServer {
         room.users.delete(socket.id);
         
         // Notify other users
-        socket.to(roomId).emit('participant:left', socket.id);
+        socket.to(roomId).emit('participant:left', {
+          participantId: socket.id,
+          roomId: roomId
+        });
         
         // Update participants list for remaining users
         const remainingUsers = Array.from(room.users).map(userId => ({
@@ -555,7 +615,15 @@ export class VerbfyTalkServer {
         }
       }
 
-      this.userRooms.delete(socket.id);
+      // Remove room from user's room set
+      const userRoomSet = this.userRooms.get(socket.id);
+      if (userRoomSet) {
+        userRoomSet.delete(roomId);
+        if (userRoomSet.size === 0) {
+          this.userRooms.delete(socket.id);
+        }
+      }
+      
       socket.leave(roomId);
 
     } catch (error) {
@@ -567,10 +635,13 @@ export class VerbfyTalkServer {
     try {
       console.log(`❌ User disconnected from VerbfyTalk: ${socket.id}`);
       
-      // Find and remove user from their room
-      const roomId = this.userRooms.get(socket.id);
-      if (roomId) {
-        this.handleLeaveRoom(socket, roomId);
+      // Find and remove user from all their rooms
+      const userRoomSet = this.userRooms.get(socket.id);
+      if (userRoomSet) {
+        // Leave all rooms the user was connected to
+        for (const roomId of userRoomSet) {
+          this.handleLeaveRoom(socket, roomId);
+        }
       }
 
     } catch (error) {

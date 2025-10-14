@@ -10,14 +10,12 @@ import { toast } from 'react-hot-toast';
 import { 
   ArrowLeftIcon,
   VideoCameraIcon,
-  VideoCameraSlashIcon,
   MicrophoneIcon,
-  MicrophoneIcon as MicrophoneSlashIcon,
   ComputerDesktopIcon,
-  ComputerDesktopIcon as ComputerDesktopSlashIcon,
   PhoneIcon,
   UsersIcon,
-  AcademicCapIcon
+  AcademicCapIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 function VerbfyTalkRoomPage() {
@@ -30,6 +28,8 @@ function VerbfyTalkRoomPage() {
   const [volume, setVolume] = useState(50);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'speaker' | 'gallery'>('grid');
+  const [speakerParticipant, setSpeakerParticipant] = useState<string | null>(null);
 
   // WebRTC setup
   const peerIds = user && roomId ? {
@@ -241,6 +241,40 @@ function VerbfyTalkRoomPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* View Mode Controls */}
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                    viewMode === 'grid' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Grid
+                </button>
+                <button
+                  onClick={() => setViewMode('speaker')}
+                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                    viewMode === 'speaker' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Speaker
+                </button>
+                <button
+                  onClick={() => setViewMode('gallery')}
+                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                    viewMode === 'gallery' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Gallery
+                </button>
+              </div>
+
               <button
                 onClick={() => setShowParticipants(!showParticipants)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -309,93 +343,299 @@ function VerbfyTalkRoomPage() {
               </div>
             )}
 
-            {/* Video Grid */}
+            {/* Video Layout */}
             <div className="flex-1 p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 h-full">
-                {/* Local Video */}
-                <div className="relative bg-gray-800 rounded-lg overflow-hidden">
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                    You {!isCameraOn && '(Camera Off)'} {!isMicOn && '(Mic Off)'}
-                  </div>
-                  {status === 'connecting' && (
-                    <div className="absolute top-2 right-2 bg-yellow-500 text-white px-2 py-1 rounded text-xs">
-                      Connecting...
-                    </div>
-                  )}
-                  {status === 'connected' && (
-                    <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs">
-                      Connected
-                    </div>
-                  )}
-                </div>
-
-                {/* Remote Videos */}
-                {activeParticipants
-                  .filter(p => p.userId._id !== user?.id)
-                  .map((participant, index) => (
-                    <div key={participant.userId._id} className="relative bg-gray-800 rounded-lg overflow-hidden">
+              {/* Video Container with responsive layout */}
+              <div className="h-full flex flex-col">
+                {/* Main video area */}
+                <div className="flex-1 flex items-center justify-center">
+                  {/* Grid View */}
+                  {viewMode === 'grid' && (
+                    <div className={`
+                      w-full h-full grid gap-2
+                      ${activeParticipants.length <= 1 ? 'grid-cols-1' : ''}
+                      ${activeParticipants.length === 2 ? 'grid-cols-1 md:grid-cols-2' : ''}
+                      ${activeParticipants.length === 3 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : ''}
+                      ${activeParticipants.length === 4 ? 'grid-cols-2' : ''}
+                      ${activeParticipants.length >= 5 ? 'grid-cols-2 md:grid-cols-3' : ''}
+                    `}>
+                    {/* Local Video */}
+                    <div className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-0">
                       <video
-                        ref={(el) => {
-                          remoteVideoRefs.current[participant.userId._id] = el;
-                        }}
+                        ref={localVideoRef}
                         autoPlay
+                        muted
                         playsInline
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                        {participant.userId.name}
+                      {/* Video overlay with user info */}
+                      <div className="absolute inset-0 pointer-events-none">
+                        {/* Status indicators */}
+                        <div className="absolute top-2 left-2 flex gap-1">
+                          {!isMicOn && (
+                            <div className="bg-red-500 text-white p-1 rounded-full relative">
+                              <MicrophoneIcon className="w-3 h-3" />
+                              <XMarkIcon className="w-2 h-2 absolute -top-0.5 -right-0.5 bg-red-600 rounded-full" />
+                            </div>
+                          )}
+                          {!isCameraOn && (
+                            <div className="bg-red-500 text-white p-1 rounded-full relative">
+                              <VideoCameraIcon className="w-3 h-3" />
+                              <XMarkIcon className="w-2 h-2 absolute -top-0.5 -right-0.5 bg-red-600 rounded-full" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Connection status */}
+                        {status === 'connecting' && (
+                          <div className="absolute top-2 right-2 bg-yellow-500 text-white px-2 py-1 rounded text-xs">
+                            Connecting...
+                          </div>
+                        )}
+                        {status === 'connected' && (
+                          <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs">
+                            Connected
+                          </div>
+                        )}
+                        
+                        {/* User name */}
+                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm font-medium">
+                          You
+                        </div>
                       </div>
+                      
+                      {/* Camera off placeholder */}
+                      {!isCameraOn && (
+                        <div className="absolute inset-0 bg-gray-700 flex items-center justify-center">
+                          <div className="text-center text-white">
+                            <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                              <span className="text-2xl font-bold">
+                                {user?.name?.charAt(0).toUpperCase() || 'U'}
+                              </span>
+                            </div>
+                            <p className="text-sm">Camera is off</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
-              </div>
-            </div>
+
+                    {/* Remote Videos */}
+                    {activeParticipants
+                      .filter(p => p.userId._id !== user?.id)
+                      .map((participant, index) => (
+                        <div key={participant.userId._id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-0">
+                          <video
+                            ref={(el) => {
+                              remoteVideoRefs.current[participant.userId._id] = el;
+                            }}
+                            autoPlay
+                            playsInline
+                            className="w-full h-full object-cover"
+                          />
+                          
+                          {/* Video overlay */}
+                          <div className="absolute inset-0 pointer-events-none">
+                            {/* Participant status indicators */}
+                            <div className="absolute top-2 left-2 flex gap-1">
+                              {muteStates[participant.userId._id] && (
+                                <div className="bg-red-500 text-white p-1 rounded-full relative">
+                                  <MicrophoneIcon className="w-3 h-3" />
+                                  <XMarkIcon className="w-2 h-2 absolute -top-0.5 -right-0.5 bg-red-600 rounded-full" />
+                                </div>
+                              )}
+                              {!videoStates[participant.userId._id] && (
+                                <div className="bg-red-500 text-white p-1 rounded-full relative">
+                                  <VideoCameraIcon className="w-3 h-3" />
+                                  <XMarkIcon className="w-2 h-2 absolute -top-0.5 -right-0.5 bg-red-600 rounded-full" />
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Participant name */}
+                            <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm font-medium">
+                              {participant.userId.name}
+                            </div>
+                          </div>
+                          
+                          {/* Camera off placeholder */}
+                          {!videoStates[participant.userId._id] && (
+                            <div className="absolute inset-0 bg-gray-700 flex items-center justify-center">
+                              <div className="text-center text-white">
+                                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                                  <span className="text-2xl font-bold">
+                                    {participant.userId.name.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                                <p className="text-sm">Camera is off</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                     </div>
+                   )}
+
+                   {/* Speaker View */}
+                   {viewMode === 'speaker' && (
+                     <div className="w-full h-full flex flex-col gap-2">
+                       {/* Main speaker video */}
+                       <div className="flex-1 flex items-center justify-center">
+                         {speakerParticipant ? (
+                           <div className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video max-h-full max-w-full">
+                             <video
+                               ref={(el) => {
+                                 remoteVideoRefs.current[speakerParticipant] = el;
+                               }}
+                               autoPlay
+                               playsInline
+                               className="w-full h-full object-cover"
+                             />
+                             <div className="absolute inset-0 pointer-events-none">
+                               <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm font-medium">
+                                 {activeParticipants.find(p => p.userId._id === speakerParticipant)?.userId.name}
+                               </div>
+                             </div>
+                           </div>
+                         ) : (
+                           <div className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video max-h-full max-w-full">
+                             <video
+                               ref={localVideoRef}
+                               autoPlay
+                               muted
+                               playsInline
+                               className="w-full h-full object-cover"
+                             />
+                             <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm font-medium">
+                               You
+                             </div>
+                           </div>
+                         )}
+                       </div>
+                       
+                       {/* Thumbnail videos */}
+                       <div className="flex gap-2 justify-center max-h-32">
+                         {/* Local video thumbnail */}
+                         {speakerParticipant && (
+                           <div 
+                             className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video w-24 h-18 cursor-pointer hover:ring-2 hover:ring-blue-500"
+                             onClick={() => setSpeakerParticipant(null)}
+                           >
+                             <video
+                               ref={localVideoRef}
+                               autoPlay
+                               muted
+                               playsInline
+                               className="w-full h-full object-cover"
+                             />
+                             <div className="absolute bottom-1 left-1 bg-black bg-opacity-70 text-white px-1 py-0.5 rounded text-xs">
+                               You
+                             </div>
+                           </div>
+                         )}
+                         
+                         {/* Remote video thumbnails */}
+                         {activeParticipants
+                           .filter(p => p.userId._id !== user?.id && p.userId._id !== speakerParticipant)
+                           .map((participant) => (
+                             <div 
+                               key={participant.userId._id}
+                               className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video w-24 h-18 cursor-pointer hover:ring-2 hover:ring-blue-500"
+                               onClick={() => setSpeakerParticipant(participant.userId._id)}
+                             >
+                               <video
+                                 ref={(el) => {
+                                   remoteVideoRefs.current[participant.userId._id] = el;
+                                 }}
+                                 autoPlay
+                                 playsInline
+                                 className="w-full h-full object-cover"
+                               />
+                               <div className="absolute bottom-1 left-1 bg-black bg-opacity-70 text-white px-1 py-0.5 rounded text-xs">
+                                 {participant.userId.name}
+                               </div>
+                             </div>
+                           ))}
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Gallery View */}
+                   {viewMode === 'gallery' && (
+                     <div className="w-full h-full grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 content-start">
+                       {/* Local Video */}
+                       <div className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video">
+                         <video
+                           ref={localVideoRef}
+                           autoPlay
+                           muted
+                           playsInline
+                           className="w-full h-full object-cover"
+                         />
+                         <div className="absolute bottom-1 left-1 bg-black bg-opacity-70 text-white px-1 py-0.5 rounded text-xs">
+                           You
+                         </div>
+                       </div>
+
+                       {/* Remote Videos */}
+                       {activeParticipants
+                         .filter(p => p.userId._id !== user?.id)
+                         .map((participant) => (
+                           <div key={participant.userId._id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video">
+                             <video
+                               ref={(el) => {
+                                 remoteVideoRefs.current[participant.userId._id] = el;
+                               }}
+                               autoPlay
+                               playsInline
+                               className="w-full h-full object-cover"
+                             />
+                             <div className="absolute bottom-1 left-1 bg-black bg-opacity-70 text-white px-1 py-0.5 rounded text-xs">
+                               {participant.userId.name}
+                             </div>
+                           </div>
+                         ))}
+                     </div>
+                   )}
+                 </div>
+               </div>
+             </div>
 
             {/* Controls */}
             <div className="bg-white border-t px-6 py-4">
               <div className="flex items-center justify-center gap-4">
                 <button
                   onClick={toggleMic}
-                  className={`p-3 rounded-full transition-colors ${
+                  className={`p-3 rounded-full relative transition-colors ${
                     isMicOn ? 'bg-gray-200 hover:bg-gray-300' : 'bg-red-500 hover:bg-red-600 text-white'
                   }`}
                 >
-                  {isMicOn ? (
-                    <MicrophoneIcon className="w-6 h-6" />
-                  ) : (
-                    <MicrophoneSlashIcon className="w-6 h-6" />
+                  <MicrophoneIcon className="w-6 h-6" />
+                  {!isMicOn && (
+                    <XMarkIcon className="w-4 h-4 absolute -top-1 -right-1 bg-red-600 rounded-full text-white p-0.5" />
                   )}
                 </button>
 
                 <button
                   onClick={toggleCamera}
-                  className={`p-3 rounded-full transition-colors ${
+                  className={`p-3 rounded-full relative transition-colors ${
                     isCameraOn ? 'bg-gray-200 hover:bg-gray-300' : 'bg-red-500 hover:bg-red-600 text-white'
                   }`}
                 >
-                  {isCameraOn ? (
-                    <VideoCameraIcon className="w-6 h-6" />
-                  ) : (
-                    <VideoCameraSlashIcon className="w-6 h-6" />
+                  <VideoCameraIcon className="w-6 h-6" />
+                  {!isCameraOn && (
+                    <XMarkIcon className="w-4 h-4 absolute -top-1 -right-1 bg-red-600 rounded-full text-white p-0.5" />
                   )}
                 </button>
 
                 <button
                   onClick={() => setIsScreenSharing(!isScreenSharing)}
-                  className={`p-3 rounded-full transition-colors ${
+                  className={`p-3 rounded-full relative transition-colors ${
                     isScreenSharing ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'
                   }`}
                 >
-                  {isScreenSharing ? (
-                    <ComputerDesktopSlashIcon className="w-6 h-6" />
-                  ) : (
-                    <ComputerDesktopIcon className="w-6 h-6" />
+                  <ComputerDesktopIcon className="w-6 h-6" />
+                  {!isScreenSharing && (
+                    <XMarkIcon className="w-4 h-4 absolute -top-1 -right-1 bg-gray-600 rounded-full text-white p-0.5" />
                   )}
                 </button>
 
@@ -403,7 +643,7 @@ function VerbfyTalkRoomPage() {
                   onClick={handleLeaveRoom}
                   className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors"
                 >
-                  <PhoneIcon className="w-6 h-6" />
+                  <PhoneIcon className="w-6 h-6 transform rotate-[135deg]" />
                 </button>
               </div>
             </div>

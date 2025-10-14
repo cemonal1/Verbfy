@@ -67,9 +67,9 @@ export const useVerbfyTalk = () => {
   const { user } = useAuth();
   const token = tokenStorage.getToken();
   const [isConnected, setIsConnected] = useState(false);
-  const [currentRoom, setCurrentRoom] = useState<VerbfyTalkRoom | null>(null);
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [connectedRooms, setConnectedRooms] = useState<Map<string, VerbfyTalkRoom>>(new Map());
+  const [roomParticipants, setRoomParticipants] = useState<Map<string, Participant[]>>(new Map());
+  const [roomMessages, setRoomMessages] = useState<Map<string, Message[]>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -77,8 +77,31 @@ export const useVerbfyTalk = () => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
   
+  // Backward compatibility - current room (first connected room)
+  const currentRoom = useMemo(() => {
+    const rooms = Array.from(connectedRooms.values());
+    return rooms.length > 0 ? rooms[0] : null;
+  }, [connectedRooms]);
+  
+  const participants = useMemo(() => {
+    if (currentRoom) {
+      return roomParticipants.get(currentRoom._id) || [];
+    }
+    return [];
+  }, [currentRoom, roomParticipants]);
+  
+  const messages = useMemo(() => {
+    if (currentRoom) {
+      return roomMessages.get(currentRoom._id) || [];
+    }
+    return [];
+  }, [currentRoom, roomMessages]);
+  
   const socketRef = useRef<Socket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  // Room-based peer connections: roomId -> participantId -> RTCPeerConnection
+  const roomPeerConnections = useRef<Map<string, Map<string, RTCPeerConnection>>>(new Map());
+  // Backward compatibility
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
 
@@ -90,10 +113,18 @@ export const useVerbfyTalk = () => {
     ]
   }), []);
 
-  // Initialize peer connection
-  const initializePeerConnection = useCallback(async (participantId: string) => {
+  // Initialize peer connection for a specific room
+  const initializePeerConnection = useCallback(async (participantId: string, roomId: string) => {
     try {
       const peerConnection = new RTCPeerConnection(WEBRTC_CONFIG);
+      
+      // Store in room-based structure
+      if (!roomPeerConnections.current.has(roomId)) {
+        roomPeerConnections.current.set(roomId, new Map());
+      }
+      roomPeerConnections.current.get(roomId)!.set(participantId, peerConnection);
+      
+      // Backward compatibility
       peerConnectionsRef.current.set(participantId, peerConnection);
       peerConnections.current[participantId] = peerConnection;
 
@@ -109,18 +140,19 @@ export const useVerbfyTalk = () => {
         if (event.candidate && socketRef.current?.connected) {
           socketRef.current.emit('webrtc:ice-candidate', {
             to: participantId,
-            candidate: event.candidate
+            candidate: event.candidate,
+            roomId: roomId
           });
         }
       };
 
       // Handle remote stream
       peerConnection.ontrack = (event: RTCTrackEvent) => {
-        verbfyTalkLogger.info('Remote audio stream received', { participantId });
+        verbfyTalkLogger.info('Remote audio stream received', { participantId, roomId });
         const [remoteStream] = event.streams;
         setRemoteStreams(prev => ({
           ...prev,
-          [participantId]: remoteStream
+          [`${roomId}-${participantId}`]: remoteStream
         }));
       };
 
@@ -131,7 +163,8 @@ export const useVerbfyTalk = () => {
       if (socketRef.current?.connected) {
         socketRef.current.emit('webrtc:offer', {
           to: participantId,
-          offer: offer
+          offer: offer,
+          roomId: roomId
         });
       }
     } catch (error) {
@@ -140,14 +173,22 @@ export const useVerbfyTalk = () => {
   }, [WEBRTC_CONFIG]);
 
   // Create peer connection
-  const createPeerConnection = useCallback(async (participantId: string) => {
-    return initializePeerConnection(participantId);
+  const createPeerConnection = useCallback(async (participantId: string, roomId: string) => {
+    return initializePeerConnection(participantId, roomId);
   }, [initializePeerConnection]);
 
   // WebRTC handlers
-  const handleOffer = useCallback(async (from: string, offer: RTCSessionDescriptionInit) => {
+  const handleOffer = useCallback(async (from: string, offer: RTCSessionDescriptionInit, roomId: string) => {
     try {
       const peerConnection = new RTCPeerConnection(WEBRTC_CONFIG);
+      
+      // Store in room-based peer connections
+      if (!roomPeerConnections.current.has(roomId)) {
+        roomPeerConnections.current.set(roomId, new Map());
+      }
+      roomPeerConnections.current.get(roomId)!.set(from, peerConnection);
+      
+      // Backward compatibility
       peerConnectionsRef.current.set(from, peerConnection);
       peerConnections.current[from] = peerConnection;
 
@@ -163,6 +204,7 @@ export const useVerbfyTalk = () => {
         if (event.candidate && socketRef.current?.connected) {
           socketRef.current.emit('webrtc:ice-candidate', {
             to: from,
+            roomId: roomId,
             candidate: event.candidate
           });
         }
@@ -170,11 +212,11 @@ export const useVerbfyTalk = () => {
 
       // Handle remote audio stream
       peerConnection.ontrack = (event: RTCTrackEvent) => {
-        verbfyTalkLogger.info('Remote audio stream received', { participantId: from });
+        verbfyTalkLogger.info('Remote audio stream received', { participantId: from, roomId });
         const [remoteStream] = event.streams;
         setRemoteStreams(prev => ({
           ...prev,
-          [from]: remoteStream
+          [`${roomId}-${from}`]: remoteStream
         }));
       };
 
@@ -185,6 +227,7 @@ export const useVerbfyTalk = () => {
       if (socketRef.current?.connected) {
         socketRef.current.emit('webrtc:answer', {
           to: from,
+          roomId: roomId,
           answer: answer
         });
       }
@@ -193,9 +236,17 @@ export const useVerbfyTalk = () => {
     }
   }, [WEBRTC_CONFIG]);
 
-  const handleAnswer = useCallback(async (from: string, answer: RTCSessionDescriptionInit) => {
+  const handleAnswer = useCallback(async (from: string, answer: RTCSessionDescriptionInit, roomId: string) => {
     try {
-      const peerConnection = peerConnectionsRef.current.get(from);
+      // Try room-based peer connection first
+      const roomConnections = roomPeerConnections.current.get(roomId);
+      let peerConnection = roomConnections?.get(from);
+      
+      // Fallback to backward compatibility
+      if (!peerConnection) {
+        peerConnection = peerConnectionsRef.current.get(from);
+      }
+      
       if (peerConnection) {
         await peerConnection.setRemoteDescription(answer);
       }
@@ -204,9 +255,17 @@ export const useVerbfyTalk = () => {
     }
   }, []);
 
-  const handleICECandidate = useCallback(async (from: string, candidate: RTCIceCandidateInit) => {
+  const handleICECandidate = useCallback(async (from: string, candidate: RTCIceCandidateInit, roomId: string) => {
     try {
-      const peerConnection = peerConnectionsRef.current.get(from);
+      // Try room-based peer connection first
+      const roomConnections = roomPeerConnections.current.get(roomId);
+      let peerConnection = roomConnections?.get(from);
+      
+      // Fallback to backward compatibility
+      if (!peerConnection) {
+        peerConnection = peerConnectionsRef.current.get(from);
+      }
+      
       if (peerConnection && peerConnection.remoteDescription) {
         await peerConnection.addIceCandidate(candidate);
       }
@@ -256,8 +315,8 @@ export const useVerbfyTalk = () => {
     newSocket.on('disconnect', (reason) => {
       verbfyTalkLogger.warn('Disconnected from server', { reason });
       setIsConnected(false);
-      setCurrentRoom(null);
-      setParticipants([]);
+      setConnectedRooms(new Map());
+      setRoomParticipants(new Map());
       setRemoteStreams({});
       
       // Clean up peer connections
@@ -285,9 +344,12 @@ export const useVerbfyTalk = () => {
     });
 
     // Room events
-    newSocket.on('room:joined', (room: VerbfyTalkRoom) => {
-      verbfyTalkLogger.info('Joined room', { roomName: room.name });
-      setCurrentRoom(room);
+    newSocket.on('room:joined', (data: { room: VerbfyTalkRoom; roomId: string }) => {
+      const { room, roomId } = data;
+      verbfyTalkLogger.info('Joined room', { roomName: room.name, roomId });
+      
+      // Update connected rooms
+      setConnectedRooms(prev => new Map(prev).set(roomId, room));
       
       // Convert room participants to Participant format
       const convertedParticipants: Participant[] = room.participants.map(p => ({
@@ -298,22 +360,24 @@ export const useVerbfyTalk = () => {
         isSpeaker: false
       }));
       
-      setParticipants(convertedParticipants);
-      setMessages([]);
+      // Update room participants
+      setRoomParticipants(prev => new Map(prev).set(roomId, convertedParticipants));
+      setRoomMessages(prev => new Map(prev).set(roomId, []));
       
       // Initialize WebRTC connections with existing participants
       if (room.participants && room.participants.length > 0) {
-        verbfyTalkLogger.info('Initializing WebRTC connections', { participantCount: room.participants.length });
+        verbfyTalkLogger.info('Initializing WebRTC connections', { participantCount: room.participants.length, roomId });
         room.participants.forEach(participant => {
           if (participant.userId._id !== user?.id) {
-            initializePeerConnection(participant.userId._id);
+            initializePeerConnection(participant.userId._id, roomId);
           }
         });
       }
     });
 
-    newSocket.on('participant:joined', (participant: VerbfyTalkParticipant) => {
-      verbfyTalkLogger.info('Participant joined', { name: participant.name });
+    newSocket.on('participant:joined', (data: { participant: VerbfyTalkParticipant; roomId: string }) => {
+      const { participant, roomId } = data;
+      verbfyTalkLogger.info('Participant joined', { name: participant.name, roomId });
       
       const newParticipant: Participant = {
         id: participant.id,
@@ -323,19 +387,41 @@ export const useVerbfyTalk = () => {
         isSpeaker: false
       };
       
-      setParticipants(prev => [...prev, newParticipant]);
+      // Update room participants
+      setRoomParticipants(prev => {
+        const newParticipants = new Map(prev);
+        const currentParticipants = newParticipants.get(roomId) || [];
+        newParticipants.set(roomId, [...currentParticipants, newParticipant]);
+        return newParticipants;
+      });
       
       // Initialize peer connection for new participant
       if (participant.id !== user?.id) {
-        initializePeerConnection(participant.id);
+        initializePeerConnection(participant.id, roomId);
       }
     });
 
-    newSocket.on('participant:left', (participantId: string) => {
-      verbfyTalkLogger.info('Participant left', { participantId });
-      setParticipants(prev => prev.filter(p => p.id !== participantId));
+    newSocket.on('participant:left', (data: { participantId: string; roomId: string }) => {
+      const { participantId, roomId } = data;
+      verbfyTalkLogger.info('Participant left', { participantId, roomId });
       
-      // Clean up peer connection
+      // Update room participants
+      setRoomParticipants(prev => {
+        const newParticipants = new Map(prev);
+        const currentParticipants = newParticipants.get(roomId) || [];
+        newParticipants.set(roomId, currentParticipants.filter(p => p.id !== participantId));
+        return newParticipants;
+      });
+      
+      // Clean up peer connection for this room
+      const roomPeerConns = roomPeerConnections.current.get(roomId);
+      if (roomPeerConns?.has(participantId)) {
+        verbfyTalkLogger.debug('Closing peer connection', { participantId, roomId });
+        roomPeerConns.get(participantId)?.close();
+        roomPeerConns.delete(participantId);
+      }
+      
+      // Clean up backward compatibility connections
       if (peerConnections.current[participantId]) {
         verbfyTalkLogger.debug('Closing peer connection', { participantId });
         peerConnections.current[participantId].close();
@@ -348,22 +434,27 @@ export const useVerbfyTalk = () => {
       }
     });
 
-    newSocket.on('message:received', (message: VerbfyTalkMessage) => {
-      verbfyTalkLogger.debug('Message received', { message: message.message });
-      setMessages(prev => [...prev, message]);
+    newSocket.on('message:received', (data: { message: VerbfyTalkMessage; roomId: string }) => {
+      verbfyTalkLogger.debug('Message received', { message: data.message.message, roomId: data.roomId });
+      setRoomMessages(prev => {
+        const updated = new Map(prev);
+        const currentMessages = updated.get(data.roomId) || [];
+        updated.set(data.roomId, [...currentMessages, data.message]);
+        return updated;
+      });
     });
 
     // WebRTC events
-    newSocket.on('webrtc:offer', async (data: { from: string; offer: RTCSessionDescriptionInit }) => {
-      await handleOffer(data.from, data.offer);
+    newSocket.on('webrtc:offer', async (data: { from: string; offer: RTCSessionDescriptionInit; roomId: string }) => {
+      await handleOffer(data.from, data.offer, data.roomId);
     });
 
-    newSocket.on('webrtc:answer', async (data: { from: string; answer: RTCSessionDescriptionInit }) => {
-      await handleAnswer(data.from, data.answer);
+    newSocket.on('webrtc:answer', async (data: { from: string; answer: RTCSessionDescriptionInit; roomId: string }) => {
+      await handleAnswer(data.from, data.answer, data.roomId);
     });
 
-    newSocket.on('webrtc:ice-candidate', async (data: { from: string; candidate: RTCIceCandidateInit }) => {
-      await handleICECandidate(data.from, data.candidate);
+    newSocket.on('webrtc:ice-candidate', async (data: { from: string; candidate: RTCIceCandidateInit; roomId: string }) => {
+      await handleICECandidate(data.from, data.candidate, data.roomId);
     });
 
     return () => {
@@ -377,6 +468,12 @@ export const useVerbfyTalk = () => {
     if (!socketRef.current?.connected) {
       setError('Not connected to server');
       return false;
+    }
+
+    // Check if already connected to this room
+    if (connectedRooms.has(roomId)) {
+      verbfyTalkLogger.info('Already connected to room', { roomId });
+      return connectedRooms.get(roomId);
     }
 
     try {
@@ -401,6 +498,15 @@ export const useVerbfyTalk = () => {
 
       const result = await response.json();
       verbfyTalkLogger.info('HTTP API join successful', { roomName: result.data.name });
+      
+      // Store room data
+      setConnectedRooms(prev => new Map(prev).set(roomId, result.data));
+      setRoomParticipants(prev => new Map(prev).set(roomId, []));
+      setRoomMessages(prev => new Map(prev).set(roomId, []));
+      
+      // Join room via Socket.IO
+      socketRef.current.emit('room:join', { roomId });
+      
       return result.data;
     } catch (error) {
       verbfyTalkLogger.error('Failed to join room via HTTP API', { error: error instanceof Error ? error.message : 'Unknown error' });
@@ -408,7 +514,7 @@ export const useVerbfyTalk = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, connectedRooms]);
 
   // Set microphone stream (called from MicrophonePermissionScreen)
   const setMicrophoneStream = useCallback((stream: MediaStream) => {
@@ -427,36 +533,75 @@ export const useVerbfyTalk = () => {
   }, []);
 
   // Leave room
-  const leaveRoom = useCallback(() => {
-    if (socketRef.current?.connected && currentRoom) {
-      socketRef.current.emit('room:leave', { roomId: currentRoom._id });
+  const leaveRoom = useCallback((roomId?: string) => {
+    const targetRoomId = roomId || currentRoom?._id;
+    
+    if (!targetRoomId) {
+      verbfyTalkLogger.warn('No room to leave');
+      return;
+    }
+
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('room:leave', { roomId: targetRoomId });
     }
     
-    // Clean up
-    setCurrentRoom(null);
-    setParticipants([]);
-    setMessages([]);
+    // Remove room from connected rooms
+    setConnectedRooms(prev => {
+      const newRooms = new Map(prev);
+      newRooms.delete(targetRoomId);
+      return newRooms;
+    });
     
-    // Stop local stream
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
-      localStreamRef.current = null;
+    // Remove room participants and messages
+    setRoomParticipants(prev => {
+      const newParticipants = new Map(prev);
+      newParticipants.delete(targetRoomId);
+      return newParticipants;
+    });
+    
+    setRoomMessages(prev => {
+      const newMessages = new Map(prev);
+      newMessages.delete(targetRoomId);
+      return newMessages;
+    });
+    
+    // Close peer connections for this room
+    const roomPeerConns = roomPeerConnections.current.get(targetRoomId);
+    if (roomPeerConns) {
+      roomPeerConns.forEach(pc => pc.close());
+      roomPeerConnections.current.delete(targetRoomId);
     }
     
-    // Close peer connections
-    peerConnectionsRef.current.forEach(pc => pc.close());
-    peerConnectionsRef.current.clear();
+    // Clean up backward compatibility connections if this was the current room
+    if (targetRoomId === currentRoom?._id) {
+      peerConnectionsRef.current.forEach(pc => pc.close());
+      peerConnectionsRef.current.clear();
+      Object.values(peerConnections.current).forEach((pc: RTCPeerConnection) => pc.close());
+      peerConnections.current = {};
+    }
     
-    Object.values(peerConnections.current).forEach((pc: RTCPeerConnection) => pc.close());
-    peerConnections.current = {};
-  }, [currentRoom]);
+    // If leaving all rooms, stop local stream
+    if (connectedRooms.size === 1 && connectedRooms.has(targetRoomId)) {
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+        localStreamRef.current = null;
+      }
+    }
+  }, [currentRoom, connectedRooms]);
+  
+  // Leave all rooms
+  const leaveAllRooms = useCallback(() => {
+    const roomIds = Array.from(connectedRooms.keys());
+    roomIds.forEach(roomId => leaveRoom(roomId));
+  }, [connectedRooms, leaveRoom]);
 
   // Send message
-  const sendMessage = useCallback((message: string) => {
-    if (socketRef.current?.connected && currentRoom) {
-      verbfyTalkLogger.debug('Sending message', { roomId: currentRoom._id, message: message.trim() });
+  const sendMessage = useCallback((message: string, roomId?: string) => {
+    const targetRoomId = roomId || currentRoom?._id;
+    if (socketRef.current?.connected && targetRoomId) {
+      verbfyTalkLogger.debug('Sending message', { roomId: targetRoomId, message: message.trim() });
       socketRef.current.emit('message:send', {
-        roomId: currentRoom._id,
+        roomId: targetRoomId,
         message: message.trim()
       });
     }
@@ -480,10 +625,15 @@ export const useVerbfyTalk = () => {
     error,
     connectionError,
     
-    // Room state
+    // Room state (backward compatibility)
     currentRoom,
     participants,
     messages,
+    
+    // Multiple room state
+    connectedRooms,
+    roomParticipants,
+    roomMessages,
     
     // Audio state
     isMuted,
@@ -493,6 +643,7 @@ export const useVerbfyTalk = () => {
     // Actions
     joinRoom,
     leaveRoom,
+    leaveAllRooms,
     sendMessage,
     toggleMute,
     createPeerConnection,
