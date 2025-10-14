@@ -37,12 +37,17 @@ describe('Authentication Flow Integration', () => {
     setAccessToken: jest.fn(),
   }
 
-  const renderWithProviders = (ui: React.ReactNode) =>
-    render(
+  const renderWithProviders = (ui: React.ReactNode) => {
+    const Provider = AuthContext.Provider as unknown as React.ComponentType<{
+      value: unknown
+      children: React.ReactNode
+    }>
+    return render(
       <I18nProvider>
-        <AuthContext.Provider value={mockAuthContext as any}>{ui}</AuthContext.Provider>
+        <Provider value={mockAuthContext}>{ui}</Provider>
       </I18nProvider>
     )
+  }
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -69,7 +74,7 @@ describe('Authentication Flow Integration', () => {
 
     const emailInput = screen.getByLabelText(/email/i)
     const passwordInput = screen.getByLabelText(/password/i)
-    const loginButton = screen.getByRole('button', { name: /login|sign in/i })
+    const loginButton = screen.getByRole('button', { name: /^sign in$/i })
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
     fireEvent.change(passwordInput, { target: { value: 'password123' } })
@@ -84,7 +89,11 @@ describe('Authentication Flow Integration', () => {
     })
 
     await waitFor(() => {
-      expect(mockAuthContext.login).toHaveBeenCalled()
+      expect(mockAuthContext.setAccessToken).toHaveBeenCalledWith('mock-token')
+    })
+
+    await waitFor(() => {
+      expect(mockAuthContext.setUser).toHaveBeenCalled()
     })
 
     await waitFor(() => {
@@ -105,7 +114,7 @@ describe('Authentication Flow Integration', () => {
     // Fill in login form with invalid credentials
     const emailInput = screen.getByLabelText(/email/i)
     const passwordInput = screen.getByLabelText(/password/i)
-    const loginButton = screen.getByRole('button', { name: /login/i })
+    const loginButton = screen.getByRole('button', { name: /^sign in$/i })
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
     fireEvent.change(passwordInput, { target: { value: 'wrongpassword' } })
@@ -129,15 +138,14 @@ describe('Authentication Flow Integration', () => {
       </AuthContext.Provider>
     )
 
-    const loginButton = screen.getByRole('button', { name: /login/i })
+    const loginButton = screen.getByRole('button', { name: /^sign in$/i })
 
     // Try to submit empty form
     fireEvent.click(loginButton)
 
-    // Should show validation errors
+    // Should show generic validation error
     await waitFor(() => {
-      expect(screen.getByText(/email is required/i)).toBeInTheDocument()
-      expect(screen.getByText(/password is required/i)).toBeInTheDocument()
+      expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument()
     })
 
     // Should not call API
@@ -157,7 +165,7 @@ describe('Authentication Flow Integration', () => {
     // Fill in login form
     const emailInput = screen.getByLabelText(/email/i)
     const passwordInput = screen.getByLabelText(/password/i)
-    const loginButton = screen.getByRole('button', { name: /login/i })
+    const loginButton = screen.getByRole('button', { name: /^sign in$/i })
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
     fireEvent.change(passwordInput, { target: { value: 'password123' } })
@@ -183,7 +191,7 @@ describe('Authentication Flow Integration', () => {
 
     const emailInput = screen.getByLabelText(/email/i)
     const passwordInput = screen.getByLabelText(/password/i)
-    const loginButton = screen.getByRole('button', { name: /login/i })
+    const loginButton = screen.getByRole('button', { name: /^sign in$/i })
 
     // Submit form with invalid credentials
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } })

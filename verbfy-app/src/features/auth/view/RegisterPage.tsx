@@ -86,7 +86,7 @@ export default function RegisterPage() {
       `width=${w},height=${h},left=${x},top=${y},scrollbars=yes,resizable=yes`
     );
     
-    const handler = (event: MessageEvent) => {
+    const handler = async (event: MessageEvent) => {
       // Verify origin for security
       const expectedOrigin = new URL(base).origin;
       if (event.origin !== expectedOrigin) {
@@ -94,15 +94,16 @@ export default function RegisterPage() {
         return;
       }
       
-      const data: any = event.data || {};
+      type OAuthMessage = { type?: 'oauth-success' | 'oauth-error'; token?: string; user?: Record<string, unknown>; message?: string };
+      const data = (event.data ?? {}) as OAuthMessage;
       console.log('OAuth message received:', data);
       
       if (data?.type === 'oauth-success' && data?.token && data?.user) {
         try {
-          // Persist token for Socket.IO auth
-          const { tokenStorage } = require('@/utils/secureStorage');
-          tokenStorage.setToken(data.token);
-          tokenStorage.setUser(data.user);
+          // Persist token for Socket.IO auth with dynamic import to avoid SSR issues
+          const { tokenStorage } = await import('@/utils/secureStorage');
+          tokenStorage.setToken(data.token!);
+          tokenStorage.setUser(data.user!);
         } catch (_) {}
         
         // Close popup and redirect
@@ -333,4 +334,4 @@ export default function RegisterPage() {
       <HomeButton />
     </div>
   );
-} 
+}

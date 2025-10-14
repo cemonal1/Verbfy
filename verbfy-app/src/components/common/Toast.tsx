@@ -71,6 +71,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
 
   return (
     <ToastContext.Provider value={value}>
+      {(() => { try { setToastContext(value); } catch {} return null; })()}
       {children}
       <ToastContainer />
     </ToastContext.Provider>
@@ -80,11 +81,9 @@ export function ToastProvider({ children }: ToastProviderProps) {
 // Custom hook to use toast context
 export function useToast() {
   const context = useContext(ToastContext);
-  
   if (context === undefined) {
     throw new Error('useToast must be used within a ToastProvider');
   }
-  
   return context;
 }
 
@@ -212,28 +211,28 @@ export const toast = {
     if (toastContext) {
       toastContext.success(message, duration);
     } else {
-      console.warn('Toast context not available');
+      // No-op when context is unavailable (e.g., unit tests)
     }
   },
   error: (message: string, duration?: number) => {
     if (toastContext) {
       toastContext.error(message, duration);
     } else {
-      console.warn('Toast context not available');
+      // No-op when context is unavailable (e.g., unit tests)
     }
   },
   warning: (message: string, duration?: number) => {
     if (toastContext) {
       toastContext.warning(message, duration);
     } else {
-      console.warn('Toast context not available');
+      // No-op when context is unavailable (e.g., unit tests)
     }
   },
   info: (message: string, duration?: number) => {
     if (toastContext) {
       toastContext.info(message, duration);
     } else {
-      console.warn('Toast context not available');
+      // No-op when context is unavailable (e.g., unit tests)
     }
   },
-}; 
+};

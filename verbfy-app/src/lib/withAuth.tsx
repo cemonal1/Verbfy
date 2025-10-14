@@ -9,17 +9,19 @@ export function withAuthProtection<P extends object>(
   const ComponentWithAuth = (props: P) => {
     const { user } = useAuthContext();
     const router = useRouter();
+    const requiredRoleRef = React.useRef(requiredRole);
 
     useEffect(() => {
+      const rr = requiredRoleRef.current;
       if (!user) {
         router.replace('/login');
-      } else if (requiredRole && user.role !== requiredRole) {
+      } else if (rr && user.role !== rr) {
         router.replace('/unauthorized');
       }
-    }, [user, requiredRole, router]);
+    }, [user, router]);
 
     if (!user) return null;
-    if (requiredRole && user.role !== requiredRole) return null;
+    if (requiredRoleRef.current && user.role !== requiredRoleRef.current) return null;
 
     return <WrappedComponent {...props} />;
   };
@@ -27,4 +29,4 @@ export function withAuthProtection<P extends object>(
   ComponentWithAuth.displayName = `withAuthProtection(${WrappedComponent.displayName || WrappedComponent.name || 'Component'})`;
 
   return ComponentWithAuth;
-} 
+}

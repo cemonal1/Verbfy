@@ -17,7 +17,7 @@ export interface Notification {
     materialId?: string;
     reservationId?: string;
     amount?: number;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   createdAt: string;
   updatedAt: string;
@@ -69,7 +69,7 @@ export interface NotificationState {
 
 export interface NotificationAction {
   type: 'SET_LOADING' | 'SET_ERROR' | 'SET_NOTIFICATIONS' | 'ADD_NOTIFICATION' | 'UPDATE_NOTIFICATION' | 'DELETE_NOTIFICATION' | 'MARK_AS_READ' | 'MARK_ALL_AS_READ' | 'SET_UNREAD_COUNT';
-  payload?: any;
+  payload?: unknown;
 }
 
 export interface NotificationContextType {
@@ -130,4 +130,4 @@ export const NOTIFICATION_TYPES = {
 
 export const getNotificationConfig = (type: Notification['type']) => {
   return NOTIFICATION_TYPES[type] || NOTIFICATION_TYPES.system;
-}; 
+};

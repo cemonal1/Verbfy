@@ -9,7 +9,7 @@ export interface AIContentGeneration {
   generatedContent: {
     title: string;
     description: string;
-    content: any;
+    content: unknown;
     metadata: {
       estimatedDuration: number;
       difficulty: number;
@@ -40,7 +40,7 @@ export interface GenerateContentRequest {
   targetLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
   skillFocus: 'grammar' | 'vocabulary' | 'reading' | 'writing' | 'speaking' | 'listening' | 'mixed';
   generationPrompt?: string;
-  customParameters?: any;
+  customParameters?: unknown;
 }
 
 export interface UpdateQualityRequest {
@@ -89,4 +89,4 @@ export interface ContentListResponse {
 export interface ContentAnalyticsResponse {
   success: boolean;
   data: ContentAnalytics;
-} 
+}

@@ -10,8 +10,6 @@ import {
   Conversation,
   Message,
   SendMessageData,
-  SocketMessage,
-  TypingData,
   UserTypingData
 } from '../types/chat';
 
@@ -170,8 +168,14 @@ export function ChatProvider({ children }: ChatProviderProps) {
         });
       });
 
-      socket.on('connect_error', (error: any) => {
-        console.error('🔌 Socket connection error:', error?.message || error);
+      socket.on('connect_error', (error: unknown) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : typeof error === 'string'
+              ? error
+              : undefined;
+        console.error('🔌 Socket connection error:', message ?? error);
         console.log('🔌 Transport type:', socket.io.engine.transport.name);
         showError('Failed to connect to chat server');
       });
@@ -212,9 +216,13 @@ export function ChatProvider({ children }: ChatProviderProps) {
       if (response.data.success) {
         dispatch({ type: 'SET_CONVERSATIONS', payload: response.data.data });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading conversations:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to load conversations';
+      const errObj = error as { response?: { data?: { message?: unknown } } };
+      const errorMessage =
+        typeof errObj.response?.data?.message === 'string'
+          ? errObj.response.data.message
+          : 'Failed to load conversations';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       showError(errorMessage);
     } finally {
@@ -243,9 +251,13 @@ export function ChatProvider({ children }: ChatProviderProps) {
           dispatch({ type: 'SET_MESSAGES', payload: [...response.data.data.messages, ...state.messages] });
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading messages:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to load messages';
+      const errObj = error as { response?: { data?: { message?: unknown } } };
+      const errorMessage =
+        typeof errObj.response?.data?.message === 'string'
+          ? errObj.response.data.message
+          : 'Failed to load messages';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       showError(errorMessage);
     } finally {
@@ -287,9 +299,13 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
         showSuccess('Message sent');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error sending message:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to send message';
+      const errObj = error as { response?: { data?: { message?: unknown } } };
+      const errorMessage =
+        typeof errObj.response?.data?.message === 'string'
+          ? errObj.response.data.message
+          : 'Failed to send message';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       showError(errorMessage);
     }
@@ -304,7 +320,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
     try {
       await api.patch(`/api/chat/conversations/${conversationId}/read`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error marking messages as read:', error);
     }
   };
@@ -359,7 +375,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       if (response.data.success) {
         dispatch({ type: 'SET_UNREAD_COUNT', payload: response.data.data.unreadCount });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading unread count:', error);
     }
   };
@@ -411,4 +427,4 @@ export function useChat() {
   }
   
   return context;
-} 
+}

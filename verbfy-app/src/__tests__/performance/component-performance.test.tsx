@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, act } from '@testing-library/react'
 import { ModuleManagementInterface } from '@/features/learningModules/view/ModuleManagementInterface'
 
 // Extend Performance interface for Chrome-specific memory property
@@ -39,21 +39,7 @@ describe('Component Performance Tests', () => {
   })
 
   describe('ModuleManagementInterface Performance', () => {
-    it('should render large lesson list efficiently', () => {
-      const largeLessonList = Array.from({ length: 100 }, (_, index) => ({
-        _id: `lesson-${index}`,
-        title: `Lesson ${index}`,
-        description: `Description for lesson ${index}`,
-        type: 'VerbfyGrammar',
-        cefrLevel: 'A1',
-        difficulty: 'Beginner',
-        isActive: true,
-        isPremium: false,
-        estimatedDuration: 30,
-        completionRate: 85,
-        averageRating: 4.5,
-        totalRatings: 120,
-      }))
+    it('should render lesson list efficiently', () => {
 
       const startTime = performance.now()
 
@@ -69,10 +55,7 @@ describe('Component Performance Tests', () => {
     })
 
     it('should handle rapid filter changes efficiently', () => {
-      let utils: ReturnType<typeof render>
-      act(() => {
-        utils = render(<ModuleManagementInterface userRole="teacher" />)
-      })
+      const utils = render(<ModuleManagementInterface userRole="teacher" />)
       const { rerender } = utils
 
       const startTime = performance.now()
@@ -93,14 +76,7 @@ describe('Component Performance Tests', () => {
   })
 
   describe('AITutoringInterface Performance', () => {
-    it('should handle large message history efficiently', () => {
-      const largeMessageHistory = Array.from({ length: 1000 }, (_, index) => ({
-        _id: `msg-${index}`,
-        role: index % 2 === 0 ? 'student' : 'ai',
-        content: `Message ${index}`,
-        timestamp: new Date().toISOString(),
-        messageType: 'text',
-      }))
+    it('should handle message history efficiently', () => {
 
       const startTime = performance.now()
 
@@ -116,10 +92,7 @@ describe('Component Performance Tests', () => {
     })
 
     it('should handle real-time message updates efficiently', () => {
-      let utils: ReturnType<typeof render>
-      act(() => {
-        utils = render(<AITutoringInterface sessionType="conversation" />)
-      })
+      const utils = render(<AITutoringInterface sessionType="conversation" />)
       const { rerender } = utils
 
       const startTime = performance.now()
@@ -140,80 +113,7 @@ describe('Component Performance Tests', () => {
   })
 
   describe('AIAnalyticsDashboard Performance', () => {
-    it('should render complex analytics data efficiently', () => {
-      const complexAnalyticsData = {
-        _id: 'analytics-1',
-        period: 'monthly',
-        startDate: '2023-01-01',
-        endDate: '2023-01-31',
-        metrics: {
-          totalSessions: 10000,
-          activeUsers: 5000,
-          averageSessionDuration: 25.5,
-          completionRate: 78.5,
-          satisfactionScore: 4.2,
-          aiAccuracy: 92.3,
-          contentGenerationCount: 1500,
-          contentUsageCount: 8000,
-          averageResponseTime: 1.2,
-          errorRate: 0.5,
-        },
-        userEngagement: {
-          newUsers: 1200,
-          returningUsers: 3800,
-          churnRate: 5.2,
-          averageSessionsPerUser: 3.8,
-          peakUsageHours: [9, 10, 14, 15, 20],
-          mostPopularFeatures: [
-            { feature: 'AI Tutoring', usageCount: 5000, percentage: 50 },
-            { feature: 'Grammar Lessons', usageCount: 3000, percentage: 30 },
-            { feature: 'Reading Exercises', usageCount: 2000, percentage: 20 },
-          ],
-        },
-        contentPerformance: {
-          totalContentGenerated: 1500,
-          approvedContent: 1350,
-          rejectedContent: 150,
-          averageQualityScore: 0.85,
-          mostPopularCategories: [
-            { category: 'Grammar', usageCount: 500, averageRating: 4.3 },
-            { category: 'Vocabulary', usageCount: 400, averageRating: 4.1 },
-            { category: 'Reading', usageCount: 300, averageRating: 4.0 },
-          ],
-          contentByLevel: [
-            { level: 'A1', count: 300, averageRating: 4.2 },
-            { level: 'A2', count: 400, averageRating: 4.1 },
-            { level: 'B1', count: 500, averageRating: 4.0 },
-            { level: 'B2', count: 200, averageRating: 4.3 },
-            { level: 'C1', count: 100, averageRating: 4.4 },
-          ],
-        },
-        aiPerformance: {
-          modelAccuracy: 92.5,
-          averageResponseTime: 1.2,
-          errorRate: 0.5,
-          userSatisfaction: 4.2,
-          correctionAccuracy: 89.3,
-          suggestionRelevance: 91.7,
-        },
-        skillImprovements: {
-          grammar: 15.2,
-          pronunciation: 12.8,
-          fluency: 18.5,
-          vocabulary: 22.1,
-          comprehension: 16.7,
-          writing: 14.3,
-          reading: 19.8,
-          listening: 13.9,
-        },
-        costAnalysis: {
-          totalCost: 2500.50,
-          costPerSession: 0.25,
-          costPerUser: 0.50,
-          costPerContent: 1.67,
-          roi: 3.2,
-        },
-      }
+    it('should render analytics efficiently', () => {
 
       const startTime = performance.now()
 
@@ -229,10 +129,7 @@ describe('Component Performance Tests', () => {
     })
 
     it('should handle data updates efficiently', () => {
-      let utils: ReturnType<typeof render>
-      act(() => {
-        utils = render(<AIAnalyticsDashboard userRole="admin" />)
-      })
+      const utils = render(<AIAnalyticsDashboard userRole="admin" />)
       const { rerender } = utils
 
       const startTime = performance.now()
@@ -254,13 +151,16 @@ describe('Component Performance Tests', () => {
 
   describe('Memory Usage Tests', () => {
     it('should not cause memory leaks with large datasets', () => {
-      const initialMemory = performance.memory?.usedJSHeapSize || 0
+      // Skip meaningful assertion if Performance.memory isn't available in the environment
+      if (!performance.memory || typeof performance.memory.usedJSHeapSize !== 'number') {
+        expect(true).toBe(true)
+        return
+      }
+
+      const initialMemory = performance.memory.usedJSHeapSize
 
       // Render component with large dataset
-      let utils: ReturnType<typeof render>
-      act(() => {
-        utils = render(<ModuleManagementInterface userRole="teacher" />)
-      })
+      const utils = render(<ModuleManagementInterface userRole="teacher" />)
 
       // Simulate some interactions
       for (let i = 0; i < 10; i++) {
@@ -272,7 +172,7 @@ describe('Component Performance Tests', () => {
         utils.unmount()
       })
 
-      const finalMemory = performance.memory?.usedJSHeapSize || 0
+      const finalMemory = performance.memory.usedJSHeapSize
       const memoryIncrease = finalMemory - initialMemory
 
       // Memory increase should be reasonable (less than 10MB)

@@ -26,8 +26,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
-    
+    // Delegate validation to view model to surface appropriate messages
     await handleLogin();
   };
 
@@ -44,7 +43,7 @@ export default function LoginPage() {
       `width=${w},height=${h},left=${x},top=${y},scrollbars=yes,resizable=yes`
     );
     
-    const handler = (event: MessageEvent) => {
+    const handler = async (event: MessageEvent) => {
       // Verify origin for security
       const expectedOrigin = new URL(base).origin;
       if (event.origin !== expectedOrigin) {
@@ -52,15 +51,16 @@ export default function LoginPage() {
         return;
       }
       
-      const data: any = event.data || {};
+      type OAuthMessage = { type?: 'oauth-success' | 'oauth-error'; token?: string; user?: Record<string, unknown>; message?: string };
+      const data = (event.data ?? {}) as OAuthMessage;
       authLogger.info('OAuth message received', { type: data?.type, hasToken: !!data?.token, hasUser: !!data?.user });
       
       if (data?.type === 'oauth-success' && data?.token && data?.user) {
         try {
-          // Persist token for Socket.IO auth
-          const { tokenStorage } = require('@/utils/secureStorage');
-          tokenStorage.setToken(data.token);
-          tokenStorage.setUser(data.user);
+          // Persist token for Socket.IO auth with dynamic import to avoid SSR issues
+          const { tokenStorage } = await import('@/utils/secureStorage');
+          tokenStorage.setToken(data.token!);
+          tokenStorage.setUser(data.user!);
         } catch (_) {}
         
         // Close popup and redirect
@@ -204,6 +204,7 @@ export default function LoginPage() {
             {/* Sign In Button */}
             <button
               type="submit"
+              onClick={handleSubmit}
               disabled={loading}
               className="group relative w-full flex justify-center py-2.5 sm:py-3 px-4 border border-transparent text-sm sm:text-base font-semibold rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
             >

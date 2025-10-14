@@ -210,7 +210,7 @@ export interface LessonTypeDistribution {
 export interface ChartDataPoint {
   name: string;
   value: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface LineChartData {
@@ -218,19 +218,19 @@ export interface LineChartData {
   lessons?: number;
   earnings?: number;
   users?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface BarChartData {
   name: string;
   value: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface PieChartData {
   name: string;
   value: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // API Response Types
@@ -253,7 +253,7 @@ export interface StatCard {
 export interface ChartConfig {
   title: string;
   type: 'line' | 'bar' | 'pie' | 'radar';
-  data: any[];
+  data: unknown[];
   height?: number;
   width?: number;
 }
@@ -322,7 +322,7 @@ export interface AnalyticsFilters {
   metrics: string[];
   segments: string[];
   customFilters: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -334,7 +334,7 @@ export interface AnalyticsQuery {
   query: string;
   type: 'sql' | 'aggregation' | 'pipeline';
   parameters: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
   schedule?: {
     frequency: 'hourly' | 'daily' | 'weekly' | 'monthly';
@@ -409,8 +409,8 @@ export interface AnalyticsSegment {
 export interface SegmentCriteria {
   field: string;
   operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'greater_than' | 'less_than' | 'between' | 'in' | 'not_in';
-  value: any;
-  value2?: any; // for between operator
+  value: unknown;
+  value2?: unknown; // for between operator
 }
 
 export interface AnalyticsMetric {
@@ -427,7 +427,7 @@ export interface AnalyticsMetric {
   aggregation: string;
   dimensions: string[];
   filters: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
   isCalculated: boolean;
   refreshInterval: number;
@@ -458,7 +458,7 @@ export interface AnalyticsDimension {
 export interface AnalyticsDataPoint {
   timestamp: Date;
   dimensions: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
   metrics: {
     [key: string]: number;
@@ -621,4 +621,4 @@ export interface AnalyticsSettings {
     };
   };
   updatedAt: Date;
-} 
+}

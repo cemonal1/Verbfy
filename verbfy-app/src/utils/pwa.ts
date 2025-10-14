@@ -1,8 +1,22 @@
 import { useEffect, useState } from 'react';
 
+// Non-standard event type for 'beforeinstallprompt' (Chrome/PWA)
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => void;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
+// Extend Window interface to include PWA events
+declare global {
+  interface WindowEventMap {
+    beforeinstallprompt: BeforeInstallPromptEvent;
+    appinstalled: Event;
+  }
+}
+
 // PWA Install Prompt Hook
 export function useInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
@@ -15,7 +29,7 @@ export function useInstallPrompt() {
     };
 
     // Listen for beforeinstallprompt event
-    const handleBeforeInstallPrompt = (e: Event) => {
+    const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setIsInstallable(true);
@@ -29,12 +43,12 @@ export function useInstallPrompt() {
     };
 
     checkInstalled();
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
+    window.addEventListener('appinstalled', handleAppInstalled as EventListener);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
+      window.removeEventListener('appinstalled', handleAppInstalled as EventListener);
     };
   }, []);
 
@@ -87,7 +101,7 @@ export function useOnlineStatus() {
 }
 
 // Service Worker Registration
-export const registerServiceWorker = () => {
+export const registerServiceWorker = (onUpdateAvailable?: () => void) => {
   if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
     navigator.serviceWorker
       .register('/sw.js')
@@ -101,7 +115,9 @@ export const registerServiceWorker = () => {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 // New content is available, prompt user to refresh
-                if (confirm('New version available! Refresh to update?')) {
+                if (onUpdateAvailable) {
+                  onUpdateAvailable();
+                } else if (confirm('New version available! Refresh to update?')) {
                   window.location.reload();
                 }
               }
@@ -119,8 +135,8 @@ export const registerServiceWorker = () => {
 export const pwaUtils = {
   // Check if running as PWA
   isPWA: () => {
-    return window.matchMedia('(display-mode: standalone)').matches ||
-           (window.navigator as any).standalone === true;
+    const nav = window.navigator as Navigator & { standalone?: boolean };
+    return window.matchMedia('(display-mode: standalone)').matches || nav.standalone === true;
   },
 
   // Get PWA display mode
@@ -183,10 +199,12 @@ export const pwaUtils = {
     if ('storage' in navigator && 'estimate' in navigator.storage) {
       try {
         const estimate = await navigator.storage.estimate();
+        const quota = estimate.quota ?? 0;
+        const usage = estimate.usage ?? 0;
         return {
-          quota: estimate.quota,
-          usage: estimate.usage,
-          usagePercentage: estimate.quota ? (estimate.usage! / estimate.quota) * 100 : 0
+          quota,
+          usage,
+          usagePercentage: quota ? (usage / quota) * 100 : 0
         };
       } catch (error) {
         console.error('Error getting storage estimate:', error);

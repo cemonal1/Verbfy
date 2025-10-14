@@ -86,7 +86,7 @@ export interface Organization {
     sso: {
       enabled: boolean;
       provider: 'saml' | 'oauth' | 'ldap' | 'custom';
-      config: any;
+      config: unknown;
     };
     webhooks: Array<{
       url: string;
@@ -305,4 +305,4 @@ export interface OrganizationListResponse {
     total: number;
     pages: number;
   };
-} 
+}

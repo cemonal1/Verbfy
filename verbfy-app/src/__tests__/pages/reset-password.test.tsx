@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ResetPasswordPage from '../../../pages/reset-password';
-import * as apiModule from '../../lib/api';
+import api from '../../lib/api';
 
 jest.mock('../../lib/api', () => ({
   __esModule: true,
@@ -11,8 +11,7 @@ jest.mock('../../lib/api', () => ({
 
 describe('ResetPasswordPage', () => {
   it('submits new password when valid', async () => {
-    const api = (require('../../lib/api').default as any);
-    api.post.mockResolvedValueOnce({ data: { message: 'Password has been reset' } });
+    (api.post as jest.Mock).mockResolvedValueOnce({ data: { message: 'Password has been reset' } });
     render(<ResetPasswordPage />);
     fireEvent.change(screen.getByLabelText(/New Password/i), { target: { value: 'password123' } });
     fireEvent.change(screen.getByLabelText(/Confirm Password/i), { target: { value: 'password123' } });

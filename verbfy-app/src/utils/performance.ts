@@ -11,13 +11,17 @@ export function lazyImport<T extends ComponentType<any>>(
   const LazyComponent = lazy(importFunc);
   const FallbackComponent = fallback || DefaultFallback;
   
-  return (props: any) => {
+  const LazyWithSuspense = (props: React.ComponentProps<T>) => {
     return React.createElement(
       Suspense,
-      { fallback: React.createElement(FallbackComponent) },
-      React.createElement(LazyComponent, props)
+      { fallback: React.createElement(FallbackComponent, null) },
+      React.createElement(LazyComponent, props as any)
     );
   };
+  const lazyMeta = LazyComponent as unknown as ComponentType & { displayName?: string; name?: string };
+  LazyWithSuspense.displayName = `Lazy(${lazyMeta.displayName || lazyMeta.name || 'Component'})`;
+
+  return LazyWithSuspense as ComponentType<React.ComponentProps<T>>;
 }
 
 // Performance monitoring utilities
@@ -34,8 +38,9 @@ export const performanceUtils = {
     if (typeof window !== 'undefined' && window.performance) {
       try {
         window.performance.measure(name, startMark, endMark);
-        const measure = window.performance.getEntriesByName(name)[0];
-        return measure.duration;
+        const entries = window.performance.getEntriesByName(name);
+        const measure = entries[entries.length - 1];
+        return measure ? measure.duration : 0;
       } catch (error) {
         console.warn('Performance measurement failed:', error);
         return 0;
@@ -47,7 +52,8 @@ export const performanceUtils = {
   // Get navigation timing
   getNavigationTiming: () => {
     if (typeof window !== 'undefined' && window.performance) {
-      const navigation = window.performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+      const navigation = window.performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+      if (!navigation) return null;
       return {
         domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
         loadComplete: navigation.loadEventEnd - navigation.loadEventStart,
@@ -59,7 +65,7 @@ export const performanceUtils = {
   },
 
   // Report Core Web Vitals
-  reportWebVitals: (metric: any) => {
+  reportWebVitals: (metric: unknown) => {
     // In production, send to analytics service
     if (process.env.NODE_ENV === 'production') {
       // Example: Send to Google Analytics, Sentry, or custom analytics
@@ -121,23 +127,23 @@ export const memoryUtils = {
   },
 
   // Debounce function for performance
-  debounce: <T extends (...args: any[]) => any>(
+  debounce: <T extends (...args: unknown[]) => unknown>(
     func: T,
     wait: number
   ): ((...args: Parameters<T>) => void) => {
-    let timeout: NodeJS.Timeout;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     return (...args: Parameters<T>) => {
-      clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
       timeout = setTimeout(() => func(...args), wait);
     };
   },
 
   // Throttle function for performance
-  throttle: <T extends (...args: any[]) => any>(
+  throttle: <T extends (...args: unknown[]) => unknown>(
     func: T,
     limit: number
   ): ((...args: Parameters<T>) => void) => {
-    let inThrottle: boolean;
+    let inThrottle = false;
     return (...args: Parameters<T>) => {
       if (!inThrottle) {
         func(...args);

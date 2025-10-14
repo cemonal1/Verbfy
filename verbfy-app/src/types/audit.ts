@@ -6,22 +6,22 @@ export interface AuditLog {
   resource: string;
   resourceId?: string;
   details: {
-    before?: any;
-    after?: any;
-    changes?: any;
-    metadata?: any;
+    before?: unknown;
+    after?: unknown;
+    changes?: unknown;
+    metadata?: unknown;
   };
   request: {
     method: string;
     url: string;
     headers: Record<string, string>;
-    body?: any;
+    body?: unknown;
     ip: string;
     userAgent: string;
   };
   response: {
     statusCode: number;
-    body?: any;
+    body?: unknown;
     headers: Record<string, string>;
   };
   userContext: {
@@ -149,7 +149,7 @@ export interface AuditLogAlert {
   };
   actions: {
     type: 'email' | 'webhook' | 'notification';
-    config: any;
+    config: unknown;
   }[];
   enabled: boolean;
   createdAt: Date;
@@ -175,4 +175,4 @@ export interface AuditLogSearchResponse {
     action: Record<string, number>;
     resource: Record<string, number>;
   };
-} 
+}

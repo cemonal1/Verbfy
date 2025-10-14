@@ -18,7 +18,7 @@ class ErrorBoundary extends React.Component<
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error: Error) {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
 
@@ -35,7 +35,7 @@ class ErrorBoundary extends React.Component<
               Something went wrong
             </h1>
             <p className="text-gray-600 mb-4">
-              We're sorry, but something unexpected happened.
+              We&apos;re sorry, but something unexpected happened.
             </p>
             <button
               onClick={() => window.location.reload()}
@@ -62,12 +62,12 @@ function MyApp({ Component, pageProps }: AppProps) {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
-      {/* Socket.IO client script - Load before app */}
+      {/* Socket.IO client script - Load after app starts */}
       <Script
         src="https://cdn.socket.io/4.7.2/socket.io.min.js"
         integrity="sha384-mZLF4UVrpi/QTWPA7BjNPEnkIfRFn5qEOw1W1eMEPNy0I0jnCLshSJC7qj6Jj/Ka"
         crossOrigin="anonymous"
-        strategy="beforeInteractive"
+        strategy="afterInteractive"
         onLoad={() => {
           console.log('✅ Socket.IO client loaded successfully');
         }}

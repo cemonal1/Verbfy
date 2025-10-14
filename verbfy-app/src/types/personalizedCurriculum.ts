@@ -133,7 +133,7 @@ export interface CurriculumAnalytics {
     averageScore: number;
   };
   estimatedCompletion: string;
-  recentActivity: any[];
+  recentActivity: RecentActivityItem[];
 }
 
 export interface CurriculumRecommendation {
@@ -148,3 +148,20 @@ export interface CurriculumRecommendation {
   isCompleted: boolean;
   createdAt: string;
 } 
+
+// Flexible, typed representation of recent activity items without using `any`.
+// Allows common fields while permitting additional metadata.
+export type RecentActivityItemType =
+  | 'lesson'
+  | 'test'
+  | 'practice'
+  | 'review'
+  | 'recommendation'
+  | 'milestone';
+
+export type RecentActivityItem = {
+  id?: string;
+  type: RecentActivityItemType;
+  title?: string;
+  occurredAt: string; // ISO timestamp
+} & Record<string, unknown>;

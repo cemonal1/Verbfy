@@ -357,8 +357,8 @@ export interface RolePermissionsResponse {
   data: RolePermissions;
 }
 
-export interface BulkRoleOperationResponse {
+export interface BulkRoleOperationResponse<T = unknown> {
   success: boolean;
-  data: any;
+  data: T;
   message: string;
-} 
+}

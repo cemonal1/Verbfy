@@ -23,9 +23,24 @@ export const AITutoringInterface: React.FC<AITutoringInterfaceProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [showCorrections, setShowCorrections] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
+  const initTimeoutRef = useRef<number | null>(null);
+  const recordTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    mountedRef.current = true;
     initializeSession();
+    return () => {
+      mountedRef.current = false;
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+        initTimeoutRef.current = null;
+      }
+      if (recordTimeoutRef.current) {
+        clearTimeout(recordTimeoutRef.current);
+        recordTimeoutRef.current = null;
+      }
+    };
   }, [sessionType]);
 
   useEffect(() => {
@@ -45,7 +60,8 @@ export const AITutoringInterface: React.FC<AITutoringInterfaceProps> = ({
       });
       if (newSession) {
         // Defer state updates to avoid act warnings in tests
-        setTimeout(() => {
+        initTimeoutRef.current = window.setTimeout(() => {
+          if (!mountedRef.current) return;
           setSession(newSession);
           setMessages(newSession.messages || []);
         }, 0);
@@ -53,7 +69,9 @@ export const AITutoringInterface: React.FC<AITutoringInterfaceProps> = ({
     } catch (error) {
       console.error('Error initializing AI session:', error);
     } finally {
-      setSessionLoading(false);
+      if (mountedRef.current) {
+        setSessionLoading(false);
+      }
     }
   };
 
@@ -78,12 +96,14 @@ export const AITutoringInterface: React.FC<AITutoringInterfaceProps> = ({
         messageType: 'text'
       });
 
-      if (response?.message) {
-        setMessages(prev => [...prev, response.message]);
-      }
-      
-      if (response?.session) {
-        setSession(response.session);
+      if (mountedRef.current) {
+        if (response?.message) {
+          setMessages(prev => [...prev, response.message]);
+        }
+        
+        if (response?.session) {
+          setSession(response.session);
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -94,9 +114,13 @@ export const AITutoringInterface: React.FC<AITutoringInterfaceProps> = ({
         timestamp: new Date().toISOString(),
         messageType: 'text'
       };
-      setMessages(prev => [...prev, errorMessage]);
+      if (mountedRef.current) {
+        setMessages(prev => [...prev, errorMessage]);
+      }
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -112,7 +136,8 @@ export const AITutoringInterface: React.FC<AITutoringInterfaceProps> = ({
       setIsRecording(true);
       // Audio recording logic would go here
       // For now, we'll simulate recording
-      setTimeout(() => {
+      recordTimeoutRef.current = window.setTimeout(() => {
+        if (!mountedRef.current) return;
         setIsRecording(false);
         // Simulate sending audio message
         const audioMessage: AITutoringMessage = {
@@ -127,7 +152,9 @@ export const AITutoringInterface: React.FC<AITutoringInterfaceProps> = ({
       }, 3000);
     } catch (error) {
       console.error('Error starting recording:', error);
-      setIsRecording(false);
+      if (mountedRef.current) {
+        setIsRecording(false);
+      }
     }
   };
 
@@ -379,4 +406,4 @@ export const AITutoringInterface: React.FC<AITutoringInterfaceProps> = ({
       </div>
     </div>
   );
-}; 
+};

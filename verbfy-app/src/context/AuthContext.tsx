@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/router';
-import api, { authAPI } from '../lib/api';
+import { authAPI } from '../lib/api';
 import { tokenStorage } from '../utils/secureStorage';
 
 // User interface
@@ -118,18 +118,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.warn('⚠️ Unexpected auth response structure:', response);
         tokenStorage.clear();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Error loading user:', error);
+      const errObj = error as { message?: unknown; response?: { status?: unknown; statusText?: unknown; data?: unknown } };
       console.error('❌ Error details:', {
-        message: error.message,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data
+        message: typeof errObj.message === 'string' ? errObj.message : undefined,
+        status: typeof errObj.response?.status === 'number' ? errObj.response?.status : undefined,
+        statusText: typeof errObj.response?.statusText === 'string' ? errObj.response?.statusText : undefined,
+        data: errObj.response?.data
       });
       
       // Handle rate limiting specifically
-      if (error.response?.status === 429) {
-        const retryAfter = error.response?.data?.retryAfter || 15;
+      const resp = errObj.response as { status?: unknown; data?: { retryAfter?: unknown } } | undefined;
+      if (typeof resp?.status === 'number' && resp.status === 429) {
+        const retryAfterRaw = resp?.data?.retryAfter;
+        const retryAfter = typeof retryAfterRaw === 'number' ? retryAfterRaw : 15;
         console.warn(`⚠️ Rate limited while loading user. Retry after ${retryAfter} minutes.`);
         // Don't redirect to login for rate limiting, just show message
         return;

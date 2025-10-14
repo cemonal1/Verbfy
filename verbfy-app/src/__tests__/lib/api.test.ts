@@ -35,7 +35,7 @@ describe('API Functions', () => {
         password: 'password123',
       })
 
-      expect(mockedAxios.post).toHaveBeenCalledWith('/auth/login', {
+      expect(mockedAxios.post).toHaveBeenCalledWith('/api/auth/login', {
         email: 'test@example.com',
         password: 'password123',
       })
@@ -58,7 +58,7 @@ describe('API Functions', () => {
         role: 'student',
       })
 
-      expect(mockedAxios.post).toHaveBeenCalledWith('/auth/register', {
+      expect(mockedAxios.post).toHaveBeenCalledWith('/api/auth/register', {
         name: 'Test User',
         email: 'test@example.com',
         password: 'password123',
@@ -94,7 +94,7 @@ describe('API Functions', () => {
 
       const result = await userAPI.getProfile()
 
-      expect(mockedAxios.get).toHaveBeenCalledWith('/users/profile')
+      expect(mockedAxios.get).toHaveBeenCalledWith('/api/users/profile')
       expect(result).toEqual(mockResponse.data)
     })
 
@@ -112,7 +112,7 @@ describe('API Functions', () => {
         name: 'Updated User',
       })
 
-      expect(mockedAxios.put).toHaveBeenCalledWith('/users/profile', {
+      expect(mockedAxios.put).toHaveBeenCalledWith('/api/users/profile', {
         name: 'Updated User',
       })
       expect(result).toEqual(mockResponse.data)
@@ -138,7 +138,7 @@ describe('API Functions', () => {
         category: 'grammar',
       })
 
-      expect(mockedAxios.get).toHaveBeenCalledWith('/materials?page=1&limit=10&category=grammar')
+      expect(mockedAxios.get).toHaveBeenCalledWith('/api/materials?page=1&limit=10&category=grammar')
       expect(result).toEqual(mockResponse.data)
     })
 
@@ -158,7 +158,7 @@ describe('API Functions', () => {
 
       const result = await materialsAPI.uploadMaterial(formData)
 
-      expect(mockedAxios.post).toHaveBeenCalledWith('/materials/upload', formData, {
+      expect(mockedAxios.post).toHaveBeenCalledWith('/api/materials/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       expect(result).toEqual(mockResponse.data)
@@ -184,7 +184,7 @@ describe('API Functions', () => {
         type: 'VerbfyGrammar',
       })
 
-      expect(mockedAxios.get).toHaveBeenCalledWith('/verbfy-lessons?page=1&limit=10&type=VerbfyGrammar')
+      expect(mockedAxios.get).toHaveBeenCalledWith('/api/verbfy-lessons?page=1&limit=10&type=VerbfyGrammar')
       expect(result).toEqual(mockResponse.data)
     })
 
@@ -200,7 +200,7 @@ describe('API Functions', () => {
 
       const result = await verbfyLessonsAPI.startLesson('1')
 
-      expect(mockedAxios.post).toHaveBeenCalledWith('/verbfy-lessons/1/start')
+      expect(mockedAxios.post).toHaveBeenCalledWith('/api/verbfy-lessons/1/start')
       expect(result).toEqual(mockResponse.data)
     })
   })
@@ -222,7 +222,7 @@ describe('API Functions', () => {
         cefrLevel: 'B1',
       })
 
-      expect(mockedAxios.post).toHaveBeenCalledWith('/ai-features/tutoring/sessions', {
+      expect(mockedAxios.post).toHaveBeenCalledWith('/api/ai-features/tutoring/sessions', {
         sessionType: 'conversation',
         cefrLevel: 'B1',
       })
@@ -251,7 +251,7 @@ describe('API Functions', () => {
         messageType: 'text',
       })
 
-      expect(mockedAxios.post).toHaveBeenCalledWith('/ai-features/tutoring/sessions/session-123/messages', {
+      expect(mockedAxios.post).toHaveBeenCalledWith('/api/ai-features/tutoring/sessions/session-123/messages', {
         content: 'Hello',
         messageType: 'text',
       })
@@ -285,7 +285,7 @@ describe('API Functions', () => {
         tags: ['grammar', 'beginner'],
       })
 
-      expect(mockedAxios.post).toHaveBeenCalledWith('/ai-features/content/generate', {
+      expect(mockedAxios.post).toHaveBeenCalledWith('/api/ai-features/content/generate', {
         type: 'lesson',
         title: 'AI Generated Lesson',
         description: 'A lesson about grammar',
@@ -316,7 +316,7 @@ describe('API Functions', () => {
       }
       mockedAxios.get.mockRejectedValue(mockError)
 
-      await expect(userAPI.getProfile()).rejects.toThrow()
+      await expect(userAPI.getProfile()).rejects.toMatchObject(mockError)
     })
   })
-}) 
+})

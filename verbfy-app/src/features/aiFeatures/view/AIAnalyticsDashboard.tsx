@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AIAnalytics, AIUserProgress } from '@/types/aiFeatures';
 import { aiFeaturesAPI } from '@/lib/api';
 import { useAuthContext } from '@/context/AuthContext';
@@ -16,14 +16,24 @@ export const AIAnalyticsDashboard: React.FC<AIAnalyticsDashboardProps> = ({
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const isMountedRef = useRef(true);
+  const fetchSeqRef = useRef(0);
 
   useEffect(() => {
+    // Ensure mounted state and fetch analytics; guard updates on unmount
+    isMountedRef.current = true;
     fetchAnalytics();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [period, selectedDate]);
 
   const fetchAnalytics = async () => {
-    try {
+    const seq = ++fetchSeqRef.current;
+    if (isMountedRef.current) {
       setLoading(true);
+    }
+    try {
       const getAnalytics = (aiFeaturesAPI as any)?.getAnalytics;
       const getUserProgress = (aiFeaturesAPI as any)?.getUserProgress;
       const [analyticsResponse, progressResponse] = await Promise.all([
@@ -39,12 +49,16 @@ export const AIAnalyticsDashboard: React.FC<AIAnalyticsDashboardProps> = ({
         })
       ]);
       
-      if (analyticsResponse?.analytics) setAnalytics(analyticsResponse.analytics);
-      if (progressResponse) setUserProgress(progressResponse);
+      if (isMountedRef.current && fetchSeqRef.current === seq) {
+        if (analyticsResponse?.analytics) setAnalytics(analyticsResponse.analytics);
+        if (progressResponse) setUserProgress(progressResponse);
+      }
     } catch (error) {
       console.error('Error fetching AI analytics:', error);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current && fetchSeqRef.current === seq) {
+        setLoading(false);
+      }
     }
   };
 
@@ -384,4 +398,4 @@ export const AIAnalyticsDashboard: React.FC<AIAnalyticsDashboardProps> = ({
       </div>
     </div>
   );
-}; 
+};

@@ -7,7 +7,7 @@ export interface AILearningSession {
   content: {
     userInput?: string;
     aiResponse?: string;
-    exerciseData?: any;
+    exerciseData?: unknown;
     recommendations?: string[];
   };
   metadata: {
@@ -95,4 +95,4 @@ export interface AISessionAnalytics {
 
 export interface AISessionAnalyticsFilters {
   timeRange?: '7d' | '30d' | '90d';
-} 
+}

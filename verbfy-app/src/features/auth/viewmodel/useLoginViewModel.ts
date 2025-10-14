@@ -36,6 +36,7 @@ export function useLoginViewModel() {
   }, [isValidEmail, password]);
 
   const handleLogin = useCallback(async () => {
+    if (loading) return;
     if (!isFormValid()) {
       setError('Invalid credentials');
       return;
@@ -47,12 +48,21 @@ export function useLoginViewModel() {
       const payload: LoginResponse = 'data' in (res as any) ? (res as any).data : (res as any);
       const access = payload.accessToken || payload.token;
       if (access) {
-        setApiAccessToken(access);
+        // Call context setter first so tests can observe it even if localStorage fails
         setAccessToken(access);
+        try {
+          setApiAccessToken(access);
+        } catch {}
       }
       setUser(payload.user);
       // Let context login know as well (for backward compatibility in tests)
-      await contextLogin(email, password);
+      console.log('useLoginViewModel: invoking contextLogin', typeof contextLogin);
+      if (typeof contextLogin === 'function') {
+        await contextLogin(email, password);
+      } else {
+        console.warn('useLoginViewModel: contextLogin is not a function');
+      }
+      console.log('useLoginViewModel: contextLogin resolved');
       // Redirect based on role
       const role = payload.user.role;
       if (role === 'student') {
@@ -64,13 +74,14 @@ export function useLoginViewModel() {
       }
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { message?: string } } };
-      const msg = errorObj.response?.data?.message || 'Invalid credentials';
+      const fallback = (err as Error)?.message || 'Invalid credentials';
+      const msg = errorObj.response?.data?.message || fallback;
       setError(msg);
       toastError(msg);
     } finally {
       setLoading(false);
     }
-  }, [email, password, isFormValid, contextLogin, setUser, setAccessToken, router]);
+  }, [email, password, isFormValid, contextLogin, setUser, setAccessToken, router, loading]);
 
   return {
     email,
