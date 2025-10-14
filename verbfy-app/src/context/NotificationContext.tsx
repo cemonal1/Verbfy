@@ -73,7 +73,7 @@ function notificationReducer(state: NotificationState, action: NotificationActio
       return {
         ...state,
         notifications: state.notifications.map(notification =>
-          notification._id === action.payload._id
+          notification._id === action.payload
             ? { ...notification, isRead: true, readAt: new Date().toISOString() }
             : notification
         ),

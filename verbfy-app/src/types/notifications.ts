@@ -67,10 +67,16 @@ export interface NotificationState {
   };
 }
 
-export interface NotificationAction {
-  type: 'SET_LOADING' | 'SET_ERROR' | 'SET_NOTIFICATIONS' | 'ADD_NOTIFICATION' | 'UPDATE_NOTIFICATION' | 'DELETE_NOTIFICATION' | 'MARK_AS_READ' | 'MARK_ALL_AS_READ' | 'SET_UNREAD_COUNT';
-  payload?: unknown;
-}
+export type NotificationAction =
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_NOTIFICATIONS'; payload: { notifications: Notification[]; pagination: { page: number; limit: number; total: number; pages: number }; unreadCount: number } }
+  | { type: 'ADD_NOTIFICATION'; payload: Notification }
+  | { type: 'UPDATE_NOTIFICATION'; payload: Notification }
+  | { type: 'DELETE_NOTIFICATION'; payload: string }
+  | { type: 'MARK_AS_READ'; payload: string }
+  | { type: 'MARK_ALL_AS_READ' }
+  | { type: 'SET_UNREAD_COUNT'; payload: number };
 
 export interface NotificationContextType {
   state: NotificationState;
