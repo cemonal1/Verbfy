@@ -128,6 +128,50 @@ export const deleteAvailabilitySlot = async (teacherId: string, slotId: string):
   }
 };
 
+export const updateAvailabilitySlot = async (
+  teacherId: string, 
+  slotId: string, 
+  updates: Partial<TimeSlot>
+): Promise<IAvailability> => {
+  try {
+    // Validate updates if provided
+    if (updates.startTime && !isValidTimeFormat(updates.startTime)) {
+      throw new Error(`Invalid start time format: ${updates.startTime}`);
+    }
+    
+    if (updates.endTime && !isValidTimeFormat(updates.endTime)) {
+      throw new Error(`Invalid end time format: ${updates.endTime}`);
+    }
+    
+    if (updates.dayOfWeek !== undefined && (updates.dayOfWeek < 0 || updates.dayOfWeek > 6)) {
+      throw new Error(`Invalid day of week: ${updates.dayOfWeek}`);
+    }
+
+    const result = await Availability.findOneAndUpdate(
+      {
+        _id: slotId,
+        teacher: teacherId
+      },
+      {
+        ...updates,
+        updatedAt: new Date()
+      },
+      { 
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!result) {
+      throw new Error('Availability slot not found or not authorized to update');
+    }
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const getAvailableSlotsForBooking = async (teacherId: string, studentTimezone?: string): Promise<AvailabilityWithConversion[]> => {
   try {
     const now = new Date();
@@ -219,4 +263,4 @@ export const getAvailableSlotsForBooking = async (teacherId: string, studentTime
   } catch (error) {
     throw error;
   }
-}; 
+};

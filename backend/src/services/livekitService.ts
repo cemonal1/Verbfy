@@ -9,8 +9,14 @@ export class LiveKitService {
    */
   private async shouldUseCloud(roomId: string): Promise<boolean> {
     try {
+      // Extract reservation ID from room name (format: lesson-{reservationId})
+      let reservationId = roomId;
+      if (roomId.startsWith('lesson-')) {
+        reservationId = roomId.replace('lesson-', '');
+      }
+      
       // If it's a reservation ID, check if it's a paid lesson
-      const reservation = await Reservation.findById(roomId);
+      const reservation = await Reservation.findById(reservationId);
       if (reservation) {
         // Use cloud for paid lessons, self-hosted for free rooms
         return reservation.isPaid === true;
@@ -71,7 +77,13 @@ export class LiveKitService {
     isCloud?: boolean;
   }> {
     try {
-      const reservation = await Reservation.findById(roomName)
+      // Extract reservation ID from room name (format: lesson-{reservationId})
+      let reservationId = roomName;
+      if (roomName.startsWith('lesson-')) {
+        reservationId = roomName.replace('lesson-', '');
+      }
+      
+      const reservation = await Reservation.findById(reservationId)
         .populate('teacher', 'name email')
         .populate('student', 'name email');
 
@@ -144,4 +156,4 @@ export class LiveKitService {
       throw error;
     }
   }
-} 
+}

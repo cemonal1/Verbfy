@@ -30,7 +30,9 @@ export const adminLoginRateLimit = rateLimit({
   
   // Custom key generator to include user agent for better tracking
   keyGenerator: (req: Request): string => {
-    const ip = req.ip || (req.connection && req.connection.remoteAddress) || 'unknown';
+    const rawIp = req.ip || (req.connection && req.connection.remoteAddress) || 'unknown';
+    // Handle IPv6 addresses properly
+    const ip = rawIp.replace(/^::ffff:/, '');
     const userAgent = req.get('User-Agent') || 'unknown';
     return `${ip}:${Buffer.from(userAgent).toString('base64').slice(0, 20)}`;
   },
@@ -82,7 +84,9 @@ export const adminApiRateLimit = rateLimit({
   skip: shouldSkipRateLimit,
   
   keyGenerator: (req: Request): string => {
-    return req.ip || (req.connection && req.connection.remoteAddress) || 'unknown';
+    const ip = req.ip || (req.connection && req.connection.remoteAddress) || 'unknown';
+    // Handle IPv6 addresses properly
+    return ip.replace(/^::ffff:/, '');
   },
 
   handler: (req: Request, res: Response) => {
@@ -121,7 +125,9 @@ export const adminPasswordResetRateLimit = rateLimit({
   skip: shouldSkipRateLimit,
   
   keyGenerator: (req: Request): string => {
-    return req.ip || (req.connection && req.connection.remoteAddress) || 'unknown';
+    const ip = req.ip || (req.connection && req.connection.remoteAddress) || 'unknown';
+    // Handle IPv6 addresses properly
+    return ip.replace(/^::ffff:/, '');
   },
 
   handler: (req: Request, res: Response) => {
