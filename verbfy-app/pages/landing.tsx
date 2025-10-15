@@ -6,8 +6,6 @@ import { useAuthContext } from '@/context/AuthContext';
 import HomeButton from '@/components/shared/HomeButton';
 import BrandLogo from '@/components/shared/BrandLogo';
 import { useI18n } from '@/lib/i18n';
-import type { GetStaticProps } from 'next';
-
 type TeacherCard = {
   _id?: string;
   id?: string;
@@ -31,15 +29,16 @@ type MaterialCard = {
   thumbnailUrl?: string;
 };
 
-interface LandingProps {
-  featuredTeachers: TeacherCard[];
-  featuredMaterials: MaterialCard[];
-  pricingPlans: Array<{ name: string; priceText: string; period?: string; features: string[]; popular?: boolean }>;
-}
-
-export default function LandingPage({ featuredTeachers, featuredMaterials, pricingPlans }: LandingProps) {
+export default function LandingPage() {
   const { user } = useAuthContext();
   const { t, locale } = useI18n();
+  
+  // State for data
+  const [featuredTeachers, setFeaturedTeachers] = useState<TeacherCard[]>([]);
+  const [featuredMaterials, setFeaturedMaterials] = useState<MaterialCard[]>([]);
+  const [pricingPlans, setPricingPlans] = useState<Array<{ name: string; priceText: string; period?: string; features: string[]; popular?: boolean }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
   // List of GIFs to cycle through on click (place these files in /public)
   const gifSources = ['/logo.gif', '/logo-2.gif', '/logo-3.gif'];
   const [gifIndex, setGifIndex] = useState<number | null>(null);
@@ -47,6 +46,97 @@ export default function LandingPage({ featuredTeachers, featuredMaterials, prici
 
   useEffect(() => {
     setIsClient(true);
+    
+    // Load fallback data immediately for better UX
+    const loadFallbackData = () => {
+      const fallbackTeachers: TeacherCard[] = [
+        {
+          _id: '1',
+          name: 'Sarah Johnson',
+          specialties: ['Conversation', 'Business English'],
+          profileImage: '/images/default-avatar.png',
+          rating: 4.9,
+          studentsCount: 150,
+          experience: '5+ years'
+        },
+        {
+          _id: '2', 
+          name: 'Michael Chen',
+          specialties: ['Grammar', 'IELTS Prep'],
+          profileImage: '/images/default-avatar.png',
+          rating: 4.8,
+          studentsCount: 120,
+          experience: '3+ years'
+        },
+        {
+          _id: '3',
+          name: 'Emma Wilson',
+          specialties: ['Pronunciation', 'Kids English'],
+          profileImage: '/images/default-avatar.png',
+          rating: 4.9,
+          studentsCount: 200,
+          experience: '7+ years'
+        }
+      ];
+
+      const fallbackMaterials: MaterialCard[] = [
+        {
+          _id: '1',
+          title: 'Daily Conversation Starters',
+          description: 'Essential phrases for everyday English conversations',
+          category: 'Speaking',
+          level: 'Beginner',
+          thumbnailUrl: '/images/default-avatar.png'
+        },
+        {
+          _id: '2',
+          title: 'Business English Essentials', 
+          description: 'Professional vocabulary and communication skills',
+          category: 'Business',
+          level: 'Intermediate',
+          thumbnailUrl: '/images/default-avatar.png'
+        },
+        {
+          _id: '3',
+          title: 'Grammar Fundamentals',
+          description: 'Master the basics of English grammar',
+          category: 'Grammar',
+          level: 'Beginner',
+          thumbnailUrl: '/images/default-avatar.png'
+        }
+      ];
+
+      const fallbackPricing = [
+        { 
+          name: 'Student Plan', 
+          priceText: '$29', 
+          period: '/month', 
+          features: ['Unlimited lessons', 'AI feedback', 'Progress tracking'], 
+          popular: false 
+        },
+        { 
+          name: 'Premium Plan', 
+          priceText: '$49', 
+          period: '/month', 
+          features: ['Everything in Student', 'Priority support', 'Group lessons'], 
+          popular: true 
+        },
+        { 
+          name: 'Enterprise', 
+          priceText: '$99', 
+          period: '/month', 
+          features: ['Everything in Premium', 'Custom curriculum', 'Dedicated support'], 
+          popular: false 
+        }
+      ];
+
+      setFeaturedTeachers(fallbackTeachers);
+      setFeaturedMaterials(fallbackMaterials);
+      setPricingPlans(fallbackPricing);
+      setIsLoading(false);
+    };
+
+    loadFallbackData();
   }, []);
 
   // Tailwind purges dynamic classes; map explicit gradient classes to ensure icons render
@@ -817,96 +907,4 @@ export default function LandingPage({ featuredTeachers, featuredMaterials, prici
       <HomeButton />
     </div>
   );
-} 
-
-export const getStaticProps: GetStaticProps<LandingProps> = async () => {
-  // For static export, use fallback data since API might not be available at build time
-  const featuredTeachers: TeacherCard[] = [
-    {
-      _id: '1',
-      name: 'Sarah Johnson',
-      specialties: ['Conversation', 'Business English'],
-      profileImage: '/images/default-avatar.png',
-      rating: 4.9,
-      studentsCount: 150,
-      experience: '5+ years'
-    },
-    {
-      _id: '2', 
-      name: 'Michael Chen',
-      specialties: ['Grammar', 'IELTS Prep'],
-      profileImage: '/images/default-avatar.png',
-      rating: 4.8,
-      studentsCount: 120,
-      experience: '3+ years'
-    },
-    {
-      _id: '3',
-      name: 'Emma Wilson',
-      specialties: ['Pronunciation', 'Kids English'],
-      profileImage: '/images/default-avatar.png',
-      rating: 4.9,
-      studentsCount: 200,
-      experience: '7+ years'
-    }
-  ];
-
-  const featuredMaterials: MaterialCard[] = [
-    {
-      _id: '1',
-      title: 'Daily Conversation Starters',
-      description: 'Essential phrases for everyday English conversations',
-      category: 'Speaking',
-      level: 'Beginner',
-      thumbnailUrl: '/images/default-avatar.png'
-    },
-    {
-      _id: '2',
-      title: 'Business English Essentials', 
-      description: 'Professional vocabulary and communication skills',
-      category: 'Business',
-      level: 'Intermediate',
-      thumbnailUrl: '/images/default-avatar.png'
-    },
-    {
-      _id: '3',
-      title: 'Grammar Fundamentals',
-      description: 'Master the basics of English grammar',
-      category: 'Grammar',
-      level: 'Beginner',
-      thumbnailUrl: '/images/default-avatar.png'
-    }
-  ];
-
-  const pricingPlans = [
-    { 
-      name: 'Student Plan', 
-      priceText: '$29', 
-      period: '/month', 
-      features: ['Unlimited lessons', 'AI feedback', 'Progress tracking'], 
-      popular: false 
-    },
-    { 
-      name: 'Premium Plan', 
-      priceText: '$49', 
-      period: '/month', 
-      features: ['Everything in Student', 'Priority support', 'Group lessons'], 
-      popular: true 
-    },
-    { 
-      name: 'Enterprise', 
-      priceText: '$99', 
-      period: '/month', 
-      features: ['Everything in Premium', 'Custom curriculum', 'Dedicated support'], 
-      popular: false 
-    }
-  ];
-
-  return { 
-    props: { 
-      featuredTeachers, 
-      featuredMaterials, 
-      pricingPlans 
-    }
-  };
-};
+}
