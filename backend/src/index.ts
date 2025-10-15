@@ -111,10 +111,10 @@ app.use(performanceMiddleware);
 app.use(memoryTrackingMiddleware);
 app.use(requestSizeMiddleware);
 
-// CORS middleware with monitoring - DISABLED because Nginx handles CORS
-// app.use(corsMonitoring);
-// app.use(preflightHandler);
-// app.use(cors(corsConfig));
+// CORS middleware with monitoring - ENABLED as backup to Nginx CORS
+app.use(corsMonitoring);
+app.use(preflightHandler);
+app.use(cors(corsConfig));
 
 // Security monitoring
 app.use(securityMiddleware);
