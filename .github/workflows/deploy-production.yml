@@ -91,6 +91,7 @@ jobs:
           # Environment
           NODE_ENV=production
           NEXT_PUBLIC_ENV=production
+          NEXT_STATIC_EXPORT=true
           EOF
 
       - name: Build and test
