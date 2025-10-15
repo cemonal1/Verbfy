@@ -15,6 +15,8 @@
  *   ADMIN_PASSWORD - Password for the admin user (required)
  *   ADMIN_NAME - Name for the admin user (optional, defaults to "System Administrator")
  *   MONGODB_URI - MongoDB connection string (required)
+ * 
+ * Last Updated: 2025-10-15 - Added Hetzner deployment support
  */
 
 import mongoose from 'mongoose';
