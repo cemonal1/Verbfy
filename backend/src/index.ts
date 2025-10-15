@@ -64,6 +64,8 @@ import { performanceMiddleware, memoryTrackingMiddleware, requestSizeMiddleware 
 // Load environment variables and initialize Sentry
 dotenv.config();
 
+// Force redeploy to fix admin routes in production - 2025-01-20
+
 // Create context-specific loggers
 const serverLogger = createLogger('Server');
 const socketLogger = createLogger('Socket');
