@@ -1,5 +1,3 @@
-import '@testing-library/jest-dom'
-
 // Mock Next.js router
 jest.mock('next/router', () => ({
   useRouter() {
@@ -83,4 +81,4 @@ const sessionStorageMock = {
   removeItem: jest.fn(),
   clear: jest.fn(),
 }
-global.sessionStorage = sessionStorageMock 
+global.sessionStorage = sessionStorageMock
