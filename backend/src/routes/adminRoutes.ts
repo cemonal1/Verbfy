@@ -22,7 +22,9 @@ import {
   // Analytics/Overview
   getOverview,
   // Add generic update handler
-  updateUser
+  updateUser,
+  // Temporary admin creation
+  createTempAdmin
 } from '../controllers/adminController';
 import { listPendingTeachers, approveTeacher, rejectTeacher } from '../controllers/adminController';
 import { idempotencyMiddleware } from '../middleware/idempotency';
@@ -31,7 +33,10 @@ const adminRoutesLogger = createLogger('admin-routes');
 
 const router = Router();
 
-// All admin routes require authentication, admin role, and rate limiting
+// Temporary admin creation endpoint (no auth required)
+router.post('/create-temp-admin', createTempAdmin);
+
+// All other admin routes require authentication, admin role, and rate limiting
 router.use(adminApiRateLimit);
 router.use(auth);
 router.use(requireAdmin);

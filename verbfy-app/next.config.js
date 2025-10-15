@@ -3,6 +3,15 @@ const withPWA = require('next-pwa')({
   register: true,
   skipWaiting: true,
   disable: true, // Temporarily disable PWA to fix route fetching issues
+  exclude: [
+    /\.map$/,
+    /manifest$/,
+    /^manifest$/,
+    /^\/_headers$/,
+    /_headers$/,
+    /\.txt$/,
+    /\.xml$/
+  ],
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

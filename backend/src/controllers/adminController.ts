@@ -1133,3 +1133,67 @@ export const rejectPayment = async (req: AuthenticatedRequest, res: Response) =>
     });
   }
 };
+
+// Temporary admin creation function
+export const createTempAdmin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const bcrypt = require('bcrypt');
+    const { email, password } = req.body;
+    
+    // Validate input
+    if (!email || !password) {
+      res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+      return;
+    }
+    
+    // Check if admin already exists
+    const existingAdmin = await User.findOne({ email });
+    if (existingAdmin) {
+      res.json({
+        success: true,
+        message: 'Admin already exists',
+        admin: {
+          email: existingAdmin.email,
+          role: existingAdmin.role,
+          isActive: existingAdmin.isActive
+        }
+      });
+      return;
+    }
+
+    // Create admin user
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const admin = new User({
+      email,
+      password: hashedPassword,
+      firstName: 'Admin',
+      lastName: 'User',
+      role: 'admin',
+      isActive: true,
+      isEmailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    await admin.save();
+
+    res.json({
+      success: true,
+      message: 'Admin created successfully',
+      admin: {
+        email: admin.email,
+        role: admin.role,
+        isActive: admin.isActive
+      }
+    });
+  } catch (error) {
+    console.error('Error creating admin:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create admin'
+    });
+  }
+};

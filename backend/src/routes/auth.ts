@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { register, login, getTeachers, refreshToken, logout, me, requestEmailVerification, verifyEmail, forgotPassword, resetPassword } from '../controllers/authController';
 import { passwordResetLimiter, authLimiter } from '../middleware/rateLimit';
 import { oauthInit, oauthCallback } from '../controllers/oauthController';
+import { createTempAdmin } from '../controllers/adminController';
 import { Request, Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -31,6 +32,7 @@ router.get('/oauth/relay.js', (req, res) => {
 
 router.post('/register', register);
 router.post('/login', login);
+router.post('/create-temp-admin', createTempAdmin);
 router.post('/refresh-token', refreshToken);
 router.post('/refresh', refreshToken); // alias for clients expecting /refresh
 router.post('/logout', logout);
@@ -49,4 +51,4 @@ router.get('/verify-email/confirm', verifyEmail);
 router.post('/password/forgot', passwordResetLimiter, forgotPassword);
 router.post('/password/reset', passwordResetLimiter, resetPassword);
 
-export default router; 
+export default router;
