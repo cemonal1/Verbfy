@@ -10,6 +10,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
+      # Only set environment variables for secrets that are actually used in this job
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     
@@ -21,6 +22,54 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Validate required secrets
+        run: |
+          echo "🔍 Validating deployment secrets..."
+          
+          # Check required secrets
+          REQUIRED_SECRETS=(
+            "MONGO_URI"
+            "JWT_SECRET" 
+            "JWT_REFRESH_SECRET"
+            "FRONTEND_URL"
+            "BACKEND_URL"
+            "NEXT_PUBLIC_API_URL"
+            "NEXT_PUBLIC_BACKEND_URL"
+            "PRODUCTION_HOST"
+            "PRODUCTION_USER"
+            "PRODUCTION_SSH_KEY"
+          )
+          
+          MISSING_SECRETS=()
+          
+          for secret in "${REQUIRED_SECRETS[@]}"; do
+            if [[ -z "${!secret:-}" ]]; then
+              MISSING_SECRETS+=("$secret")
+            fi
+          done
+          
+          if [[ ${#MISSING_SECRETS[@]} -gt 0 ]]; then
+            echo "❌ Missing required secrets:"
+            printf '  - %s\n' "${MISSING_SECRETS[@]}"
+            echo ""
+            echo "Please configure these secrets in your GitHub repository settings."
+            echo "See GITHUB_SECRETS_SETUP.md for detailed instructions."
+            exit 1
+          fi
+          
+          echo "✅ All required secrets are configured"
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_BACKEND_URL: ${{ secrets.NEXT_PUBLIC_BACKEND_URL }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+          PRODUCTION_SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
 
       - name: Create backend production environment file
         run: |
@@ -38,55 +87,55 @@ jobs:
           FRONTEND_URL=${{ secrets.FRONTEND_URL }}
           BACKEND_URL=${{ secrets.BACKEND_URL }}
           
-          # LiveKit
-          LIVEKIT_CLOUD_API_KEY=${{ secrets.LIVEKIT_CLOUD_API_KEY }}
-          LIVEKIT_CLOUD_API_SECRET=${{ secrets.LIVEKIT_CLOUD_API_SECRET }}
-          LIVEKIT_CLOUD_URL=${{ secrets.LIVEKIT_CLOUD_URL }}
+          # LiveKit (optional - only set if configured)
+          LIVEKIT_CLOUD_API_KEY=${{ secrets.LIVEKIT_CLOUD_API_KEY || '' }}
+          LIVEKIT_CLOUD_API_SECRET=${{ secrets.LIVEKIT_CLOUD_API_SECRET || '' }}
+          LIVEKIT_CLOUD_URL=${{ secrets.LIVEKIT_CLOUD_URL || '' }}
           
-          # OAuth
-          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          MS_CLIENT_ID=${{ secrets.MS_CLIENT_ID }}
-          MS_CLIENT_SECRET=${{ secrets.MS_CLIENT_SECRET }}
+          # OAuth (optional - only set if configured)
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID || '' }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET || '' }}
+          MS_CLIENT_ID=${{ secrets.MS_CLIENT_ID || '' }}
+          MS_CLIENT_SECRET=${{ secrets.MS_CLIENT_SECRET || '' }}
           
-          # Stripe
-          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
-          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-          STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          # Stripe (optional - only set if configured)
+          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY || '' }}
+          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY || '' }}
+          STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET || '' }}
           
-          # Email
-          SMTP_HOST=${{ secrets.SMTP_HOST }}
-          SMTP_PORT=${{ secrets.SMTP_PORT }}
-          SMTP_USER=${{ secrets.SMTP_USER }}
-          SMTP_PASS=${{ secrets.SMTP_PASS }}
-          SMTP_FROM="${{ secrets.SMTP_FROM }}"
+          # Email (optional - only set if configured)
+          SMTP_HOST=${{ secrets.SMTP_HOST || '' }}
+          SMTP_PORT=${{ secrets.SMTP_PORT || '587' }}
+          SMTP_USER=${{ secrets.SMTP_USER || '' }}
+          SMTP_PASS=${{ secrets.SMTP_PASS || '' }}
+          SMTP_FROM="${{ secrets.SMTP_FROM || 'noreply@verbfy.com' }}"
           
-          # AWS
-          AWS_REGION=${{ secrets.AWS_REGION }}
-          S3_BUCKET=${{ secrets.S3_BUCKET }}
-          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # AWS (optional - only set if configured)
+          AWS_REGION=${{ secrets.AWS_REGION || 'us-east-1' }}
+          S3_BUCKET=${{ secrets.S3_BUCKET || '' }}
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID || '' }}
+          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY || '' }}
           
-          # Monitoring
-          SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+          # Monitoring (optional - only set if configured)
+          SENTRY_DSN=${{ secrets.SENTRY_DSN || '' }}
           EOF
 
       - name: Create frontend production environment file
         run: |
           cat > verbfy-app/.env.production << EOF
-          # API Configuration
+          # API Configuration (required)
           NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_BACKEND_URL=${{ secrets.NEXT_PUBLIC_BACKEND_URL }}
           
-          # LiveKit
-          NEXT_PUBLIC_LIVEKIT_URL=${{ secrets.NEXT_PUBLIC_LIVEKIT_URL }}
-          NEXT_PUBLIC_LIVEKIT_CLOUD_URL=${{ secrets.NEXT_PUBLIC_LIVEKIT_CLOUD_URL }}
+          # LiveKit (optional - only set if configured)
+          NEXT_PUBLIC_LIVEKIT_URL=${{ secrets.NEXT_PUBLIC_LIVEKIT_URL || '' }}
+          NEXT_PUBLIC_LIVEKIT_CLOUD_URL=${{ secrets.NEXT_PUBLIC_LIVEKIT_CLOUD_URL || '' }}
           
-          # Stripe
-          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          # Stripe (optional - only set if configured)
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '' }}
           
-          # Analytics
-          NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
+          # Analytics (optional - only set if configured)
+          NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID || '' }}
           
           # Environment
           NODE_ENV=production
@@ -102,21 +151,6 @@ jobs:
           # Install and build frontend to catch any build errors early
           cd verbfy-app && npm ci && npm run build && cd ..
 
-      - name: Validate deployment secrets
-        if: success()
-        run: |
-          # Check if required secrets are set
-          echo "Validating deployment secrets..."
-          
-          # Note: We can't directly check if secrets exist in GitHub Actions
-          # This step will fail during deployment if secrets are missing
-          echo "Required secrets will be validated during deployment"
-          echo "Make sure the following secrets are configured in repository settings:"
-          echo "- PRODUCTION_HOST"
-          echo "- PRODUCTION_USER" 
-          echo "- PRODUCTION_SSH_KEY"
-          echo "- PRODUCTION_PORT (optional, defaults to 22)"
-
       - name: Deploy to production server
         if: success()
         uses: appleboy/ssh-action@v1.0.0
@@ -124,7 +158,7 @@ jobs:
           host: ${{ secrets.PRODUCTION_HOST }}
           username: ${{ secrets.PRODUCTION_USER }}
           key: ${{ secrets.PRODUCTION_SSH_KEY }}
-          port: ${{ secrets.PRODUCTION_PORT || 22 }}
+          port: ${{ secrets.PRODUCTION_PORT || '22' }}
           timeout: 300s
           command_timeout: 600s
           script: |
