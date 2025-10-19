@@ -976,11 +976,7 @@ export const getPayments = async (req: Request, res: Response): Promise<void> =>
     }
     
     if (search) {
-      query.$or = [
-        { 'user.name': { $regex: search, $options: 'i' } },
-        { 'user.email': { $regex: search, $options: 'i' } },
-        { transactionId: { $regex: search, $options: 'i' } }
-      ];
+      query.notes = { $regex: search, $options: 'i' };
     }
 
     if (startDate || endDate) {
@@ -995,8 +991,8 @@ export const getPayments = async (req: Request, res: Response): Promise<void> =>
 
     // Get payments with pagination
     const payments = await Reservation.find(query)
-      .populate('userId', 'name email')
-      .populate('teacherId', 'name email')
+      .populate('student', 'name email')
+      .populate('teacher', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum)

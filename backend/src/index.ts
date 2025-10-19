@@ -41,6 +41,7 @@ import analyticsRoutes from './routes/analytics';
 import materialsRoutes from './routes/materials';
 import chatRoutes from './routes/chat';
 import paymentRoutes from './routes/payments';
+import { handleStripeWebhook } from './controllers/paymentController';
 import verbfyTalkRoutes from './routes/verbfyTalk';
 import freeMaterialsRoutes from './routes/freeMaterials';
 import verbfyLessonsRoutes from './routes/verbfyLessons';
@@ -142,6 +143,9 @@ app.use((req, res, next) => {
 // API versioning and timeout
 app.use(apiVersioning);
 app.use(requestTimeout(30000)); // 30 second timeout
+
+// Stripe webhook needs raw body; define before parsers and CSRF
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));

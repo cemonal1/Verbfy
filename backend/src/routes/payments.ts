@@ -1,31 +1,21 @@
 import express from 'express';
-import { auth, requireRole } from '../middleware/auth';
-import { getPaymentHistory, getProducts, getPaymentStats } from '../controllers/paymentController';
+import { auth } from '../middleware/auth';
+import { idempotencyMiddleware } from '../middleware/idempotency';
+import { getPaymentHistory, getProducts, getPaymentStats, createCheckoutSession } from '../controllers/paymentController';
 
 const router = express.Router();
 
-// Webhook disabled; Stripe removed
-router.post('/webhook', (_req, res) => res.status(410).json({ success: false, message: 'Payments are disabled' }));
+// Previously disabled endpoints: enable create-session and keep refund disabled until policy review
+router.post('/create-session', auth, idempotencyMiddleware, createCheckoutSession);
 
-// Protected routes (require authentication)
-router.use(auth);
-
-// Create checkout session disabled
-router.post('/create-session', (_req, res) => res.status(410).json({ success: false, message: 'Payments are disabled' }));
-
-// Get user's payment history
-router.get('/history', getPaymentHistory);
-
-// Get available products (informational; payments disabled)
+// Read-only endpoints remain
+router.get('/history', auth, getPaymentHistory);
 router.get('/products', getProducts);
+router.get('/stats', auth, getPaymentStats);
 
-// Get payment statistics
-router.get('/stats', getPaymentStats);
+// Refund route still disabled intentionally; requires admin flow and Stripe integration
+router.post('/:paymentId/refund', (_req, res) => {
+  res.status(410).json({ success: false, message: 'Refund endpoint temporarily disabled' });
+});
 
-// Admin routes (require admin role)
-router.use(requireRole('admin'));
-
-// Refund payment (admin only) - disabled
-router.post('/:paymentId/refund', (_req, res) => res.status(410).json({ success: false, message: 'Payments are disabled' }));
-
-export default router; 
+export default router;
