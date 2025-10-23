@@ -194,4 +194,16 @@ http {
         }
     }
 
+    # Header rewrite test server on port 8443
+    server {
+        listen 8443;
+        server_name api.verbfy.com;
+
+        location = /test-cookie {
+            add_header Set-Cookie "XSRF-TOKEN=abc; Domain=.verbfy.com; Path=/; Secure; SameSite=None" always;
+            add_header Content-Type text/plain;
+            return 200 "ok\n";
+        }
+    }
+
 }
