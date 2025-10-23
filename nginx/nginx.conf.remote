@@ -196,7 +196,7 @@ http {
 
     # Header rewrite test server on port 8443
     server {
-        listen 8443;
+        listen 127.0.0.1:8443;
         server_name api.verbfy.com;
 
         location = /test-cookie {
