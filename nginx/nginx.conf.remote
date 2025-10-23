@@ -141,6 +141,25 @@ http {
 
         }
 
+        # Temporary pass-through for CSRF cookie
+        location = /api/auth/csrf {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_cache_bypass $http_upgrade;
+            proxy_read_timeout 300;
+            proxy_connect_timeout 75;
+
+            # Pass-through upstream Set-Cookie as-is for this endpoint
+            proxy_hide_header Set-Cookie;
+            add_header Set-Cookie $upstream_http_set_cookie always;
+        }
+
         # Proxy Socket.IO on API domain (enable sticky by IP)
         location /socket.io/ {
             proxy_pass http://backend;
