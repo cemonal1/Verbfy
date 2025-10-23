@@ -945,6 +945,16 @@ if (process.env.NODE_ENV !== 'test') {
 app.use(setCsrfCookie);
 app.use(verifyCsrf);
 
+// CSRF fetch endpoint: returns 200 and relies on middleware to issue cookie+header
+app.get('/api/auth/csrf', (_req, res) => {
+  try {
+    const token = (res as any).get ? (res as any).get('X-CSRF-Token') : undefined;
+    return res.status(200).json({ success: true, csrfToken: token || undefined });
+  } catch {
+    return res.status(200).json({ success: true });
+  }
+});
+
 // Request logging middleware (development only)
 if (process.env.NODE_ENV === 'development') {
   app.use((req, _res, next) => {
