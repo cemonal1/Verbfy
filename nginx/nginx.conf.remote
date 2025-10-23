@@ -157,6 +157,7 @@ http {
 
             # Pass-through upstream Set-Cookie as-is for this endpoint
             proxy_hide_header Set-Cookie;
+            add_header X-Debug-Upstream-Set-Cookie $upstream_http_set_cookie always;
             add_header Set-Cookie $upstream_http_set_cookie always;
         }
 
