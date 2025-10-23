@@ -19,14 +19,11 @@ export function setCsrfCookie(req: Request, res: Response, next: NextFunction) {
     const isProd = process.env.NODE_ENV === 'production';
     const cookieDomain = process.env.COOKIE_DOMAIN || undefined; // e.g., .verbfy.com to share across subdomains
     res.cookie(CSRF_COOKIE_NAME, token, {
-      httpOnly: false, // must be readable by client to echo in header if same-site
-      sameSite: 'lax',
+      httpOnly: false,
+      sameSite: isProd ? 'none' : 'lax',
       secure: isProd,
       domain: cookieDomain,
-      // domain: optionally set via env if needed
-      // path defaults to '/'
     });
-    // Also expose token via response header so cross-origin FE can capture and reuse
     res.setHeader('X-CSRF-Token', token);
   } catch (_) {}
   next();

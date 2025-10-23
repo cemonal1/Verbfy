@@ -57,7 +57,9 @@ export const corsTestAPI = {
 };
 
 // Request interceptor to add auth token
+// CSRF token fallback store on axios instance to support cross-origin header reuse
 if ((api as any)?.interceptors?.request) {
+  // Attach Authorization, CSRF header (from cookie or fallback), and Idempotency-Key
   api.interceptors.request.use(
     (config: any) => {
       const token = tokenStorage.getToken();
@@ -67,11 +69,16 @@ if ((api as any)?.interceptors?.request) {
       }
       try {
         const isWrite = ['post', 'put', 'patch', 'delete'].includes((config.method || 'get').toLowerCase());
-        if (isWrite && typeof document !== 'undefined') {
-          const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/);
-          const csrf = match ? decodeURIComponent(match[1]) : undefined;
-          if (csrf) {
-            (config.headers as any)['x-csrf-token'] = csrf;
+        if (isWrite) {
+          let csrf: string | undefined;
+          if (typeof document !== 'undefined') {
+            const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/);
+            csrf = match ? decodeURIComponent(match[1]) : undefined;
+          }
+          const tokenToUse = csrf || (api as any).__csrfToken || undefined;
+          if (tokenToUse) {
+            config.headers = config.headers || {};
+            (config.headers as any)['x-csrf-token'] = tokenToUse;
           }
           (config.headers as any)['Idempotency-Key'] = uuidv4();
         }
@@ -82,27 +89,26 @@ if ((api as any)?.interceptors?.request) {
   );
 }
 
-// Response interceptor for error handling
+// Response interceptor for CSRF capture and error handling
 if ((api as any)?.interceptors?.response) {
   api.interceptors.response.use(
     (response: any) => {
-      // Handle potential JSON parse errors in successful responses
+      // Normalize potential string responses
       try {
         if (response.data && typeof response.data === 'string') {
-          // Try to parse JSON if response is a string
-          try {
-            response.data = JSON.parse(response.data);
-          } catch (parseError) {
-            console.warn('Failed to parse response as JSON:', parseError);
-            // Keep original string data if parsing fails
-          }
+          try { response.data = JSON.parse(response.data); } catch {}
         }
-      } catch (error) {
-        console.warn('Error processing response data:', error);
-      }
+      } catch {}
+      // Capture CSRF token from response headers for cross-origin fallback
+      try {
+        const hdr = (response?.headers && (response.headers['x-csrf-token'] || response.headers['X-CSRF-Token'])) as string | undefined;
+        if (hdr && typeof hdr === 'string' && hdr.length >= 16) {
+          (api as any).__csrfToken = hdr;
+        }
+      } catch {}
       return response;
     },
-    (error: any) => {
+    async (error: any) => {
       // Handle network errors
       if (!error.response) {
         console.error('Network error:', error.message);
@@ -110,42 +116,31 @@ if ((api as any)?.interceptors?.response) {
           try {
             const { toast } = require('react-hot-toast');
             toast.error('Network error. Please check your connection.');
-          } catch {
-            console.error('Network error. Please check your connection.');
-          }
+          } catch {}
         }
         return Promise.reject(error);
       }
 
-      // Handle rate limiting
-      if (error.response?.status === 429) {
-        const retryAfter = error.response?.data?.retryAfter || 15;
-        console.warn(`⚠️ Rate limited (429). Retry after ${retryAfter} minutes.`);
-        
-        // Show user-friendly message
-        if (typeof window !== 'undefined') {
-          // Use toast if available, otherwise alert
-          try {
-            const { toast } = require('react-hot-toast');
-            toast.error(`Too many requests. Please wait ${retryAfter} minutes before trying again.`);
-          } catch {
-            alert(`Too many requests. Please wait ${retryAfter} minutes before trying again.`);
-          }
-        }
+      // Try to parse JSON string error responses
+      if (error.response?.data && typeof error.response.data === 'string') {
+        try { error.response.data = JSON.parse(error.response.data); } catch {}
       }
 
-      // Handle JSON parse errors in error responses
-      if (error.response?.data && typeof error.response.data === 'string') {
-        try {
-          error.response.data = JSON.parse(error.response.data);
-        } catch (parseError) {
-          console.warn('Failed to parse error response as JSON:', parseError);
-          // Create a structured error response
-          error.response.data = {
-            success: false,
-            message: error.response.data || 'An error occurred',
-            error: 'JSON_PARSE_ERROR'
-          };
+      // Auto-retry on CSRF error: bootstrap token via health endpoint, then retry once
+      if (error.response?.status === 403) {
+        const msg = (error.response?.data?.message || '').toString().toLowerCase();
+        const isCsrf = msg.includes('csrf');
+        const originalConfig = error.config || {};
+        if (isCsrf && !originalConfig.__csrfRetry) {
+          try {
+            const res = await api.get('/api/health');
+            const hdr = (res?.headers && (res.headers['x-csrf-token'] || res.headers['X-CSRF-Token'])) as string | undefined;
+            if (hdr && typeof hdr === 'string') {
+              (api as any).__csrfToken = hdr;
+            }
+          } catch {}
+          originalConfig.__csrfRetry = true;
+          return api.request(originalConfig);
         }
       }
 
@@ -153,26 +148,31 @@ if ((api as any)?.interceptors?.response) {
       if (error.response?.status === 401) {
         console.warn('Unauthorized access - redirecting to login');
         if (typeof window !== 'undefined') {
-          // Clear token and redirect to login
           try {
             tokenStorage.removeToken();
             window.location.href = '/auth/login';
-          } catch (storageError) {
-            console.error('Error clearing token:', storageError);
-          }
+          } catch {}
         }
       }
 
-      // Handle 500 server errors
+      // Handle rate limiting
+      if (error.response?.status === 429) {
+        const retryAfter = error.response?.data?.retryAfter || 15;
+        if (typeof window !== 'undefined') {
+          try {
+            const { toast } = require('react-hot-toast');
+            toast.error(`Too many requests. Please wait ${retryAfter} minutes before trying again.`);
+          } catch {}
+        }
+      }
+
+      // Handle 500+ server errors
       if (error.response?.status >= 500) {
-        console.error('Server error:', error.response.status);
         if (typeof window !== 'undefined') {
           try {
             const { toast } = require('react-hot-toast');
             toast.error('Server error. Please try again later.');
-          } catch {
-            console.error('Server error. Please try again later.');
-          }
+          } catch {}
         }
       }
       
