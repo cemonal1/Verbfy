@@ -70,14 +70,23 @@ deploy_to_remote() {
         
         echo "📦 Installing dependencies..."
         npm install --production
+        npm install
         
         echo "🔨 Building project..."
         npm run build:prod
++
++        echo "🧹 Pruning dev dependencies for runtime..."
++        npm prune --production || true
         
-        echo "🛑 Stopping existing PM2 process..."
-        pm2 stop backend 2>/dev/null || true
-        pm2 delete backend 2>/dev/null || true
-        
+-        echo "🛑 Stopping existing PM2 process..."
+-        pm2 stop backend 2>/dev/null || true
+-        pm2 delete backend 2>/dev/null || true
++        echo "🛑 Stopping existing PM2 processes..."
++        pm2 stop verbfy-backend 2>/dev/null || true
++        pm2 delete verbfy-backend 2>/dev/null || true
++        pm2 stop backend 2>/dev/null || true
++        pm2 delete backend 2>/dev/null || true
+
         echo "🚀 Starting backend with PM2..."
         pm2 start ecosystem.config.js
         
@@ -271,14 +280,16 @@ curl -s -I https://api.verbfy.com > /dev/null && echo "    ✅ SSL certificate O
 echo "🖥️  Remote server status check..."
 ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'EOF'
     echo "  ➤ PM2 process status:"
-    pm2 jlist | jq -r '.[] | select(.name=="backend") | "    Process: \(.name) | Status: \(.pm2_env.status) | CPU: \(.monit.cpu)% | Memory: \(.monit.memory/1024/1024 | floor)MB"' 2>/dev/null || pm2 status | grep backend
+-    pm2 jlist | jq -r '.[] | select(.name=="backend") | "    Process: \(.name) | Status: \(.pm2_env.status) | CPU: \(.monit.cpu)% | Memory: \(.monit.memory/1024/1024 | floor)MB"' 2>/dev/null || pm2 status | grep backend
++    pm2 jlist | jq -r '.[] | select(.name=="verbfy-backend") | "    Process: \(.name) | Status: \(.pm2_env.status) | CPU: \(.monit.cpu)% | Memory: \(.monit.memory/1024/1024 | floor)MB"' 2>/dev/null || pm2 status | grep verbfy-backend
     
     echo "  ➤ System resources:"
     echo "    $(free -h | grep Mem | awk '{print "Memory: " $3 "/" $2 " (" $3/$2*100 "% used)"}')"
     echo "    $(df -h / | tail -1 | awk '{print "Disk: " $3 "/" $2 " (" $5 " used)"}')"
     
     echo "  ➤ Recent error logs (if any):"
-    pm2 logs backend --lines 5 --err 2>/dev/null | tail -5 || echo "    No recent errors"
+-    pm2 logs backend --lines 5 --err 2>/dev/null | tail -5 || echo "    No recent errors"
++    pm2 logs verbfy-backend --lines 5 --err 2>/dev/null | tail -5 || echo "    No recent errors"
 EOF
 
 echo ""
