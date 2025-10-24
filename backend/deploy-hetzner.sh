@@ -6,7 +6,7 @@ echo "=============================================="
 # Configuration
 REMOTE_HOST="46.62.161.121"
 REMOTE_USER="root"
-REMOTE_PATH="/root/verbfy"
+REMOTE_PATH="/root/Verbfy"
 BRANCH="main"
 
 # Function to check if we're in a git repository
@@ -60,7 +60,7 @@ deploy_to_remote() {
         set -e
         
         echo "📂 Navigating to project directory..."
-        cd /root/verbfy
+        cd /root/Verbfy
         
         echo "🔄 Pulling latest changes..."
         git pull origin main
@@ -75,8 +75,8 @@ deploy_to_remote() {
         npm run build:prod
         
         echo "🛑 Stopping existing PM2 process..."
-        pm2 stop verbfy-backend 2>/dev/null || true
-        pm2 delete verbfy-backend 2>/dev/null || true
+        pm2 stop backend 2>/dev/null || true
+        pm2 delete backend 2>/dev/null || true
         
         echo "🚀 Starting backend with PM2..."
         pm2 start ecosystem.config.js
@@ -261,14 +261,14 @@ curl -s -I https://api.verbfy.com > /dev/null && echo "    ✅ SSL certificate O
 echo "🖥️  Remote server status check..."
 ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'EOF'
     echo "  ➤ PM2 process status:"
-    pm2 jlist | jq -r '.[] | select(.name=="verbfy-backend") | "    Process: \(.name) | Status: \(.pm2_env.status) | CPU: \(.monit.cpu)% | Memory: \(.monit.memory/1024/1024 | floor)MB"' 2>/dev/null || pm2 status | grep verbfy-backend
+    pm2 jlist | jq -r '.[] | select(.name=="backend") | "    Process: \(.name) | Status: \(.pm2_env.status) | CPU: \(.monit.cpu)% | Memory: \(.monit.memory/1024/1024 | floor)MB"' 2>/dev/null || pm2 status | grep backend
     
     echo "  ➤ System resources:"
     echo "    $(free -h | grep Mem | awk '{print "Memory: " $3 "/" $2 " (" $3/$2*100 "% used)"}')"
     echo "    $(df -h / | tail -1 | awk '{print "Disk: " $3 "/" $2 " (" $5 " used)"}')"
     
     echo "  ➤ Recent error logs (if any):"
-    pm2 logs verbfy-backend --lines 5 --err 2>/dev/null | tail -5 || echo "    No recent errors"
+    pm2 logs backend --lines 5 --err 2>/dev/null | tail -5 || echo "    No recent errors"
 EOF
 
 echo ""
@@ -280,6 +280,6 @@ echo "  📊 Status: ✅ Completed successfully"
 echo ""
 echo "🔗 Quick access commands:"
 echo "  📊 Monitor: ssh $REMOTE_USER@$REMOTE_HOST 'pm2 monit'"
-echo "  📋 Logs: ssh $REMOTE_USER@$REMOTE_HOST 'pm2 logs verbfy-backend'"
-echo "  🔄 Restart: ssh $REMOTE_USER@$REMOTE_HOST 'pm2 restart verbfy-backend'"
+echo "  📋 Logs: ssh $REMOTE_USER@$REMOTE_HOST 'pm2 logs backend'"
+echo "  🔄 Restart: ssh $REMOTE_USER@$REMOTE_HOST 'pm2 restart backend'"
 echo "  🏥 Health: curl https://api.verbfy.com/api/health"
