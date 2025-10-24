@@ -8,8 +8,6 @@ import { AdminNotificationProvider } from '@/context/AdminNotificationContext';
 import '@/styles/globals.css';
 import { I18nProvider } from '@/lib/i18n';
 import { performanceUtils } from '@/utils/performance';
-import { registerServiceWorker, pwaUtils } from '@/utils/pwa';
-import { InstallBanner, OfflineBanner } from '@/components/pwa';
 import { useEffect } from 'react';
 
 export default function App({ Component, pageProps }: AppProps) {
@@ -17,11 +15,27 @@ export default function App({ Component, pageProps }: AppProps) {
     // Mark app initialization
     performanceUtils.mark('app-init');
     
-    // Register service worker for PWA
-    registerServiceWorker();
-    
-    // Request persistent storage for PWA
-    pwaUtils.requestPersistentStorage();
+    // Unregister any existing service workers
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for(let registration of registrations) {
+          console.log('Unregistering service worker:', registration.scope);
+          registration.unregister();
+        }
+      });
+      
+      // Clear all caches
+      if ('caches' in window) {
+        caches.keys().then(function(cacheNames) {
+          return Promise.all(
+            cacheNames.map(function(cacheName) {
+              console.log('Deleting cache:', cacheName);
+              return caches.delete(cacheName);
+            })
+          );
+        });
+      }
+    }
     
     // Report navigation timing after load
     const timer = setTimeout(() => {
@@ -29,10 +43,6 @@ export default function App({ Component, pageProps }: AppProps) {
       if (timing) {
         console.log('Navigation Timing:', timing);
       }
-      
-      // Log PWA status
-      console.log('PWA Display Mode:', pwaUtils.getDisplayMode());
-      console.log('Running as PWA:', pwaUtils.isPWA());
     }, 1000);
 
     return () => clearTimeout(timer);
@@ -46,9 +56,7 @@ export default function App({ Component, pageProps }: AppProps) {
             <NotificationProvider>
               <AdminProvider>
                 <AdminNotificationProvider>
-                  <OfflineBanner />
                   <Component {...pageProps} />
-                  <InstallBanner />
                 </AdminNotificationProvider>
               </AdminProvider>
             </NotificationProvider>
