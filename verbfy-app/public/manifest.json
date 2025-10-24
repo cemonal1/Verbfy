@@ -2,15 +2,9 @@
   "name": "Verbfy - Language Learning Platform",
   "short_name": "Verbfy",
   "description": "Learn languages with native speakers through live video sessions",
-  "start_url": "/",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
-  "orientation": "portrait-primary",
-  "scope": "/",
-  "lang": "en",
-  "dir": "ltr",
-  "categories": ["education", "productivity"],
   "icons": [
     {
       "src": "/icons/icon-72x72.svg",

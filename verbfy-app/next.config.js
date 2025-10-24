@@ -1,8 +1,8 @@
 const withPWA = require('next-pwa')({
   dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: true, // Temporarily disable PWA to fix route fetching issues
+  register: false,
+  skipWaiting: false,
+  disable: process.env.NODE_ENV === 'development' ? true : true, // Completely disable PWA
   exclude: [
     /\.map$/,
     /manifest$/,
