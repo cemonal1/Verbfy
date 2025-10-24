@@ -91,6 +91,9 @@ deploy_to_remote() {
         sleep 5
         curl -f http://localhost:5000/api/health || echo "❌ Health check failed"
         
+        echo "🛡️  Performing CSRF endpoint check..."
+        curl -f http://localhost:5000/api/auth/csrf || echo "❌ CSRF endpoint failed"
+        
         echo "✅ Remote deployment completed!"
 EOF
     
@@ -215,6 +218,10 @@ echo "🏥 Performing health check..."
 sleep 5  # Wait for server to start
 curl -f http://localhost:5000/api/health || echo "❌ Health check failed"
 
+# CSRF check
+echo "🛡️  Performing CSRF endpoint check..."
+curl -f http://localhost:5000/api/auth/csrf || echo "❌ CSRF endpoint failed"
+
 # Memory check
 echo "💾 Memory usage:"
 free -h
@@ -249,6 +256,9 @@ echo "🔍 Post-deployment verification..."
 echo "🧪 Testing API endpoints..."
 echo "  ➤ Health check..."
 curl -s -f https://api.verbfy.com/api/health > /dev/null && echo "    ✅ Health endpoint OK" || echo "    ❌ Health endpoint failed"
+
+echo "  ➤ CSRF endpoint check..."
+curl -s -f -H "Origin: https://www.verbfy.com" https://api.verbfy.com/api/auth/csrf > /dev/null && echo "    ✅ CSRF endpoint OK" || echo "    ❌ CSRF endpoint failed"
 
 echo "  ➤ CORS preflight check..."
 curl -s -X OPTIONS -H "Origin: https://www.verbfy.com" -H "Access-Control-Request-Method: POST" https://api.verbfy.com/api/auth/login > /dev/null && echo "    ✅ CORS preflight OK" || echo "    ❌ CORS preflight failed"
