@@ -1,0 +1,46 @@
+HTTP/1.1 200 OK
+Date: Thu, 23 Oct 2025 22:12:29 GMT
+Content-Type: application/json; charset=utf-8
+Content-Length: 95
+Connection: keep-alive
+Server: cloudflare
+content-security-policy: default-src 'self';style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;font-src 'self' https://fonts.gstatic.com;img-src 'self' data: https:;script-src 'self';connect-src 'self' https: wss: wss://livekit.verbfy.com;frame-src 'self';object-src 'none';base-uri 'self';form-action 'self';frame-ancestors 'self';script-src-attr 'none';upgrade-insecure-requests
+cross-origin-opener-policy: same-origin
+cross-origin-resource-policy: same-origin
+origin-agent-cluster: ?1
+referrer-policy: no-referrer
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-dns-prefetch-control: off
+x-download-options: noopen
+x-frame-options: SAMEORIGIN
+x-xss-protection: 0
+x-robots-tag: noindex, nofollow, nosnippet, noarchive
+Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+surrogate-control: no-store
+permissions-policy: microphone=(self "https://www.verbfy.com" "https://verbfy.com" "https://api.verbfy.com" "https://app.verbfy.com" "https://46.62.161.121:3000" "https://46.62.161.121:5000"), camera=(self "https://www.verbfy.com" "https://verbfy.com" "https://api.verbfy.com" "https://app.verbfy.com" "https://46.62.161.121:3000" "https://46.62.161.121:5000"), geolocation=(self "https://www.verbfy.com" "https://verbfy.com" "https://api.verbfy.com" "https://app.verbfy.com" "https://46.62.161.121:3000" "https://46.62.161.121:5000")
+vary: Origin
+vary: Origin
+access-control-allow-credentials: true
+access-control-allow-credentials: true
+access-control-expose-headers: set-cookie,X-CSRF-Token,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Retry-After
+feature-policy: microphone self https://www.verbfy.com https://verbfy.com https://api.verbfy.com https://app.verbfy.com https://46.62.161.121:3000 https://46.62.161.121:5000; camera self https://www.verbfy.com https://verbfy.com https://api.verbfy.com https://app.verbfy.com https://46.62.161.121:3000 https://46.62.161.121:5000; geolocation self https://www.verbfy.com https://verbfy.com https://api.verbfy.com https://app.verbfy.com https://46.62.161.121:3000 https://46.62.161.121:5000
+api-version: 1.0.0
+x-permitted-cross-domain-policies: none
+ratelimit-policy: 200;w=900
+ratelimit-limit: 200
+ratelimit-remaining: 197
+ratelimit-reset: 535
+x-csrf-token: 5abae509cd2c64479183c223290848b13dd60b0760f3f8ac8d8630c99f709097
+etag: W/"5f-Lz9A/8Avr5Cno07zAcOa+vRlWGk"
+access-control-allow-origin: https://app.verbfy.com
+x-debug-upstream-set-cookie: XSRF-TOKEN=5abae509cd2c64479183c223290848b13dd60b0760f3f8ac8d8630c99f709097; Domain=.verbfy.com; Path=/; Secure; SameSite=Lax
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+cf-cache-status: DYNAMIC
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=zi73kd2kuPEzPFiF4vlamzVVwUmNMUqYnbgyB%2BX9Bobqv5F5Y%2FRyGbqneLt9GcSwfc5sjBXRhM2FWHfEmaEbfctC6LisycGzB79w1CrfCfppicRDQ3JBKWlY"}]}
+Set-Cookie: XSRF-TOKEN=5abae509cd2c64479183c223290848b13dd60b0760f3f8ac8d8630c99f709097; SameSite=None; Secure; Path=/; Domain=verbfy.com
+CF-RAY: 993493840db2d233-FRA
+alt-svc: h3=":443"; ma=86400
+
