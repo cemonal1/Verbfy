@@ -14,8 +14,11 @@ COPY . .
 # Build the application
 RUN npm run build
 
+# Install serve globally to serve static files
+RUN npm install -g serve
+
 # Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "start"] 
+# Start the application by serving the static files
+CMD ["serve", "-s", "out", "-l", "3000"]
