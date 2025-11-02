@@ -112,24 +112,25 @@ jobs:
         working-directory: verbfy-app
         run: npx playwright install --with-deps
 
-      - name: Start Next server
+      - name: Start Next server for E2E tests
         working-directory: verbfy-app
         run: |
-          nohup npm run start >/dev/null 2>&1 &
+          echo "Starting Next.js development server for E2E tests..."
+          nohup npm run dev >/dev/null 2>&1 &
           echo "Next server started in background"
 
       - name: Wait for Next server to be ready
         run: |
           echo "Waiting for http://localhost:3000 ..."
-          for i in {1..30}; do
-            if curl -sSf http://localhost:3000 >/dev/null; then
-              echo "Next server is up!"
+          for i in {1..60}; do
+            if curl -sSf http://localhost:3000 >/dev/null 2>&1; then
+              echo "✅ Next server is up!"
               exit 0
             fi
-            echo "Not ready yet, retry $i"
-            sleep 2
+            echo "⏳ Not ready yet, retry $i/60"
+            sleep 3
           done
-          echo "Server did not start in time" && exit 1
+          echo "❌ Server did not start in time" && exit 1
 
       - name: Run Playwright E2E (smoke)
         working-directory: verbfy-app
