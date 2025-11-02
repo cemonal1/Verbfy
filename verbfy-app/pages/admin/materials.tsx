@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRoleGuard } from '../../src/hooks/useAuth';
 import { useAdmin } from '../../src/context/AdminContext';
 import AdminSidebar from '../../src/components/admin/AdminSidebar';
+import { materialsAPI } from '../../src/lib/api';
 import { 
   CheckIcon, 
   XMarkIcon,
@@ -23,13 +24,18 @@ export default function MaterialsPage() {
 
   useEffect(() => {
     if (hasAccess) {
-      loadMaterials(1, { 
-        ...materialFilters, 
-        search: searchTerm, 
-        status: statusFilter === 'all' ? undefined : statusFilter as 'pending' | 'approved' | 'rejected'
-      });
+      // Debounce search to prevent forced reflow
+      const timer = setTimeout(() => {
+        loadMaterials(1, { 
+          ...materialFilters, 
+          search: searchTerm, 
+          status: statusFilter === 'all' ? undefined : statusFilter as 'pending' | 'approved' | 'rejected'
+        });
+      }, 300);
+      
+      return () => clearTimeout(timer);
     }
-  }, [hasAccess, loadMaterials, searchTerm, statusFilter]);
+  }, [hasAccess, loadMaterials, searchTerm, statusFilter, materialFilters]);
 
   const handleTogglePublic = async (materialId: string, isPublic: boolean) => {
     try {
@@ -59,6 +65,7 @@ export default function MaterialsPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    // Debounce search to prevent forced reflow
     setMaterialFilters({ ...materialFilters, search: searchTerm });
   };
 
@@ -94,6 +101,11 @@ export default function MaterialsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Materials Management</h1>
             <p className="text-gray-600 mt-2">Review and manage uploaded materials</p>
           </div>
+
+          {/* Upload Form */}
+          <AdminUploadForm onUploaded={() => {
+            loadMaterials(1, { ...materialFilters, search: searchTerm, status: statusFilter === 'all' ? undefined : statusFilter as any });
+          }} />
 
           {/* Filters */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -205,7 +217,7 @@ export default function MaterialsPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(material.createdAt).toLocaleDateString()}
+                          {new Date(material.createdAt).toLocaleDateString(undefined, {year: 'numeric', month: 'short', day: 'numeric'})}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end space-x-2">
@@ -316,6 +328,113 @@ export default function MaterialsPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AdminUploadForm({ onUploaded }: { onUploaded: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [tags, setTags] = useState('');
+  const [description, setDescription] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    if (!file) {
+      setError('Lütfen bir dosya seçin.');
+      return;
+    }
+    try {
+      setSubmitting(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      if (tags) formData.append('tags', tags);
+      if (description) formData.append('description', description);
+      formData.append('isPublic', isPublic ? 'true' : 'false');
+      // Axios tabanlı API helper ile yükleme (CSRF ve oturum başlıkları dahil)
+      const data = await materialsAPI.uploadMaterial(formData);
+      if (!data?.success) {
+        throw new Error(data?.message || 'Yükleme başarısız');
+      }
+      setSuccess('Materyal başarıyla yüklendi.');
+      setFile(null);
+      setTags('');
+      setDescription('');
+      setIsPublic(false);
+      onUploaded();
+    } catch (err: any) {
+      setError(err?.message || 'Beklenmeyen bir hata oluştu');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload New Material</h2>
+      {error && (
+        <div className="mb-4 rounded bg-red-50 border border-red-200 text-red-700 px-4 py-2">{error}</div>
+      )}
+      {success && (
+        <div className="mb-4 rounded bg-green-50 border border-green-200 text-green-700 px-4 py-2">{success}</div>
+      )}
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">File</label>
+          <input
+            type="file"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer focus:outline-none"
+          />
+          <p className="mt-1 text-xs text-gray-500">Desteklenen türler: PDF, görüntü, video, doküman, ses. 50MB limit.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
+            <input
+              type="text"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="grammar, reading, A2"
+            />
+          </div>
+          <div className="flex items-center">
+            <input
+              id="isPublic"
+              type="checkbox"
+              checked={isPublic}
+              onChange={(e) => setIsPublic(e.target.checked)}
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+            />
+            <label htmlFor="isPublic" className="ml-2 text-sm text-gray-700">Public</label>
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Kısa açıklama"
+          />
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+          >
+            {submitting ? 'Yükleniyor...' : 'Yükle'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
