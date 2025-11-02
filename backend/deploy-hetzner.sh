@@ -8,6 +8,8 @@ REMOTE_HOST="46.62.161.121"
 REMOTE_USER="root"
 REMOTE_PATH="/root/Verbfy"
 BRANCH="main"
+PM2_CONFIG="ecosystem.config.js"
+APP_NAME="verbfy-backend"
 
 # Function to check if we're in a git repository
 check_git_repo() {
@@ -301,6 +303,6 @@ echo "  📊 Status: ✅ Completed successfully"
 echo ""
 echo "🔗 Quick access commands:"
 echo "  📊 Monitor: ssh $REMOTE_USER@$REMOTE_HOST 'pm2 monit'"
-echo "  📋 Logs: ssh $REMOTE_USER@$REMOTE_HOST 'pm2 logs backend'"
-echo "  🔄 Restart: ssh $REMOTE_USER@$REMOTE_HOST 'pm2 restart backend'"
+echo "  📋 Logs: ssh $REMOTE_USER@$REMOTE_HOST 'pm2 logs $APP_NAME'"
+echo "  🔄 Restart: ssh $REMOTE_USER@$REMOTE_HOST 'pm2 restart $APP_NAME'"
 echo "  🏥 Health: curl https://api.verbfy.com/api/health"

@@ -158,22 +158,25 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     
     authLogger.info('Registration successful', { userId: user._id, role: user.role });
     if (requiresApproval) {
-      // Notify admins
+      // Notify admins (non-blocking): do not await email sending to avoid request timeouts
       try {
         const admins = await User.find({ role: 'admin' }).select('email').lean();
         const adminEmails = admins.map(a => a.email).filter(Boolean);
         if (adminEmails.length) {
-          await sendEmail(adminEmails, 'New teacher application', `
+          const html = `
             <p>A new teacher has registered and awaits approval:</p>
             <ul>
               <li>Name: ${user.name}</li>
               <li>Email: ${user.email}</li>
             </ul>
             <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/users">Review applications</a></p>
-          `);
+          `;
+          // Fire-and-forget; log errors but never block registration response
+          sendEmail(adminEmails, 'New teacher application', html)
+            .catch((e) => console.warn('Failed to send admin teacher application email:', e));
         }
       } catch (e) {
-        console.warn('Failed to send admin teacher application email:', e);
+        console.warn('Failed to queue admin teacher application email:', e);
       }
     }
     res.status(201).json({

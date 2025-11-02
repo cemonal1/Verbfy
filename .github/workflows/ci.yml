@@ -93,9 +93,53 @@ jobs:
         run: npm test --if-present
         continue-on-error: true
 
+      - name: Run backend Jest E2E (smoke)
+        working-directory: backend
+        run: npx jest --testPathPattern=e2e --ci
+        continue-on-error: true
+
       - name: Run frontend tests (if available)
         working-directory: verbfy-app
         run: npm test --if-present
         continue-on-error: true
+
+      - name: Run frontend Jest E2E (smoke)
+        working-directory: verbfy-app
+        run: npm run test:e2e
+        continue-on-error: true
+
+      - name: Install Playwright browsers
+        working-directory: verbfy-app
+        run: npx playwright install --with-deps
+
+      - name: Start Next server
+        working-directory: verbfy-app
+        run: |
+          nohup npm run start >/dev/null 2>&1 &
+          echo "Next server started in background"
+
+      - name: Wait for Next server to be ready
+        run: |
+          echo "Waiting for http://localhost:3000 ..."
+          for i in {1..30}; do
+            if curl -sSf http://localhost:3000 >/dev/null; then
+              echo "Next server is up!"
+              exit 0
+            fi
+            echo "Not ready yet, retry $i"
+            sleep 2
+          done
+          echo "Server did not start in time" && exit 1
+
+      - name: Run Playwright E2E (smoke)
+        working-directory: verbfy-app
+        run: npm run test:pw:e2e -- --base-url=http://localhost:3000 --reporter=html
+
+      - name: Upload Playwright HTML Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: verbfy-app/playwright-report
 
 

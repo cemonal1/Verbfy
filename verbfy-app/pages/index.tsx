@@ -1,19 +1,24 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useAuthContext } from '@/context/AuthContext';
 
 export default function HomePage() {
   const { user, loading } = useAuthContext();
   const router = useRouter();
+  const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
+    if (!router.isReady) return;
+    if (hasRedirectedRef.current) return;
+
     if (!loading) {
+      hasRedirectedRef.current = true;
       if (user) {
-        // Redirect authenticated users to their dashboard
+        // Authenticated users -> dashboard
         const dashboardPath = user.role === 'student' ? '/student/dashboard' : '/teacher/dashboard';
         router.replace(dashboardPath);
       } else {
-        // Redirect unauthenticated users to the landing page
+        // Unauthenticated users -> landing
         router.replace('/landing');
       }
     }
@@ -28,4 +33,4 @@ export default function HomePage() {
       </div>
     </div>
   );
-} 
+}

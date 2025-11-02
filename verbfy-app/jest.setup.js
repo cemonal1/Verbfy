@@ -1,3 +1,6 @@
+// Extend jest with DOM matchers
+require('@testing-library/jest-dom');
+
 // Mock Next.js router
 jest.mock('next/router', () => ({
   useRouter() {

@@ -124,6 +124,17 @@ const StudentReservePage: React.FC = () => {
     }
   };
 
+  // Deep-link: preselect teacher from query param
+  useEffect(() => {
+    const { teacherId } = router.query as { teacherId?: string };
+    if (!teacherId) return;
+    if (teachers.length === 0) return;
+    const found = teachers.find(t => t._id === teacherId || (t as any).id === teacherId);
+    if (found) {
+      handleTeacherSelect(found);
+    }
+  }, [router.query, teachers]);
+
   const fetchAvailability = async (teacherId: string) => {
     try {
       setLoading(true);

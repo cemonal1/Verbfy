@@ -25,6 +25,7 @@ import { corsConfig, corsMonitoring, preflightHandler, corsErrorHandler, getAllo
 import { securityMiddleware, ddosProtection, requestSizeLimiter, securityHeaders } from './middleware/security';
 import { securityHeaders as enhancedSecurityHeaders, additionalSecurityHeaders, sanitizeRequest, apiVersioning, requestTimeout, securityMonitoring } from './config/security';
 import { performanceMonitoring, startMonitoring, getHealthMetrics, requestTimeoutMonitoring } from './middleware/monitoring';
+import { setupLoggingInterceptor, requestLogger } from './middleware/loggingMiddleware';
 import livekitRoutes from './routes/livekitRoutes';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/userRoutes';
@@ -90,6 +91,9 @@ try {
 // Initialize monitoring
 initMonitoring();
 
+// Setup logging interceptor to standardize all console logs
+setupLoggingInterceptor();
+
 // Initialize express and HTTP server
 const app = express();
 const server = createServer(app);
@@ -134,11 +138,8 @@ app.use((req, res, next) => {
 
 // CORS setup completed
 
-// Debug middleware to log all requests
-app.use((req, res, next) => {
-  // Request logged
-  next();
-});
+// Structured request logging middleware
+app.use(requestLogger);
 
 // API versioning and timeout
 app.use(apiVersioning);

@@ -54,10 +54,15 @@ export default function RegisterPage() {
       // Log for debugging
       console.log('Registration successful:', res.data.user);
       
-      // Redirect based on role
-      if (res.data.user.role === 'student') {
+      // Redirect based on role and approval status
+      const registeredUser = res.data.user;
+      const isPendingTeacher = registeredUser.role === 'teacher' && (registeredUser.isApproved === false || registeredUser.approvalStatus === 'pending');
+      if (isPendingTeacher) {
+        // Unapproved teachers land on student dashboard until approval
         router.push('/student/dashboard');
-      } else if (res.data.user.role === 'teacher') {
+      } else if (registeredUser.role === 'student') {
+        router.push('/student/dashboard');
+      } else if (registeredUser.role === 'teacher') {
         router.push('/teacher/dashboard');
       } else {
         router.push('/dashboard');

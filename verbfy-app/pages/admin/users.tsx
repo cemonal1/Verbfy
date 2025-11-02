@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRoleGuard } from '../../src/hooks/useAuth';
 import { useAdmin } from '../../src/context/AdminContext';
 import AdminSidebar from '../../src/components/admin/AdminSidebar';
@@ -119,7 +120,7 @@ function EditUserModal({ user, isOpen, onClose, onSave }: EditUserModalProps) {
 
 export default function UsersPage() {
   const { hasAccess, isLoading: authLoading } = useRoleGuard(['admin']);
-  const { state, loadUsers, updateUserRole, updateUserStatus, deleteUser, setUserFilters } = useAdmin();
+  const { state, loadUsers, updateUser, updateUserRole, updateUserStatus, deleteUser, setUserFilters } = useAdmin();
   const { users, usersLoading, userFilters, usersPagination } = state;
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -128,6 +129,8 @@ export default function UsersPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [viewingUser, setViewingUser] = useState<AdminUser | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   useEffect(() => {
     if (hasAccess) {
@@ -180,11 +183,27 @@ export default function UsersPage() {
     setIsEditModalOpen(true);
   };
 
+  const handleViewUser = (user: AdminUser) => {
+    setViewingUser(user);
+    setIsViewModalOpen(true);
+  };
+
   const handleSaveUser = async (userData: { name: string; email: string; role: string; status: string }) => {
     if (!editingUser) return;
     
     try {
       setProcessingId(editingUser._id);
+      // Update name/email if changed
+      const updates: { name?: string; email?: string } = {};
+      if (userData.name !== (editingUser.name || '')) {
+        updates.name = userData.name;
+      }
+      if (userData.email !== (editingUser.email || '')) {
+        updates.email = userData.email;
+      }
+      if (updates.name || updates.email) {
+        await updateUser(editingUser._id, updates);
+      }
       // Update role if changed
       if (userData.role !== editingUser.role) {
         await updateUserRole(editingUser._id, { role: userData.role as 'student' | 'teacher' | 'admin' });
@@ -369,6 +388,14 @@ export default function UsersPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end space-x-2">
+                            {/* View Button */}
+                            <Link
+                              href={`/admin/users/${user._id}`}
+                              className="text-gray-600 hover:text-gray-900 p-1 rounded disabled:opacity-50"
+                              title="View Details"
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                            </Link>
                             {/* Edit Button */}
                             <button
                               onClick={() => handleEditUser(user)}
@@ -470,6 +497,64 @@ export default function UsersPage() {
         }}
         onSave={handleSaveUser}
       />
+
+      {/* View User Modal */}
+      {isViewModalOpen && viewingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">User Details</h2>
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setViewingUser(null);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+                aria-label="Close"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <span className="text-xs text-gray-500">Name</span>
+                <p className="text-sm font-medium text-gray-900">{viewingUser.name}</p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-500">Email</span>
+                <p className="text-sm text-gray-900">{viewingUser.email}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-gray-500">Role</span>
+                  <p className="text-sm text-gray-900 capitalize">{viewingUser.role}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-500">Status</span>
+                  <p className="text-sm text-gray-900 capitalize">{viewingUser.status || 'active'}</p>
+                </div>
+              </div>
+              <div>
+                <span className="text-xs text-gray-500">Joined</span>
+                <p className="text-sm text-gray-900">{new Date(viewingUser.createdAt).toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setViewingUser(null);
+                }}
+                className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

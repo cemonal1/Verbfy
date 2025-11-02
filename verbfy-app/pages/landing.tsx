@@ -668,7 +668,7 @@ export default function LandingPage() {
                     </div>
                     <span className="ml-2 text-sm text-gray-600">{(((teacher as any).rating || 4.9)).toFixed(1)}</span>
                   </div>
-                  <Link href={`/teachers/${(teacher as any).slug || teacher._id || teacher.id || ''}`} className="w-full inline-flex justify-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                  <Link href={`/student/reserve?teacherId=${encodeURIComponent((teacher as any).slug || teacher._id || teacher.id || '')}`} className="w-full inline-flex justify-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors">
                     {t('landing.teachers.book','Book Lesson')}
                   </Link>
                 </div>

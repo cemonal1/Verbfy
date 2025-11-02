@@ -24,17 +24,33 @@ try {
       const raw = process.env.NEXT_PUBLIC_API_BASE_URL || '';
       const trimmed = raw.replace(/\/$/, '');
       
-      // Check if we're in production (verbfy.com domain)
+      // If explicit env is provided, use it as-is
+      if (trimmed) return trimmed;
+
+      // Browser context: decide by hostname
       if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
+        // Local development defaults
+        if (
+          hostname === 'localhost' ||
+          hostname === '127.0.0.1' ||
+          /^\d+\.\d+\.\d+\.\d+$/.test(hostname)
+        ) {
+          return 'http://localhost:5000';
+        }
+        // Production domains
         if (hostname === 'verbfy.com' || hostname === 'www.verbfy.com') {
           return 'https://api.verbfy.com';
         }
+        // Same-origin fallback
+        return '/';
       }
       
-      // If no env is provided, default to production API domain
-      if (!trimmed) return 'https://api.verbfy.com';
-      return trimmed;
+      // Node context fallback: prefer localhost in dev
+      if (process.env.NODE_ENV !== 'production') {
+        return 'http://localhost:5000';
+      }
+      return 'https://api.verbfy.com';
     })(),
     timeout: 30000,
     withCredentials: true,
@@ -150,7 +166,9 @@ if ((api as any)?.interceptors?.response) {
         if (typeof window !== 'undefined') {
           try {
             tokenStorage.removeToken();
-            window.location.href = '/auth/login';
+            const path = window.location.pathname || '';
+            const isAdminRoute = path.startsWith('/admin');
+            window.location.href = isAdminRoute ? '/admin/login' : '/auth/login';
           } catch {}
         }
       }
@@ -454,6 +472,10 @@ export const adminAPI = {
 
   getUserById: (id: string) => {
     return api.get(`/api/admin/users/${id}`);
+  },
+
+  updateUser: (id: string, data: { name?: string; email?: string }) => {
+    return api.put(`/api/admin/users/${id}`, data);
   },
 
   updateUserRole: (id: string, role: string) => {

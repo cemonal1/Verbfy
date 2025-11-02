@@ -5,16 +5,25 @@ import multer from 'multer';
 import * as path from 'path';
 import * as fs from 'fs';
 
+// Resolve uploads directory to an absolute path (robust across environments)
+const FREE_UPLOADS_DIR = path.resolve(__dirname, '../../uploads/free-materials');
+if (!fs.existsSync(FREE_UPLOADS_DIR)) {
+  try {
+    fs.mkdirSync(FREE_UPLOADS_DIR, { recursive: true });
+  } catch (e) {
+    // Fallback: ensure base uploads exists
+    const base = path.resolve(__dirname, '../../uploads');
+    if (!fs.existsSync(base)) fs.mkdirSync(base, { recursive: true });
+    fs.mkdirSync(FREE_UPLOADS_DIR, { recursive: true });
+  }
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = 'uploads/free-materials';
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
+  destination: (_req, _file, cb) => {
+    cb(null, FREE_UPLOADS_DIR);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
@@ -323,8 +332,9 @@ export class FreeMaterialController {
 
       // Increment download count
       await material.incrementDownload();
-
-      const filePath = material.fileUrl.substring(1);
+      // Derive absolute file path robustly
+      const fileName = path.basename(material.fileUrl || '');
+      const filePath = path.join(FREE_UPLOADS_DIR, fileName);
       if (!fs.existsSync(filePath)) {
         res.status(404).json({ success: false, message: 'File not found' });
       return;

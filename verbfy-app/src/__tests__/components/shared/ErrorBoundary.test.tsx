@@ -14,10 +14,10 @@ const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
 
 // Simple Error Boundary component for testing
 class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
+  { children: React.ReactNode; showDetails?: boolean },
   { hasError: boolean; error?: Error }
 > {
-  constructor(props: { children: React.ReactNode }) {
+  constructor(props: { children: React.ReactNode; showDetails?: boolean }) {
     super(props)
     this.state = { hasError: false }
   }
@@ -36,7 +36,7 @@ class ErrorBoundary extends React.Component<
         <div data-testid="error-boundary">
           <h2>Something went wrong</h2>
           <p>Please try refreshing the page</p>
-          {process.env.NODE_ENV === 'development' && (
+          {this.props.showDetails && (
             <details>
               <summary>Error Details</summary>
               <pre>{this.state.error?.message}</pre>
@@ -88,53 +88,25 @@ describe('ErrorBoundary', () => {
   })
 
   it('provides error details in development mode', () => {
-    const originalEnv = process.env.NODE_ENV
-    // Set NODE_ENV to development via Object.defineProperty to override read-only property
-    Object.defineProperty(process.env, 'NODE_ENV', {
-      value: 'development',
-      writable: true,
-      configurable: true
-    })
-
     render(
-      <ErrorBoundary>
+      <ErrorBoundary showDetails>
         <ThrowError shouldThrow={true} />
       </ErrorBoundary>
     )
 
     expect(screen.getByText(/Error Details/i)).toBeInTheDocument()
     expect(screen.getByText(/Test error/i)).toBeInTheDocument()
-
-    // Restore original env
-    Object.defineProperty(process.env, 'NODE_ENV', {
-      value: originalEnv,
-      writable: true,
-      configurable: true
-    })
   })
 
   it('does not show error details outside development mode', () => {
-    const originalEnv = process.env.NODE_ENV
-    Object.defineProperty(process.env, 'NODE_ENV', {
-      value: 'production',
-      writable: true,
-      configurable: true
-    })
-
     render(
-      <ErrorBoundary>
+      <ErrorBoundary showDetails={false}>
         <ThrowError shouldThrow={true} />
       </ErrorBoundary>
     )
 
     expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument()
     expect(screen.queryByText(/Error Details/i)).toBeNull()
-
-    Object.defineProperty(process.env, 'NODE_ENV', {
-      value: originalEnv,
-      writable: true,
-      configurable: true
-    })
   })
 
   it('calls componentDidCatch when error occurs', () => {

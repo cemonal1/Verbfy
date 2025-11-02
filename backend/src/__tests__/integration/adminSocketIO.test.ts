@@ -18,7 +18,7 @@ describe('Admin Socket.IO Integration Tests', () => {
   let studentToken: string;
 
 
-  const port = 3001; // Use different port for testing
+  let port: number; // Bind to an ephemeral port to avoid conflicts
 
   beforeAll(async () => {
     // Database connection is handled in Jest setup
@@ -37,9 +37,19 @@ describe('Admin Socket.IO Integration Tests', () => {
     // Initialize admin notification service
     adminNotificationService.setSocketServer(io);
 
-    // Start server
-    await new Promise<void>((resolve) => {
-      httpServer.listen(port, resolve);
+    // Start server on an ephemeral port to avoid collisions
+    await new Promise<void>((resolve, reject) => {
+      httpServer.once('error', reject);
+      httpServer.listen(0, () => {
+        const address = httpServer.address();
+        if (typeof address === 'object' && address && 'port' in address) {
+          port = address.port as number;
+        } else {
+          // Fallback if address not available; should not happen
+          port = Number(process.env.ADMIN_SOCKETS_TEST_PORT || 0);
+        }
+        resolve();
+      });
     });
   });
 
@@ -174,6 +184,7 @@ describe('Admin Socket.IO Integration Tests', () => {
         auth: { token: adminToken }
       });
       adminClientSocket.on('connect', done);
+      adminClientSocket.on('connect_error', done);
     });
 
     it('should emit system health notifications to admin clients', (done) => {
@@ -229,6 +240,7 @@ describe('Admin Socket.IO Integration Tests', () => {
         auth: { token: adminToken }
       });
       adminClientSocket.on('connect', done);
+      adminClientSocket.on('connect_error', done);
     });
 
     it('should emit security alerts to admin clients', (done) => {
@@ -298,6 +310,7 @@ describe('Admin Socket.IO Integration Tests', () => {
         auth: { token: adminToken }
       });
       adminClientSocket.on('connect', done);
+      adminClientSocket.on('connect_error', done);
     });
 
     it('should emit user activity notifications', (done) => {
@@ -355,6 +368,7 @@ describe('Admin Socket.IO Integration Tests', () => {
         auth: { token: adminToken }
       });
       adminClientSocket.on('connect', done);
+      adminClientSocket.on('connect_error', done);
     });
 
     it('should emit payment notifications', (done) => {
@@ -409,6 +423,7 @@ describe('Admin Socket.IO Integration Tests', () => {
         auth: { token: adminToken }
       });
       adminClientSocket.on('connect', done);
+      adminClientSocket.on('connect_error', done);
     });
 
     it('should emit teacher application notifications', (done) => {

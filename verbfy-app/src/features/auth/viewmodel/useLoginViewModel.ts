@@ -63,9 +63,13 @@ export function useLoginViewModel() {
         console.warn('useLoginViewModel: contextLogin is not a function');
       }
       console.log('useLoginViewModel: contextLogin resolved');
-      // Redirect based on role
+      // Redirect based on role and approval status
       const role = payload.user.role;
-      if (role === 'student') {
+      const isPendingTeacher = role === 'teacher' && (payload.user.isApproved === false || payload.user.approvalStatus === 'pending');
+      if (isPendingTeacher) {
+        // Unapproved teachers land on student dashboard until approval
+        router.push('/student/dashboard');
+      } else if (role === 'student') {
         router.push('/student/dashboard');
       } else if (role === 'teacher') {
         router.push('/teacher/dashboard');

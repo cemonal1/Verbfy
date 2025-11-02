@@ -256,6 +256,7 @@ interface AdminContextType {
   // User actions
   loadUsers: (page?: number, filters?: UserFilters) => Promise<void>;
   loadUserById: (id: string) => Promise<AdminUser | null>;
+  updateUser: (id: string, data: { name?: string; email?: string }) => Promise<void>;
   updateUserRole: (id: string, data: UpdateUserRoleData) => Promise<void>;
   updateUserStatus: (id: string, data: UpdateUserStatusData) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
@@ -354,6 +355,19 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
       console.error('Error loading user:', error);
       toast.error('Failed to load user details');
       return null;
+    }
+  };
+
+  const updateUser = async (id: string, data: { name?: string; email?: string }) => {
+    try {
+      const response = await adminAPI.updateUser(id, data);
+      if (response.data.success) {
+        dispatch({ type: 'UPDATE_USER', payload: response.data.data });
+        toast.success('User details updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating user details:', error);
+      toast.error('Failed to update user details');
     }
   };
 
@@ -601,6 +615,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
     loadOverview,
     loadUsers,
     loadUserById,
+    updateUser,
     updateUserRole,
     updateUserStatus,
     deleteUser,

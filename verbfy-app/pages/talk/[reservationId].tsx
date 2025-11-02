@@ -141,6 +141,12 @@ const LessonRoom: React.FC = () => {
   const generateLiveKitToken = async () => {
     try {
       if (!reservation) return;
+      // Ensure LiveKit server URL is configured
+      const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+      if (!livekitUrl) {
+        setError('LiveKit yapılandırması eksik. Lütfen .env dosyasına NEXT_PUBLIC_LIVEKIT_URL değerini ekleyin.');
+        return;
+      }
       
       const roomName = `lesson-${reservation._id}`;
       const response = await api.post(`/api/livekit/token/${roomName}`, {
@@ -236,6 +242,13 @@ const LessonRoom: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             The lesson you're looking for doesn't exist or you don't have access to it.
           </p>
+          {!process.env.NEXT_PUBLIC_LIVEKIT_URL && (
+            <p className="text-sm text-red-600 mb-6">
+              LiveKit URL yapılandırılmamış. .env dosyasına şu satırı ekleyin:
+              <br />
+              <code className="bg-red-100 text-red-700 px-1">NEXT_PUBLIC_LIVEKIT_URL=wss://your-livekit-host</code>
+            </p>
+          )}
           <button
             onClick={() => router.push('/dashboard')}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"

@@ -14,7 +14,7 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { user, loading: authLoading } = useAuthContext();
+  const { user, loading: authLoading, setAccessToken, setUser } = useAuthContext();
   const router = useRouter();
 
   // Redirect if already logged in as admin
@@ -49,9 +49,17 @@ export default function AdminLoginPage() {
       if (response.data.success) {
         adminAuthLogger.info('Admin login successful', { email });
         
-        // Store token and user data
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        // Store token and user in AuthContext/secure storage for app-wide auth
+        try {
+          if (response.data.token) {
+            setAccessToken(response.data.token);
+          }
+          if (response.data.user) {
+            setUser(response.data.user);
+          }
+        } catch (e) {
+          adminAuthLogger.warn('Failed to set auth context after admin login', { error: (e as Error)?.message });
+        }
         
         // Redirect to admin dashboard
         router.replace('/admin/dashboard');
@@ -110,9 +118,18 @@ export default function AdminLoginPage() {
 
         {/* Login Form */}
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 p-6 sm:p-8">
-          <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+          <form
+            className="space-y-4 sm:space-y-6"
+            onSubmit={handleSubmit}
+            data-testid="admin-login-form"
+          >
             {error && (
-              <div className="bg-red-500/10 border border-red-400/20 text-red-200 px-4 py-3 rounded-xl text-sm">
+              <div
+                role="alert"
+                aria-live="polite"
+                aria-atomic="true"
+                className="bg-red-500/10 border border-red-400/20 text-red-200 px-4 py-3 rounded-xl text-sm"
+              >
                 <div className="flex items-center">
                   <i className="fas fa-exclamation-triangle mr-2"></i>
                   {error}

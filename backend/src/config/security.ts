@@ -16,16 +16,15 @@ export const securityHeaders = helmet({
         "'self'",
         "'unsafe-inline'", // Required for Next.js
         "'unsafe-eval'", // Required for development
-        "https://js.sentry-cdn.com",
-        "https://browser.sentry-cdn.com",
+        "https://*.sentry-cdn.com",
         "https://cdn.jsdelivr.net",
         "https://unpkg.com",
-        "https://accounts.google.com",
-        "https://apis.google.com",
-        "https://www.gstatic.com",
-        "https://connect.facebook.net",
-        "https://www.facebook.com",
-        "https://static.xx.fbcdn.net",
+        "https://*.google.com",
+        "https://*.googleapis.com",
+        "https://*.gstatic.com",
+        "https://*.facebook.net",
+        "https://*.facebook.com",
+        "https://*.fbcdn.net",
       ],
       styleSrc: [
         "'self'",
@@ -46,8 +45,8 @@ export const securityHeaders = helmet({
         "blob:",
         "https:",
         "http:", // For development
-        "https://lh3.googleusercontent.com", // Google profile images
-        "https://platform-lookaside.fbsbx.com", // Facebook profile images
+        "https://*.googleusercontent.com", // Google profile images
+        "https://*.fbsbx.com", // Facebook profile images
         "https://graph.facebook.com", // Facebook profile images
         "https://res.cloudinary.com", // Cloudinary images
         "https://verbfy-uploads.s3.amazonaws.com", // S3 uploads
