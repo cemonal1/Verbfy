@@ -134,7 +134,7 @@ jobs:
 
       - name: Run Playwright E2E (smoke)
         working-directory: verbfy-app
-        run: npm run test:pw:e2e -- --base-url=http://localhost:3000 --reporter=html
+        run: npm run test:pw:e2e -- --reporter=html
 
       - name: Upload Playwright HTML Report
         if: always()
