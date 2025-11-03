@@ -200,10 +200,30 @@ function TeacherDashboardPage() {
     .slice(0, 4);
 
   const teachingStats = [
-    { label: 'Teaching Hours', value: `${Math.round(completedLessons * 0.75)}`, unit: 'hrs', color: 'blue' },
-    { label: 'Student Satisfaction', value: '96', unit: '%', color: 'green' },
-    { label: 'Lesson Completion', value: `${Math.round((completedLessons / totalBookings) * 100)}`, unit: '%', color: 'purple' },
-    { label: 'Response Rate', value: '98', unit: '%', color: 'orange' }
+    { 
+      label: 'Teaching Hours', 
+      value: `${Math.round(completedLessons * 1)}`, // Assuming 1 hour per lesson on average
+      unit: 'hrs', 
+      color: 'blue' 
+    },
+    { 
+      label: 'Student Rating', 
+      value: user?.rating ? user.rating.toFixed(1) : '0.0', 
+      unit: '/5', 
+      color: 'green' 
+    },
+    { 
+      label: 'Lesson Completion', 
+      value: totalBookings > 0 ? `${Math.round((completedLessons / totalBookings) * 100)}` : '0', 
+      unit: '%', 
+      color: 'purple' 
+    },
+    { 
+      label: 'Total Students', 
+      value: `${uniqueStudents}`, 
+      unit: '', 
+      color: 'orange' 
+    }
   ];
 
   if (loading) {

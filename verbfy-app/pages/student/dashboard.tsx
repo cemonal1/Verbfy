@@ -130,44 +130,92 @@ function StudentDashboardPage() {
     };
   }).filter((lesson): lesson is NonNullable<typeof lesson> => Boolean(lesson)); // Remove any null entries
 
-  // Progress data for learning progress section
+  // Progress data from user's actual progress
   const progressData = [
-    { label: 'Grammar', progress: 75, icon: 'book', color: 'blue' },
-    { label: 'Vocabulary', progress: 60, icon: 'language', color: 'green' },
-    { label: 'Speaking', progress: 85, icon: 'microphone', color: 'purple' },
-    { label: 'Listening', progress: 70, icon: 'headphones', color: 'orange' }
+    { 
+      label: 'Grammar', 
+      progress: user?.overallProgress?.grammar || 0, 
+      icon: 'book', 
+      color: 'blue' 
+    },
+    { 
+      label: 'Vocabulary', 
+      progress: user?.overallProgress?.vocabulary || 0, 
+      icon: 'language', 
+      color: 'green' 
+    },
+    { 
+      label: 'Speaking', 
+      progress: user?.overallProgress?.speaking || 0, 
+      icon: 'microphone', 
+      color: 'purple' 
+    },
+    { 
+      label: 'Listening', 
+      progress: user?.overallProgress?.listening || 0, 
+      icon: 'headphones', 
+      color: 'orange' 
+    },
+    { 
+      label: 'Reading', 
+      progress: user?.overallProgress?.reading || 0, 
+      icon: 'book-open', 
+      color: 'indigo' 
+    },
+    { 
+      label: 'Writing', 
+      progress: user?.overallProgress?.writing || 0, 
+      icon: 'pencil', 
+      color: 'pink' 
+    }
   ];
 
   const stats = [
     {
       title: 'Completed Lessons',
-      value: `${completedLessons}+`,
+      value: `${completedLessons}`,
       icon: 'fas fa-graduation-cap',
       color: 'blue',
-      trend: 'up',
-      trendValue: '+12%'
+      trend: completedLessons > 0 ? 'up' : 'neutral',
+      trendValue: completedLessons > 0 ? `${completedLessons} total` : 'Start learning'
     },
     {
       title: 'Upcoming Lessons',
       value: `${upcomingLessons}`,
       icon: 'fas fa-clock',
       color: 'green',
-      trend: 'up',
-      trendValue: '+2'
+      trend: upcomingLessons > 0 ? 'up' : 'neutral',
+      trendValue: upcomingLessons > 0 ? 'Scheduled' : 'Book a lesson'
     },
     {
       title: 'Total Bookings',
       value: `${totalBookings}`,
       icon: 'fas fa-calendar-check',
       color: 'purple',
-      trend: 'up',
-      trendValue: '+5%'
+      trend: totalBookings > 0 ? 'up' : 'neutral',
+      trendValue: totalBookings > 0 ? 'All time' : 'No bookings yet'
+    },
+    {
+      title: 'Learning Streak',
+      value: `${user?.currentStreak || 0}`,
+      icon: 'fas fa-fire',
+      color: 'orange',
+      trend: (user?.currentStreak || 0) > 0 ? 'up' : 'neutral',
+      trendValue: (user?.currentStreak || 0) > 0 ? `${user?.longestStreak || 0} best` : 'Start streak'
+    },
+    {
+      title: 'Study Time',
+      value: `${Math.round((user?.totalStudyTime || 0) / 60)}`,
+      icon: 'fas fa-clock',
+      color: 'indigo',
+      trend: (user?.totalStudyTime || 0) > 0 ? 'up' : 'neutral',
+      trendValue: (user?.totalStudyTime || 0) > 0 ? 'hours total' : 'Start studying'
     },
     {
       title: 'Active Teachers',
       value: `${new Set(bookings.map(b => b.teacher.email)).size}`,
       icon: 'fas fa-chalkboard-teacher',
-      color: 'orange',
+      color: 'teal',
       trend: 'up',
       trendValue: '+1'
     }

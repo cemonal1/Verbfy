@@ -47,35 +47,60 @@ export default function LandingPage() {
   useEffect(() => {
     setIsClient(true);
     
-    // Load fallback data immediately for better UX
-    const loadFallbackData = () => {
+    // Load real data from API or fallback
+    const loadTeacherData = async () => {
+      try {
+        // Try to load real teachers from API (no auth required for landing page)
+        const response = await fetch('/api/auth/teachers');
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data && data.data.length > 0) {
+            const realTeachers: TeacherCard[] = data.data.slice(0, 3).map((teacher: any) => ({
+              _id: teacher._id,
+              name: teacher.name,
+              specialties: teacher.specialties || ['English Teacher'],
+              profileImage: teacher.profileImage || '/images/default-avatar.png',
+              rating: teacher.rating || 0,
+              studentsCount: teacher.totalLessons || 0,
+              experience: teacher.experience ? `${teacher.experience}+ years` : 'Experienced'
+            }));
+            setFeaturedTeachers(realTeachers);
+            return; // Exit early if we got real data
+          }
+        }
+      } catch (error) {
+        console.log('Could not load real teachers, using fallback data');
+      }
+      
+      // Fallback data if API fails
       const fallbackTeachers: TeacherCard[] = [
         {
           _id: '1',
-          name: 'Sarah Johnson',
-          specialties: ['Conversation', 'Business English'],
+          name: 'Professional English Teachers',
+          specialties: ['Conversation', 'Business English', 'Grammar'],
           profileImage: '/images/default-avatar.png',
           rating: 4.9,
           studentsCount: 150,
-          experience: '5+ years'
+          experience: 'Experienced'
         },
         {
           _id: '2', 
-          name: 'Michael Chen',
-          specialties: ['Grammar', 'IELTS Prep'],
+          name: 'Certified Instructors',
+          specialties: ['IELTS Prep', 'Academic English'],
           profileImage: '/images/default-avatar.png',
           rating: 4.8,
           studentsCount: 120,
-          experience: '3+ years'
+          experience: 'Qualified'
         },
         {
           _id: '3',
-          name: 'Emma Wilson',
-          specialties: ['Pronunciation', 'Kids English'],
+          name: 'Native Speakers',
+          specialties: ['Pronunciation', 'Fluency Training'],
           profileImage: '/images/default-avatar.png',
           rating: 4.9,
           studentsCount: 200,
-          experience: '7+ years'
+          experience: 'Expert'
         }
       ];
 
@@ -136,7 +161,7 @@ export default function LandingPage() {
       setIsLoading(false);
     };
 
-    loadFallbackData();
+    loadTeacherData();
   }, []);
 
   // Tailwind purges dynamic classes; map explicit gradient classes to ensure icons render
