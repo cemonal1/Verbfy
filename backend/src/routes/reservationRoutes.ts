@@ -23,6 +23,12 @@ router.get('/upcoming', auth, reservationController.getUpcomingReservations);
 // Get reservation by ID (for video room access) - must be after specific routes
 router.get('/:reservationId', auth, reservationController.getReservationById);
 
+// Start lesson (create LiveKit room)
+router.post('/:reservationId/start', auth, reservationController.startLesson);
+
+// End lesson
+router.post('/:reservationId/end', auth, reservationController.endLesson);
+
 // Cancel reservation
 router.delete('/:reservationId', auth, idempotencyMiddleware, reservationController.cancelReservation);
 

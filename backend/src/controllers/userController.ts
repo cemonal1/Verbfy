@@ -9,19 +9,55 @@ import { cacheService } from '../services/cacheService';
 // Get all teachers
 export const getTeachers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const cacheKey = 'teachers:approved:active';
+    const { search, limit = 20, page = 1 } = req.query;
+    const cacheKey = `teachers:approved:active:${search || 'all'}:${limit}:${page}`;
     
-    const teachers = await cacheService.getOrSet(
+    const result = await cacheService.getOrSet(
       cacheKey,
       async () => {
-        return await UserModel.find({ role: 'teacher', isApproved: true, isActive: true })
-          .select('name email profileImage bio specialties rating totalLessons hourlyRate languages')
-          .sort({ rating: -1, totalLessons: -1 });
+        let query: any = { 
+          role: 'teacher', 
+          isApproved: true, 
+          isActive: true,
+          approvalStatus: 'approved'
+        };
+
+        // Add search functionality
+        if (search && typeof search === 'string') {
+          query.$or = [
+            { name: { $regex: search, $options: 'i' } },
+            { bio: { $regex: search, $options: 'i' } },
+            { specialties: { $in: [new RegExp(search, 'i')] } },
+            { education: { $regex: search, $options: 'i' } }
+          ];
+        }
+
+        const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+        
+        const [teachers, total] = await Promise.all([
+          UserModel.find(query)
+            .select('name email profileImage bio specialties rating totalLessons hourlyRate languages education experience certifications timezone nativeLanguage')
+            .sort({ rating: -1, totalLessons: -1, createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit as string)),
+          UserModel.countDocuments(query)
+        ]);
+
+        return { teachers, total, page: parseInt(page as string), limit: parseInt(limit as string) };
       },
-      900 // Cache for 15 minutes
+      600 // Cache for 10 minutes
     );
 
-    res.json({ success: true, teachers });
+    res.json({ 
+      success: true, 
+      teachers: result.teachers,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        pages: Math.ceil(result.total / result.limit)
+      }
+    });
   } catch (error: any) {
     console.error('Error fetching teachers:', error);
     res.status(500).json({ success: false, message: error.message || 'Failed to fetch teachers' });
@@ -66,6 +102,41 @@ export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void
   } catch (error: any) {
     console.error('Error fetching all users:', error);
     res.status(500).json({ message: error.message || 'Failed to fetch users' });
+  }
+};
+
+// Get teacher by ID (public endpoint for students)
+export const getTeacherById = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const cacheKey = `teacher:public:${id}`;
+    
+    const teacher = await cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        return await UserModel.findOne({ 
+          _id: id, 
+          role: 'teacher', 
+          isApproved: true, 
+          isActive: true,
+          approvalStatus: 'approved'
+        }).select('name email profileImage bio specialties rating totalLessons hourlyRate languages education experience certifications timezone nativeLanguage createdAt');
+      },
+      1800 // Cache for 30 minutes
+    );
+    
+    if (!teacher) {
+      res.status(404).json({ 
+        success: false,
+        message: 'Teacher not found or not approved' 
+      });
+      return;
+    }
+
+    res.json({ success: true, data: teacher });
+  } catch (error: any) {
+    console.error('Error fetching teacher:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to fetch teacher' });
   }
 };
 

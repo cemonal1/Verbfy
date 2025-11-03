@@ -34,6 +34,9 @@ const upload = multer({
 // Get all teachers (accessible by students)
 router.get('/teachers', auth, shortCache, userController.getTeachers);
 
+// Get teacher by ID (accessible by students)
+router.get('/teachers/:id', auth, shortCache, userController.getTeacherById);
+
 // Get all students (accessible by teachers)
 router.get('/students', auth, requireRole('teacher'), shortCache, userController.getStudents);
 

@@ -533,3 +533,202 @@ export const getReservationById = async (req: AuthRequest, res: Response): Promi
     });
   }
 };
+
+// Start lesson (create LiveKit room)
+export const startLesson = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { reservationId } = req.params;
+    const userId = req.user!.id;
+
+    const reservation = await Reservation.findById(reservationId)
+      .populate('student', 'name email')
+      .populate('teacher', 'name email');
+
+    if (!reservation) {
+      res.status(404).json({ 
+        success: false,
+        message: 'Reservation not found' 
+      });
+      return;
+    }
+
+    // Check if user is part of this reservation
+    const isStudent = reservation.student._id.toString() === userId;
+    const isTeacher = reservation.teacher._id.toString() === userId;
+
+    if (!isStudent && !isTeacher) {
+      res.status(403).json({ 
+        success: false,
+        message: 'Access denied to this reservation' 
+      });
+      return;
+    }
+
+    // Check if reservation is booked
+    if (reservation.status !== 'booked') {
+      res.status(400).json({ 
+        success: false,
+        message: 'Lesson cannot be started. Status: ' + reservation.status 
+      });
+      return;
+    }
+
+    // Check time window (15 minutes before to 15 minutes after start time)
+    const now = new Date();
+    const lessonDate = new Date(reservation.actualDate);
+    const [startHour, startMin] = reservation.startTime.split(':').map(Number);
+    const [endHour, endMin] = reservation.endTime.split(':').map(Number);
+    
+    const lessonStartTime = new Date(lessonDate);
+    lessonStartTime.setHours(startHour, startMin, 0, 0);
+    
+    const lessonEndTime = new Date(lessonDate);
+    lessonEndTime.setHours(endHour, endMin, 0, 0);
+
+    const timeBeforeStart = (lessonStartTime.getTime() - now.getTime()) / (1000 * 60);
+    const timeAfterEnd = (now.getTime() - lessonEndTime.getTime()) / (1000 * 60);
+
+    // Allow starting 15 minutes before and prevent starting after lesson ends
+    if (timeBeforeStart > 15) {
+      res.status(400).json({ 
+        success: false,
+        message: 'Lesson can only be started 15 minutes before the scheduled time' 
+      });
+      return;
+    }
+
+    if (timeAfterEnd > 0) {
+      res.status(400).json({ 
+        success: false,
+        message: 'Lesson time has already ended' 
+      });
+      return;
+    }
+
+    // Update reservation status to in-progress
+    reservation.status = 'inProgress';
+    await reservation.save();
+
+    // Generate room name
+    const roomName = `lesson-${reservationId}`;
+
+    res.json({
+      success: true,
+      message: 'Lesson started successfully',
+      data: {
+        reservationId: reservation._id,
+        roomName,
+        status: reservation.status,
+        student: reservation.student,
+        teacher: reservation.teacher,
+        startTime: reservation.startTime,
+        endTime: reservation.endTime,
+        lessonType: reservation.lessonType,
+        lessonLevel: reservation.lessonLevel
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error starting lesson:', error);
+    res.status(500).json({ 
+      success: false,
+      message: error.message || 'Failed to start lesson' 
+    });
+  }
+};
+
+// End lesson
+export const endLesson = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { reservationId } = req.params;
+    const userId = req.user!.id;
+    const { feedback, rating } = req.body;
+
+    const reservation = await Reservation.findById(reservationId)
+      .populate('student', 'name email')
+      .populate('teacher', 'name email');
+
+    if (!reservation) {
+      res.status(404).json({ 
+        success: false,
+        message: 'Reservation not found' 
+      });
+      return;
+    }
+
+    // Check if user is part of this reservation
+    const isStudent = reservation.student._id.toString() === userId;
+    const isTeacher = reservation.teacher._id.toString() === userId;
+
+    if (!isStudent && !isTeacher) {
+      res.status(403).json({ 
+        success: false,
+        message: 'Access denied to this reservation' 
+      });
+      return;
+    }
+
+    // Check if lesson is in progress
+    if (reservation.status !== 'inProgress') {
+      res.status(400).json({ 
+        success: false,
+        message: 'Lesson is not in progress' 
+      });
+      return;
+    }
+
+    // Update reservation status to completed
+    reservation.status = 'completed';
+    
+    // Add feedback if provided
+    if (feedback) {
+      reservation.feedback = feedback;
+    }
+
+    await reservation.save();
+
+    // Update teacher's total lessons and rating if student provided rating
+    if (isStudent && rating && rating >= 1 && rating <= 5) {
+      const teacher = await UserModel.findById(reservation.teacher._id);
+      if (teacher) {
+        const currentRating = teacher.rating || 0;
+        const currentLessons = teacher.totalLessons || 0;
+        
+        // Calculate new average rating
+        const newTotalLessons = currentLessons + 1;
+        const newRating = ((currentRating * currentLessons) + rating) / newTotalLessons;
+        
+        teacher.rating = Math.round(newRating * 10) / 10; // Round to 1 decimal
+        teacher.totalLessons = newTotalLessons;
+        
+        await teacher.save();
+      }
+    }
+
+    // Update student's total lessons taken
+    if (isTeacher) {
+      const student = await UserModel.findById(reservation.student._id);
+      if (student) {
+        student.totalLessonsTaken = (student.totalLessonsTaken || 0) + 1;
+        await student.save();
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Lesson completed successfully',
+      data: {
+        reservationId: reservation._id,
+        status: reservation.status,
+        feedback: reservation.feedback
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error ending lesson:', error);
+    res.status(500).json({ 
+      success: false,
+      message: error.message || 'Failed to end lesson' 
+    });
+  }
+};
