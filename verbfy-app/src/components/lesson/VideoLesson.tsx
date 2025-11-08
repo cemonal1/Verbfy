@@ -9,7 +9,7 @@ import {
 import '@livekit/components-styles';
 import { Room, RoomEvent, DisconnectReason } from 'livekit-client';
 import api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface VideoLessonProps {
   reservationId: string;
@@ -86,14 +86,9 @@ export default function VideoLesson({ reservationId, onLessonEnd, onError }: Vid
     }
   };
 
-  const handleDisconnected = (reason?: DisconnectReason) => {
-    console.log('Disconnected from room:', reason);
+  const handleDisconnected = () => {
+    console.log('Disconnected from room');
     setIsConnected(false);
-    
-    if (reason === DisconnectReason.ROOM_DELETED || reason === DisconnectReason.SERVER_SHUTDOWN) {
-      // Room was ended by teacher or server
-      handleLessonEnd();
-    }
   };
 
   const handleLessonEnd = async () => {
@@ -115,13 +110,9 @@ export default function VideoLesson({ reservationId, onLessonEnd, onError }: Vid
     }
   };
 
-  const handleConnected = (room: Room) => {
-    console.log('Connected to room:', room.name);
-    roomRef.current = room;
+  const handleConnected = () => {
+    console.log('Connected to room');
     setIsConnected(true);
-
-    // Set up room event listeners
-    room.on(RoomEvent.Disconnected, handleDisconnected);
   };
 
   if (loading) {

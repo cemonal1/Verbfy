@@ -84,7 +84,7 @@ export default function TeachersPage() {
         
         {pagination && (
           <div className="text-sm text-gray-600">
-            {t('teachers.showing', 'Showing {{count}} approved teachers', { count: pagination.total })}
+            {`Showing ${pagination.total} approved teachers`}
           </div>
         )}
       </div>

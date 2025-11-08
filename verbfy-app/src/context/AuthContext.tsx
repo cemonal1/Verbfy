@@ -19,11 +19,26 @@ export interface User extends Record<string, unknown> {
   approvalStatus?: 'pending' | 'approved' | 'rejected';
   // Learning progress fields
   cefrLevel?: string;
-  overallProgress?: number;
+  overallProgress?: {
+    grammar: number;
+    reading: number;
+    writing: number;
+    listening: number;
+    speaking: number;
+    vocabulary: number;
+  };
   currentStreak?: number;
   longestStreak?: number;
   totalStudyTime?: number;
   achievements?: string[];
+  // Teacher fields
+  rating?: number;
+  totalLessons?: number;
+  hourlyRate?: number;
+  specialties?: string[];
+  languages?: string[];
+  experience?: number;
+  introVideoUrl?: string;
   // Subscription fields
   subscriptionStatus?: 'active' | 'inactive' | 'expired';
   subscriptionType?: string;
