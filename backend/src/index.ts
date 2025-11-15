@@ -62,6 +62,7 @@ import lessonChatRoutes from './routes/lessonChat';
 import teacherRoutes from './routes/teacherRoutes';
 import { VerbfyTalkController } from './controllers/verbfyTalkController';
 import { performanceMiddleware, memoryTrackingMiddleware, requestSizeMiddleware } from './middleware/performanceMiddleware';
+import { setSocketIO } from './socket';
 
 // Load environment variables and initialize Sentry
 dotenv.config();
@@ -366,6 +367,9 @@ const adminNamespace = mainIo.of('/admin');
 
 // Initialize admin notification service with the Socket.IO server
 adminNotificationService.setSocketServer(mainIo);
+
+// Set global Socket.IO instance for use in controllers
+setSocketIO(mainIo);
 
 // Apply authentication to all namespaces
 chatNamespace.use(authMiddleware);
