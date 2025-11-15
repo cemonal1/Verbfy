@@ -5,6 +5,9 @@ import User from '../models/User';
 import { AuthRequest } from '../middleware/auth';
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
+import { createLogger } from '../utils/logger';
+
+const organizationLogger = createLogger('OrganizationController');
 
 export class OrganizationController {
   // Create new organization
@@ -117,7 +120,7 @@ export class OrganizationController {
         message: 'Organization created successfully'
       });
     } catch (error) {
-      console.error('Error creating organization:', error);
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error creating organization:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to create organization'
@@ -168,7 +171,7 @@ export class OrganizationController {
         data: organization
       });
     } catch (error) {
-      console.error('Error getting organization:', error);
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error getting organization:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to get organization'
@@ -242,7 +245,7 @@ export class OrganizationController {
         message: 'Organization updated successfully'
       });
     } catch (error) {
-      console.error('Error updating organization:', error);
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error updating organization:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to update organization'
@@ -333,7 +336,7 @@ export class OrganizationController {
         data: stats
       });
     } catch (error) {
-      console.error('Error getting organization stats:', error);
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error getting organization stats:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to get organization statistics'
@@ -466,7 +469,7 @@ export class OrganizationController {
         message: `Admin ${action}ed successfully`
       });
     } catch (error) {
-      console.error('Error managing admins:', error);
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error managing admins:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to manage admins'
@@ -543,7 +546,7 @@ export class OrganizationController {
         }
       });
     } catch (error) {
-      console.error('Error getting organization users:', error);
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error getting organization users:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to get organization users'
@@ -620,7 +623,7 @@ export class OrganizationController {
         message: `Bulk operation '${operation}' completed successfully`
       });
     } catch (error) {
-      console.error('Error performing bulk operations:', error);
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error performing bulk operations:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to perform bulk operations'

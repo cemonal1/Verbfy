@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('AuthContext');
 import { useRouter } from 'next/router';
 import { authAPI } from '../lib/api';
 import { tokenStorage } from '../utils/secureStorage';
@@ -101,23 +104,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Load user from token
   const loadUser = async () => {
     try {
-      console.log('🔍 Loading user...');
+      logger.debug('Debug', { data: '🔍 Loading user...' });
       const token = tokenStorage.getToken();
-      console.log('🔑 Token found:', !!token);
+      logger.debug('Debug', { data: '🔑 Token found:', !!token });
       
       if (!token) {
-        console.log('❌ No token found, setting loading to false');
+        logger.debug('Debug', { data: '❌ No token found, setting loading to false' });
         setIsLoading(false);
         return;
       }
 
-      console.log('📡 Making API call to getCurrentUser...');
+      logger.debug('Debug', { data: '📡 Making API call to getCurrentUser...' });
       const response = await authAPI.getCurrentUser();
-      console.log('📥 API response received:', response);
+      logger.debug('Debug', { data: '📥 API response received:', response });
       
       if (response.data.success) {
         const userData = response.data.user;
-        console.log('✅ User data received:', userData);
+        logger.debug('Debug', { data: '✅ User data received:', userData });
         
         // Add id alias for backward compatibility
         const userWithId = {
@@ -128,33 +131,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(userWithId);
         // Update stored user data
         tokenStorage.setUser({ ...userWithId });
-        console.log('✅ User set successfully');
+        logger.debug('Debug', { data: '✅ User set successfully' });
       } else {
-        console.warn('⚠️ Unexpected auth response structure:', response);
+        logger.warn('Warning', { warning: '⚠️ Unexpected auth response structure:', response });
         tokenStorage.clear();
       }
     } catch (error: unknown) {
-      console.error('❌ Error loading user:', error);
+      logger.error('Error', { error: '❌ Error loading user:', error });
       const errObj = error as { message?: unknown; response?: { status?: unknown; statusText?: unknown; data?: unknown } };
-      console.error('❌ Error details:', {
+      logger.error('Error', { error: '❌ Error details:', {
         message: typeof errObj.message === 'string' ? errObj.message : undefined,
         status: typeof errObj.response?.status === 'number' ? errObj.response?.status : undefined,
         statusText: typeof errObj.response?.statusText === 'string' ? errObj.response?.statusText : undefined,
         data: errObj.response?.data
-      });
+      } });
       
       // Handle rate limiting specifically
       const resp = errObj.response as { status?: unknown; data?: { retryAfter?: unknown } } | undefined;
       if (typeof resp?.status === 'number' && resp.status === 429) {
         const retryAfterRaw = resp?.data?.retryAfter;
         const retryAfter = typeof retryAfterRaw === 'number' ? retryAfterRaw : 15;
-        console.warn(`⚠️ Rate limited while loading user. Retry after ${retryAfter} minutes.`);
+        logger.warn('Warning', { warning: `⚠️ Rate limited while loading user. Retry after ${retryAfter} minutes.` });
         // Don't redirect to login for rate limiting, just show message
         return;
       }
       
       // For other errors, redirect to login
-      console.log('🔄 Error loading user, redirecting to login');
+      logger.debug('Debug', { data: '🔄 Error loading user, redirecting to login' });
       tokenStorage.clear();
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
         window.location.href = '/login';
@@ -235,7 +238,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Call logout API
       await authAPI.logout();
     } catch (error) {
-      console.error('Logout API error:', error);
+      logger.error('Error', { error: 'Logout API error:', error });
     } finally {
       // Clear secure storage
       tokenStorage.clear();
@@ -271,7 +274,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         tokenStorage.setUser({ ...userWithId });
       }
     } catch (error) {
-      console.error('Error refreshing user:', error);
+      logger.error('Error', { error: 'Error refreshing user:', error });
       // If refresh fails, logout
       logout();
     }

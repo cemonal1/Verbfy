@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useEffect, useReducer, useRef, ReactNode } from 'react';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('ChatContext');
 import { io, Socket } from 'socket.io-client';
 import { tokenStorage } from '../utils/secureStorage';
 import { useAuth } from './AuthContext';
@@ -142,11 +145,11 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
       // Socket event listeners
       socket.on('connect', () => {
-        console.log('🔌 Connected to chat server via polling');
+        logger.debug('Debug', { data: '🔌 Connected to chat server via polling' });
       });
 
       socket.on('disconnect', (reason) => {
-        console.log('🔌 Disconnected from chat server:', reason);
+        logger.debug('Debug', { data: '🔌 Disconnected from chat server:', reason });
         if (reason === 'io server disconnect') {
           // Server disconnected us, try to reconnect
           socket.connect();
@@ -175,22 +178,22 @@ export function ChatProvider({ children }: ChatProviderProps) {
             : typeof error === 'string'
               ? error
               : undefined;
-        console.error('🔌 Socket connection error:', message ?? error);
-        console.log('🔌 Transport type:', socket.io.engine.transport.name);
+        logger.error('Error', { error: '🔌 Socket connection error:', message ?? error });
+        logger.debug('Debug', { data: '🔌 Transport type:', socket.io.engine.transport.name });
         showError('Failed to connect to chat server');
       });
 
       socket.on('reconnect', (attemptNumber) => {
-        console.log('🔌 Reconnected to chat server after', attemptNumber, 'attempts');
+        logger.debug('Debug', { data: '🔌 Reconnected to chat server after', attemptNumber, 'attempts' });
         showSuccess('Reconnected to chat server');
       });
 
       socket.on('reconnect_attempt', (attemptNumber) => {
-        console.log('🔌 Attempting to reconnect:', attemptNumber);
+        logger.debug('Debug', { data: '🔌 Attempting to reconnect:', attemptNumber });
       });
 
       socket.on('reconnect_failed', () => {
-        console.log('🔌 Failed to reconnect after maximum attempts');
+        logger.debug('Debug', { data: '🔌 Failed to reconnect after maximum attempts' });
         showError('Failed to reconnect to chat server');
       });
 
@@ -217,7 +220,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
         dispatch({ type: 'SET_CONVERSATIONS', payload: response.data.data });
       }
     } catch (error: unknown) {
-      console.error('Error loading conversations:', error);
+      logger.error('Error', { error: 'Error loading conversations:', error });
       const errObj = error as { response?: { data?: { message?: unknown } } };
       const errorMessage =
         typeof errObj.response?.data?.message === 'string'
@@ -252,7 +255,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
         }
       }
     } catch (error: unknown) {
-      console.error('Error loading messages:', error);
+      logger.error('Error', { error: 'Error loading messages:', error });
       const errObj = error as { response?: { data?: { message?: unknown } } };
       const errorMessage =
         typeof errObj.response?.data?.message === 'string'
@@ -300,7 +303,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
         showSuccess('Message sent');
       }
     } catch (error: unknown) {
-      console.error('Error sending message:', error);
+      logger.error('Error', { error: 'Error sending message:', error });
       const errObj = error as { response?: { data?: { message?: unknown } } };
       const errorMessage =
         typeof errObj.response?.data?.message === 'string'
@@ -321,7 +324,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     try {
       await api.patch(`/api/chat/conversations/${conversationId}/read`);
     } catch (error: unknown) {
-      console.error('Error marking messages as read:', error);
+      logger.error('Error', { error: 'Error marking messages as read:', error });
     }
   };
 
@@ -376,7 +379,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
         dispatch({ type: 'SET_UNREAD_COUNT', payload: response.data.data.unreadCount });
       }
     } catch (error: unknown) {
-      console.error('Error loading unread count:', error);
+      logger.error('Error', { error: 'Error loading unread count:', error });
     }
   };
 

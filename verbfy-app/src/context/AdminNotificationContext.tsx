@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createLogger } from '../utils/logger';
+const logger = createLogger('AdminNotificationContext');
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
@@ -130,7 +132,7 @@ export const AdminNotificationProvider: React.FC<AdminNotificationProviderProps>
 
       // Connection events
       newSocket.on('connect', () => {
-        console.log('Admin Socket.IO connected');
+        logger.debug('Debug', { data: 'Admin Socket.IO connected');
         setIsConnected(true);
         
         // Join admin room
@@ -138,12 +140,12 @@ export const AdminNotificationProvider: React.FC<AdminNotificationProviderProps>
       });
 
       newSocket.on('connect_error', (error) => {
-        console.error('Admin Socket.IO connection error:', error);
+        logger.error('Error', { error: 'Admin Socket.IO connection error:', error);
         setIsConnected(false);
       });
 
       newSocket.on('disconnect', (reason) => {
-        console.log('Admin Socket.IO disconnected:', reason);
+        logger.debug('Debug', { data: 'Admin Socket.IO disconnected:', reason);
         setIsConnected(false);
       });
 

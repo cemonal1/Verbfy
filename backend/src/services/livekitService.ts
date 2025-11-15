@@ -1,5 +1,7 @@
 import { livekitConfig } from '../config/livekit';
 import { Reservation } from '../models/Reservation';
+import { createLogger } from '../utils/logger';
+const livekitLogger = createLogger('LivekitService');
 
 export class LiveKitService {
   /**
@@ -25,7 +27,7 @@ export class LiveKitService {
       // For non-reservation rooms (e.g., group chat), use self-hosted
       return false;
     } catch (error) {
-      console.error('Error determining LiveKit server:', error);
+      livekitLogger.error('Error determining LiveKit server:', error);
       // Default to self-hosted on error
       return false;
     }
@@ -63,7 +65,7 @@ export class LiveKitService {
         isCloud
       };
     } catch (error) {
-      console.error('Failed to generate LiveKit token:', error);
+      livekitLogger.error('Failed to generate LiveKit token:', error);
       throw error;
     }
   }
@@ -152,7 +154,7 @@ export class LiveKitService {
         isCloud: reservation.isPaid
       };
     } catch (error) {
-      console.error('Error validating room access:', error);
+      livekitLogger.error('Error validating room access:', error);
       throw error;
     }
   }

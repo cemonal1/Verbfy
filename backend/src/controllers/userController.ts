@@ -5,6 +5,9 @@ import { AuthRequest } from '../middleware/auth';
 import UserModel from '../models/User';
 import * as path from 'path';
 import { cacheService } from '../services/cacheService';
+import { createLogger } from '../utils/logger';
+
+const userLogger = createLogger('UserController');
 
 // Get all teachers
 export const getTeachers = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -59,7 +62,7 @@ export const getTeachers = async (req: AuthRequest, res: Response): Promise<void
       }
     });
   } catch (error: any) {
-    console.error('Error fetching teachers:', error);
+    userLogger.error('Error', { requestId: req.requestId, error: 'Error fetching teachers:', error });
     res.status(500).json({ success: false, message: error.message || 'Failed to fetch teachers' });
   }
 };
@@ -81,7 +84,7 @@ export const getStudents = async (req: AuthRequest, res: Response): Promise<void
 
     res.json({ success: true, students });
   } catch (error: any) {
-    console.error('Error fetching students:', error);
+    userLogger.error('Error', { requestId: req.requestId, error: 'Error fetching students:', error });
     res.status(500).json({ success: false, message: error.message || 'Failed to fetch students' });
   }
 };
@@ -100,7 +103,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void
 
     res.json({ users, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (error: any) {
-    console.error('Error fetching all users:', error);
+    userLogger.error('Error', { requestId: req.requestId, error: 'Error fetching all users:', error });
     res.status(500).json({ message: error.message || 'Failed to fetch users' });
   }
 };
@@ -135,7 +138,7 @@ export const getTeacherById = async (req: AuthRequest, res: Response): Promise<v
 
     res.json({ success: true, data: teacher });
   } catch (error: any) {
-    console.error('Error fetching teacher:', error);
+    userLogger.error('Error', { requestId: req.requestId, error: 'Error fetching teacher:', error });
     res.status(500).json({ success: false, message: error.message || 'Failed to fetch teacher' });
   }
 };
@@ -164,7 +167,7 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
     // Return plain user object for compatibility with integration tests
     res.json(user);
   } catch (error: any) {
-    console.error('Error fetching current user:', error);
+    userLogger.error('Error', { requestId: req.requestId, error: 'Error fetching current user:', error });
     res.status(500).json({ success: false, message: error.message || 'Failed to fetch user profile' });
   }
 };
@@ -229,7 +232,7 @@ export const updateCurrentUser = async (req: AuthRequest, res: Response): Promis
     // Return plain updated user object for compatibility with integration tests
     res.json(updatedUser);
   } catch (error: any) {
-    console.error('Error updating user profile:', error);
+    userLogger.error('Error', { requestId: req.requestId, error: 'Error updating user profile:', error });
     res.status(500).json({ success: false, message: error.message || 'Failed to update user profile' });
   }
 }; 
@@ -255,7 +258,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response): Promise<voi
     res.json({ success: true, user: updated, avatarUrl: publicPath });
       return;
   } catch (error: any) {
-    console.error('Error uploading avatar:', error);
+    userLogger.error('Error', { requestId: req.requestId, error: 'Error uploading avatar:', error });
     res.status(500).json({ success: false, message: 'Failed to upload avatar' });
       return;
   }
@@ -282,7 +285,7 @@ export const getPresignedUploadUrl = async (req: AuthRequest, res: Response): Pr
     res.json({ success: true, url });
     return;
   } catch (error: any) {
-    console.error('getPresignedUploadUrl error:', error);
+    userLogger.error('Error', { requestId: req.requestId, error: 'getPresignedUploadUrl error:', error });
     res.status(500).json({ success: false, message: error.message || 'Server error' });
       return;
   }

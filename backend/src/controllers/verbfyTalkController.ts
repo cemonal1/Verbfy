@@ -3,6 +3,9 @@ import { VerbfyTalkRoom } from '../models/VerbfyTalkRoom';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/auth';
 import bcrypt from 'bcryptjs';
+import { createLogger } from '../utils/logger';
+
+const verbfyTalkControllerLogger = createLogger('VerbfyTalkController');
 
 export class VerbfyTalkController {
   // Get all available rooms
@@ -171,7 +174,7 @@ export class VerbfyTalkController {
         message: 'Joined room successfully'
       });
     } catch (error) {
-      console.error('Error joining room:', error);
+      verbfyTalkControllerLogger.error('Error joining room', error);
       res.status(500).json({ success: false, message: 'Failed to join room' });
     }
   }
@@ -182,27 +185,28 @@ export class VerbfyTalkController {
       const userId = (req as any).user.id;
       const { roomId } = req.params;
 
-      console.log(`🚪 Leave room request - User: ${userId}, Room: ${roomId}`);
+      verbfyTalkControllerLogger.info('Leave room request', { userId, roomId });
 
       const room = await VerbfyTalkRoom.findById(roomId);
       if (!room) {
-        console.log(`❌ Room not found: ${roomId}`);
+        verbfyTalkControllerLogger.warn('Room not found', { roomId });
         res.status(404).json({ success: false, message: 'Room not found' });
         return;
       }
 
-      console.log(`📋 Room participants:`, room.participants.map((p: any) => ({
+      const participantsSummary = room.participants.map((p: any) => ({
         userId: p.userId.toString(),
         isActive: p.isActive
-      })));
+      }));
+      verbfyTalkControllerLogger.debug('Room participants', { roomId, participants: participantsSummary });
 
       // Find and deactivate user's participation
-      const participantIndex = room.participants.findIndex((p: any) => 
+      const participantIndex = room.participants.findIndex((p: any) =>
         p.userId.toString() === userId && p.isActive
       );
 
       if (participantIndex === -1) {
-        console.log(`❌ User ${userId} not found in active participants of room ${roomId}`);
+        verbfyTalkControllerLogger.warn('User not found in active participants', { userId, roomId });
         res.status(400).json({ success: false, message: 'Not in room' });
         return;
       }
@@ -216,7 +220,7 @@ export class VerbfyTalkController {
       if (activeParticipants === 0) {
         room.endedAt = new Date();
         room.isActive = false;
-        console.log(`🏁 Room ${room.name} (${roomId}) ended - no active participants`);
+        verbfyTalkControllerLogger.info('Room ended - no active participants', { roomName: room.name, roomId });
       }
 
       await room.save();
@@ -226,7 +230,7 @@ export class VerbfyTalkController {
         message: 'Left room successfully'
       });
     } catch (error) {
-      console.error('Error leaving room:', error);
+      verbfyTalkControllerLogger.error('Error leaving room', error);
       res.status(500).json({ success: false, message: 'Failed to leave room' });
     }
   }
@@ -263,7 +267,7 @@ export class VerbfyTalkController {
       if (uniqueParticipants.length !== room.participants.length) {
         room.participants = uniqueParticipants;
         await room.save();
-        console.log(`🧹 Cleaned up duplicate participants in room ${room.name}`);
+        verbfyTalkControllerLogger.info('Cleaned up duplicate participants', { roomName: room.name, roomId: room._id, duplicateCount: room.participants.length - uniqueParticipants.length });
       }
 
       res.json({
@@ -271,7 +275,7 @@ export class VerbfyTalkController {
         data: room
       });
     } catch (error) {
-      console.error('Error getting room details:', error);
+      verbfyTalkControllerLogger.error('Error getting room details', error);
       res.status(500).json({ success: false, message: 'Failed to get room details' });
     }
   }
@@ -397,12 +401,14 @@ export class VerbfyTalkController {
         room.isActive = false;
         room.endedAt = new Date();
         await room.save();
-        console.log(`🧹 Cleaned up empty room: ${room.name} (${room._id})`);
+        verbfyTalkControllerLogger.info('Cleaned up empty room', { roomName: room.name, roomId: room._id });
       }
 
-      console.log(`🧹 Cleaned up ${emptyRooms.length} empty rooms`);
+      if (emptyRooms.length > 0) {
+        verbfyTalkControllerLogger.info('Cleanup empty rooms completed', { cleanedCount: emptyRooms.length });
+      }
     } catch (error) {
-      console.error('❌ Failed to cleanup empty rooms:', error);
+      verbfyTalkControllerLogger.error('Failed to cleanup empty rooms', error);
     }
   }
 }

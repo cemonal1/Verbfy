@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import { Lesson } from '../models/Lesson';
 import User from '../models/User';
 import { cacheService } from '../services/cacheService';
+import { createLogger } from '../utils/logger';
+
+const lessonLogger = createLogger('LessonController');
 
 export class LessonController {
   // Get student's lessons with filters
@@ -85,7 +88,7 @@ export class LessonController {
         }
       });
     } catch (error: any) {
-      console.error('Error getting student lessons:', error);
+      lessonLogger.error('Error', { requestId: req.requestId, error: 'Error getting student lessons:', error });
       res.status(500).json({ 
         success: false, 
         message: 'Failed to get student lessons' 
@@ -166,7 +169,7 @@ export class LessonController {
         data: transformedLesson
       });
     } catch (error: any) {
-      console.error('Error getting lesson:', error);
+      lessonLogger.error('Error', { requestId: req.requestId, error: 'Error getting lesson:', error });
       res.status(500).json({ 
         success: false, 
         message: 'Failed to get lesson' 
@@ -230,7 +233,7 @@ export class LessonController {
         data: { lessonId: lesson._id, status: lesson.status }
       });
     } catch (error: any) {
-      console.error('Error joining lesson:', error);
+      lessonLogger.error('Error', { requestId: req.requestId, error: 'Error joining lesson:', error });
       res.status(500).json({ 
         success: false, 
         message: 'Failed to join lesson' 
@@ -282,7 +285,7 @@ export class LessonController {
         data: { lessonId: lesson._id, status: lesson.status }
       });
     } catch (error: any) {
-      console.error('Error leaving lesson:', error);
+      lessonLogger.error('Error', { requestId: req.requestId, error: 'Error leaving lesson:', error });
       res.status(500).json({ 
         success: false, 
         message: 'Failed to leave lesson' 
@@ -337,7 +340,7 @@ export class LessonController {
         data: { lessonId: lesson._id }
       });
     } catch (error: any) {
-      console.error('Error creating lesson:', error);
+      lessonLogger.error('Error', { requestId: req.requestId, error: 'Error creating lesson:', error });
       res.status(500).json({ 
         success: false, 
         message: 'Failed to create lesson' 

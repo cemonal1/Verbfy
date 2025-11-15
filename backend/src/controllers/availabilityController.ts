@@ -1,25 +1,11 @@
 import { Response } from 'express';
+import { createLogger } from '../utils/logger';
+
+const availabilityLogger = createLogger('AvailabilityController');
 import { AuthRequest } from '../middleware/auth';
 import * as availabilityService from '../services/availabilityService';
 
-// Test endpoint to verify route is working
-export const testEndpoint = async (req: AuthRequest, res: Response): Promise<void> => {
-  console.log('=== TEST ENDPOINT HIT ===');
-  console.log('Request method:', req.method);
-  console.log('Request URL:', req.url);
-  console.log('Request headers:', req.headers);
-  console.log('Request body:', req.body);
-  console.log('User:', req.user);
-  console.log('=== END TEST ENDPOINT ===');
-  
-  res.json({ 
-    message: 'Test endpoint working',
-    method: req.method,
-    url: req.url,
-    body: req.body,
-    user: req.user
-  });
-};
+
 
 // Set teacher availability for the week
 export const setAvailability = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -27,10 +13,10 @@ export const setAvailability = async (req: AuthRequest, res: Response): Promise<
     const teacherId = req.user!.id;
     const { availabilitySlots, teacherTimezone } = req.body;
 
-    console.log('Setting availability for teacher:', teacherId, 'with', availabilitySlots?.length, 'slots');
+    availabilityLogger.info('Setting availability for teacher:', { requestId: req.requestId, data: teacherId, 'with', availabilitySlots?.length, 'slots' });
 
     if (!availabilitySlots || !Array.isArray(availabilitySlots)) {
-      console.error('Invalid availabilitySlots:', availabilitySlots);
+      availabilityLogger.error('Invalid availabilitySlots:', { requestId: req.requestId, error: availabilitySlots });
       res.status(400).json({ message: 'Availability slots array is required' });
       return;
     }
@@ -40,7 +26,7 @@ export const setAvailability = async (req: AuthRequest, res: Response): Promise<
       const slot = availabilitySlots[i];
       
       if (slot.dayOfWeek === undefined || slot.dayOfWeek === null || slot.startTime === undefined || slot.startTime === null || slot.endTime === undefined || slot.endTime === null) {
-        console.error(`Slot ${i} validation failed:`, {
+        availabilityLogger.error(`Slot ${i} validation failed`, {
           dayOfWeek: slot.dayOfWeek,
           startTime: slot.startTime,
           endTime: slot.endTime,
@@ -57,7 +43,7 @@ export const setAvailability = async (req: AuthRequest, res: Response): Promise<
 
       // Validate data types
       if (typeof slot.dayOfWeek !== 'number' || typeof slot.startTime !== 'string' || typeof slot.endTime !== 'string') {
-        console.error(`Slot ${i} type validation failed:`, {
+        availabilityLogger.error(`Slot ${i} type validation failed`, {
           dayOfWeek: slot.dayOfWeek,
           startTime: slot.startTime,
           endTime: slot.endTime,
@@ -72,7 +58,7 @@ export const setAvailability = async (req: AuthRequest, res: Response): Promise<
       }
       
       if (slot.dayOfWeek < 0 || slot.dayOfWeek > 6) {
-        console.error(`Slot ${i} dayOfWeek out of range:`, slot.dayOfWeek);
+        availabilityLogger.error(`Slot ${i} dayOfWeek out of range`, { dayOfWeek: slot.dayOfWeek });
         res.status(400).json({ 
           message: 'dayOfWeek must be between 0 (Sunday) and 6 (Saturday)' 
         });
@@ -92,7 +78,7 @@ export const setAvailability = async (req: AuthRequest, res: Response): Promise<
       slots: result 
     });
   } catch (error: any) {
-    console.error('Error setting availability:', error);
+    availabilityLogger.error('Error setting availability:', { requestId: req.requestId, error: error });
     res.status(500).json({ message: error.message || 'Failed to set availability' });
   }
 };
@@ -109,7 +95,7 @@ export const getTeacherAvailability = async (req: AuthRequest, res: Response): P
     );
     res.json(availability);
   } catch (error: any) {
-    console.error('Error getting availability:', error);
+    availabilityLogger.error('Error getting availability:', { requestId: req.requestId, error: error });
     res.status(500).json({ message: error.message || 'Failed to get availability' });
   }
 };
@@ -126,7 +112,7 @@ export const getMyAvailability = async (req: AuthRequest, res: Response): Promis
     );
     res.json(availability);
   } catch (error: any) {
-    console.error('Error getting my availability:', error);
+    availabilityLogger.error('Error getting my availability:', { requestId: req.requestId, error: error });
     res.status(500).json({ message: error.message || 'Failed to get availability' });
   }
 };
@@ -148,7 +134,7 @@ export const getAvailableSlotsForBooking = async (req: AuthRequest, res: Respons
     );
     res.json(availableSlots);
   } catch (error: any) {
-    console.error('Error getting available slots:', error);
+    availabilityLogger.error('Error getting available slots:', { requestId: req.requestId, error: error });
     res.status(500).json({ message: error.message || 'Failed to get available slots' });
   }
 };
@@ -162,7 +148,7 @@ export const deleteAvailabilitySlot = async (req: AuthRequest, res: Response): P
     await availabilityService.deleteAvailabilitySlot(teacherId, slotId);
     res.json({ message: 'Availability slot deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting availability slot:', error);
+    availabilityLogger.error('Error deleting availability slot:', { requestId: req.requestId, error: error });
     res.status(500).json({ message: error.message || 'Failed to delete availability slot' });
   }
 }; 

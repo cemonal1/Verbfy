@@ -4,6 +4,8 @@ import { LessonAttempt } from '../models/LessonAttempt';
 import User from '../models/User';
 import { LessonProgress } from '../models/LessonProgress';
 import { AuthRequest } from '../middleware/auth';
+import { createLogger } from '../utils/logger';
+const verbfyLessonLogger = createLogger('VerbfyLessonController');
 
 export class VerbfyLessonController {
   // Get all lessons with filtering
@@ -485,7 +487,7 @@ export class VerbfyLessonController {
 
       await progress.save();
     } catch (error: any) {
-      console.error('Error updating lesson progress:', error);
+      verbfyLessonLogger.error('Error updating lesson progress:', error);
     }
   }
 }

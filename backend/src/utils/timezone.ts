@@ -1,3 +1,5 @@
+import { createLogger } from '../utils/logger';
+const timezoneLogger = createLogger('Timezone');
 /**
  * Timezone utility functions for handling timezone conversions
  * and time calculations in the availability system
@@ -62,7 +64,7 @@ export const convertTimeBetweenTimezones = (
     
     return { convertedTime, convertedDayOfWeek };
   } catch (error) {
-    console.error('Error converting timezone:', error);
+    timezoneLogger.error('Error converting timezone:', error);
     // Fallback to original time if conversion fails
     return { convertedTime: time, convertedDayOfWeek: dayOfWeek };
   }
@@ -118,7 +120,7 @@ export const isSlotInPast = (dayOfWeek: number, time: string, timezone: string =
     }
     return false;
   } catch (error) {
-    console.error('Error checking if slot is in past:', error);
+    timezoneLogger.error('Error checking if slot is in past:', error);
     return false;
   }
 };
@@ -133,7 +135,7 @@ export const getCurrentTimeInTimezone = (timezone: string): string => {
       hour12: false
     }).slice(0, 5);
   } catch (error) {
-    console.error('Error getting current time in timezone:', error);
+    timezoneLogger.error('Error getting current time in timezone:', error);
     return new Date().toTimeString().slice(0, 5);
   }
 };
@@ -169,7 +171,7 @@ export const getTimezoneOffset = (timezone: string): number => {
     const targetOffset = targetTime.toLocaleString('en-US', { timeZone: timezone });
     return new Date(targetOffset).getTimezoneOffset();
   } catch (error) {
-    console.error('Error getting timezone offset:', error);
+    timezoneLogger.error('Error getting timezone offset:', error);
     return 0;
   }
 }; 

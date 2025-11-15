@@ -1,5 +1,8 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
+import { createLogger } from './utils/logger';
+
+const verbfyTalkLogger = createLogger('VerbfyTalk');
 
 interface VerbfyTalkUser {
   id: string;
@@ -43,9 +46,8 @@ export class VerbfyTalkServer {
           if (allowedOrigins.includes(origin)) {
             return callback(null, true);
           }
-          
-          console.log('❌ VerbfyTalk CORS blocked origin:', origin);
-          console.log('✅ Allowed origins:', allowedOrigins);
+
+          verbfyTalkLogger.warn('CORS blocked origin', { origin, allowedOrigins });
           return callback(new Error('Not allowed by CORS'), false);
         },
         methods: ["GET", "POST", "OPTIONS"],
@@ -67,7 +69,7 @@ export class VerbfyTalkServer {
       allowEIO3: true,
       maxHttpBufferSize: 1e6,
       allowRequest: (req, callback) => {
-        console.log('🔌 VerbfyTalk connection request:', {
+        verbfyTalkLogger.debug('Connection request', {
           origin: req.headers.origin,
           upgrade: req.headers.upgrade,
           connection: req.headers.connection,
@@ -95,7 +97,7 @@ export class VerbfyTalkServer {
         }
 
         if (!token) {
-          console.log('🔌 VerbfyTalk connection attempt without token');
+          verbfyTalkLogger.warn('Connection attempt without token');
           return next(new Error('Unauthorized - No token provided'));
         }
 
@@ -103,25 +105,25 @@ export class VerbfyTalkServer {
         try {
           const payload = verifyToken(token);
           (socket as any).user = payload;
-          console.log('🔌 VerbfyTalk authenticated for user:', payload.id);
+          verbfyTalkLogger.info('User authenticated', { userId: payload.id });
           next();
         } catch (jwtError: any) {
-          console.log('🔌 VerbfyTalk JWT verification failed:', jwtError.message);
+          verbfyTalkLogger.warn('JWT verification failed', { error: jwtError.message });
           return next(new Error('Unauthorized - Invalid token'));
         }
       } catch (e) {
-        console.error('🔌 VerbfyTalk middleware error:', e);
+        verbfyTalkLogger.error('Middleware error', e);
         return next(new Error('Unauthorized - Middleware error'));
       }
     });
 
     this.setupEventHandlers();
-    console.log('🎤 VerbfyTalk P2P Audio Server initialized');
+    verbfyTalkLogger.info('VerbfyTalk P2P Audio Server initialized');
   }
 
   private setupEventHandlers() {
     this.io.on('connection', (socket) => {
-      console.log('🔌 User connected to VerbfyTalk:', socket.id);
+      verbfyTalkLogger.info('User connected', { socketId: socket.id });
 
       // Get rooms list
       socket.on('rooms:get', () => {
@@ -200,12 +202,12 @@ export class VerbfyTalkServer {
 
   private handleJoinRoom(socket: any, roomId: string) {
     try {
-      console.log(`🎤 User ${socket.id} trying to join room: ${roomId}`);
+      verbfyTalkLogger.info('User attempting to join room', { socketId: socket.id, roomId });
 
       // Check if user is already in this room
       const userRoomSet = this.userRooms.get(socket.id) || new Set();
       if (userRoomSet.has(roomId)) {
-        console.log(`⚠️ User ${socket.id} already in room: ${roomId}`);
+        verbfyTalkLogger.warn('User already in room', { socketId: socket.id, roomId });
         socket.emit('room:already-joined', { roomId });
         return;
       }
@@ -219,15 +221,15 @@ export class VerbfyTalkServer {
           maxUsers: 5
         };
         this.rooms.set(roomId, room);
-        console.log(`🏠 Created new VerbfyTalk room: ${roomId}`);
+        verbfyTalkLogger.info('Created new room', { roomId });
       }
 
       // Check if room is full
       if (room.users.size >= room.maxUsers) {
-        console.log(`❌ Room ${roomId} is full (${room.users.size}/${room.maxUsers})`);
-        socket.emit('roomFull', { 
+        verbfyTalkLogger.warn('Room is full', { roomId, currentUsers: room.users.size, maxUsers: room.maxUsers });
+        socket.emit('roomFull', {
           message: 'Room is full (maximum 5 users)',
-          roomId 
+          roomId
         });
         return;
       }
@@ -280,10 +282,10 @@ export class VerbfyTalkServer {
       socket.to(roomId).emit('participants:update', roomUsers);
       socket.emit('participants:update', roomUsers);
 
-      console.log(`✅ User ${socket.id} joined room ${roomId}. Total users: ${room.users.size}`);
+      verbfyTalkLogger.info('User joined room successfully', { socketId: socket.id, roomId, totalUsers: room.users.size });
 
     } catch (error) {
-      console.error('❌ Error joining room:', error);
+      verbfyTalkLogger.error('Error joining room', error);
       socket.emit('error', { message: 'Failed to join room' });
     }
   }
@@ -302,32 +304,32 @@ export class VerbfyTalkServer {
       }));
       
       socket.emit('rooms:list', roomsList);
-      console.log(`📋 Sent rooms list to ${socket.id}:`, roomsList.length, 'rooms');
+      verbfyTalkLogger.info('Sent rooms list', { socketId: socket.id, roomCount: roomsList.length });
     } catch (error) {
-      console.error('❌ Error getting rooms:', error);
+      verbfyTalkLogger.error('Error getting rooms', error);
     }
   }
 
   private handleCreateRoom(socket: any, name: string, callback: (response: any) => void) {
     try {
       const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const room = {
         id: roomId,
         users: new Set([socket.id]),
         maxUsers: 5
       };
-      
+
       this.rooms.set(roomId, room);
       this.userRooms.set(socket.id, new Set([roomId]));
-      
+
       socket.join(roomId);
-      
-      console.log(`🏠 Created new room: ${roomId} by ${socket.id}`);
-      
+
+      verbfyTalkLogger.info('Created new room', { roomId, socketId: socket.id });
+
       callback({ success: true, roomId });
     } catch (error) {
-      console.error('❌ Error creating room:', error);
+      verbfyTalkLogger.error('Error creating room', error);
       callback({ success: false, error: 'Failed to create room' });
     }
   }
@@ -335,73 +337,73 @@ export class VerbfyTalkServer {
   private handleWebRTCOffer(socket: any, data: { to: string; offer: any; roomId: string }) {
     try {
       const { to, offer, roomId } = data;
-      console.log(`📡 WebRTC offer from ${socket.id} to ${to} in room ${roomId}`);
-      
+      verbfyTalkLogger.debug('WebRTC offer', { from: socket.id, to, roomId });
+
       this.io.to(to).emit('webrtc:offer', {
         from: socket.id,
         offer,
         roomId
       });
     } catch (error) {
-      console.error('❌ Error handling WebRTC offer:', error);
+      verbfyTalkLogger.error('Error handling WebRTC offer', error);
     }
   }
 
   private handleWebRTCAnswer(socket: any, data: { to: string; answer: any; roomId: string }) {
     try {
       const { to, answer, roomId } = data;
-      console.log(`📡 WebRTC answer from ${socket.id} to ${to} in room ${roomId}`);
-      
+      verbfyTalkLogger.debug('WebRTC answer', { from: socket.id, to, roomId });
+
       this.io.to(to).emit('webrtc:answer', {
         from: socket.id,
         answer,
         roomId
       });
     } catch (error) {
-      console.error('❌ Error handling WebRTC answer:', error);
+      verbfyTalkLogger.error('Error handling WebRTC answer', error);
     }
   }
 
   private handleICECandidate(socket: any, data: { to: string; candidate: any; roomId: string }) {
     try {
       const { to, candidate, roomId } = data;
-      console.log(`📡 ICE candidate from ${socket.id} to ${to} in room ${roomId}`);
-      
+      verbfyTalkLogger.debug('ICE candidate', { from: socket.id, to, roomId });
+
       this.io.to(to).emit('webrtc:ice-candidate', {
         from: socket.id,
         candidate,
         roomId
       });
     } catch (error) {
-      console.error('❌ Error handling ICE candidate:', error);
+      verbfyTalkLogger.error('Error handling ICE candidate', error);
     }
   }
 
   private handleParticipantMute(socket: any, data: { roomId: string; isMuted: boolean }) {
     try {
       const { roomId, isMuted } = data;
-      console.log(`🎤 User ${socket.id} ${isMuted ? 'muted' : 'unmuted'} in room ${roomId}`);
-      
+      verbfyTalkLogger.debug('Participant mute state changed', { socketId: socket.id, roomId, isMuted });
+
       socket.to(roomId).emit('participant:mute', {
         participantId: socket.id,
         isMuted
       });
     } catch (error) {
-      console.error('❌ Error handling participant mute:', error);
+      verbfyTalkLogger.error('Error handling participant mute', error);
     }
   }
 
   private handleParticipantSpeaking(socket: any, data: { roomId: string; isSpeaking: boolean }) {
     try {
       const { roomId, isSpeaking } = data;
-      console.log(`🗣️ User ${socket.id} ${isSpeaking ? 'started' : 'stopped'} speaking in room ${roomId}`);
-      
+      verbfyTalkLogger.debug('Participant speaking state changed', { socketId: socket.id, roomId, isSpeaking });
+
       socket.to(roomId).emit('participant:speaking', {
         participantId: socket.id,
         isSpeaking
       });
     } catch (error) {
-      console.error('❌ Error handling participant speaking:', error);
+      verbfyTalkLogger.error('Error handling participant speaking', error);
     }
   }
 
@@ -417,13 +419,13 @@ export class VerbfyTalkServer {
         senderName: user?.name || 'User-' + socket.id.slice(-4),
         timestamp
       };
-      
-      console.log(`💬 Message in room ${roomId} from ${socket.id}: ${content}`);
-      
+
+      verbfyTalkLogger.info('Room message sent', { roomId, socketId: socket.id, messageLength: content.length });
+
       // Broadcast to all users in the room
       this.io.to(roomId).emit('room:message', message);
     } catch (error) {
-      console.error('❌ Error handling room message:', error);
+      verbfyTalkLogger.error('Error handling room message', error);
     }
   }
 
@@ -431,7 +433,7 @@ export class VerbfyTalkServer {
     try {
       const { roomId, message } = data;
       const user = (socket as any).user;
-      
+
       if (!user) {
         socket.emit('error', { message: 'User not authenticated' });
         return;
@@ -444,16 +446,16 @@ export class VerbfyTalkServer {
         message: message.trim(),
         timestamp: new Date().toISOString()
       };
-      
-      console.log(`💬 VerbfyTalk message in room ${roomId} from ${user.name}: ${message}`);
-      
+
+      verbfyTalkLogger.info('VerbfyTalk message sent', { roomId, userId: user.id, userName: user.name, messageLength: message.length });
+
       // Broadcast to all users in the room including the sender
       this.io.to(roomId).emit('message:received', {
         message: messageData,
         roomId: roomId
       });
     } catch (error) {
-      console.error('❌ Error handling message send:', error);
+      verbfyTalkLogger.error('Error handling message send', error);
       socket.emit('error', { message: 'Failed to send message' });
     }
   }
@@ -478,13 +480,13 @@ export class VerbfyTalkServer {
         messageType,
         timestamp: new Date().toISOString()
       };
-      
-      console.log(`📚 Lesson message in ${lessonId} from ${user.name}: ${message}`);
-      
+
+      verbfyTalkLogger.info('Lesson message sent', { lessonId, userId: user.id, userName: user.name, messageType, messageLength: message.length });
+
       // Broadcast to all users in the lesson
       this.io.to(`lesson:${lessonId}`).emit('lesson:message', messageData);
     } catch (error) {
-      console.error('❌ Error handling lesson message:', error);
+      verbfyTalkLogger.error('Error handling lesson message', error);
       socket.emit('error', { message: 'Failed to send message' });
     }
   }
@@ -493,7 +495,7 @@ export class VerbfyTalkServer {
     try {
       const { lessonId, fileId, fileName, fileSize } = data;
       const user = (socket as any).user;
-      
+
       if (!user) {
         socket.emit('error', { message: 'User not authenticated' });
         return;
@@ -510,13 +512,13 @@ export class VerbfyTalkServer {
         uploaderRole: user.role,
         timestamp: new Date().toISOString()
       };
-      
-      console.log(`📎 File shared in lesson ${lessonId} by ${user.name}: ${fileName}`);
-      
+
+      verbfyTalkLogger.info('File shared in lesson', { lessonId, userId: user.id, userName: user.name, fileName, fileSize });
+
       // Broadcast to all users in the lesson
       this.io.to(`lesson:${lessonId}`).emit('lesson:file-shared', fileData);
     } catch (error) {
-      console.error('❌ Error handling lesson file share:', error);
+      verbfyTalkLogger.error('Error handling lesson file share', error);
       socket.emit('error', { message: 'Failed to share file' });
     }
   }
@@ -533,9 +535,9 @@ export class VerbfyTalkServer {
 
       const lessonRoom = `lesson:${lessonId}`;
       socket.join(lessonRoom);
-      
-      console.log(`📚 User ${user.name} joined lesson ${lessonId}`);
-      
+
+      verbfyTalkLogger.info('User joined lesson', { lessonId, userId: user.id, userName: user.name, userRole: user.role });
+
       // Notify other participants
       socket.to(lessonRoom).emit('lesson:participant-joined', {
         userId: user.id,
@@ -547,7 +549,7 @@ export class VerbfyTalkServer {
       // Confirm join to the user
       socket.emit('lesson:joined', { lessonId });
     } catch (error) {
-      console.error('❌ Error handling lesson join:', error);
+      verbfyTalkLogger.error('Error handling lesson join', error);
       socket.emit('error', { message: 'Failed to join lesson' });
     }
   }
@@ -556,16 +558,16 @@ export class VerbfyTalkServer {
     try {
       const { lessonId } = data;
       const user = (socket as any).user;
-      
+
       if (!user) {
         return;
       }
 
       const lessonRoom = `lesson:${lessonId}`;
       socket.leave(lessonRoom);
-      
-      console.log(`📚 User ${user.name} left lesson ${lessonId}`);
-      
+
+      verbfyTalkLogger.info('User left lesson', { lessonId, userId: user.id, userName: user.name, userRole: user.role });
+
       // Notify other participants
       socket.to(lessonRoom).emit('lesson:participant-left', {
         userId: user.id,
@@ -577,24 +579,24 @@ export class VerbfyTalkServer {
       // Confirm leave to the user
       socket.emit('lesson:left', { lessonId });
     } catch (error) {
-      console.error('❌ Error handling lesson leave:', error);
+      verbfyTalkLogger.error('Error handling lesson leave', error);
     }
   }
 
   private handleLeaveRoom(socket: any, roomId: string) {
     try {
-      console.log(`👋 User ${socket.id} leaving room: ${roomId}`);
-      
+      verbfyTalkLogger.info('User leaving room', { socketId: socket.id, roomId });
+
       const room = this.rooms.get(roomId);
       if (room) {
         room.users.delete(socket.id);
-        
+
         // Notify other users
         socket.to(roomId).emit('participant:left', {
           participantId: socket.id,
           roomId: roomId
         });
-        
+
         // Update participants list for remaining users
         const remainingUsers = Array.from(room.users).map(userId => ({
           id: userId,
@@ -603,15 +605,15 @@ export class VerbfyTalkServer {
           isMuted: false,
           isSpeaker: true
         }));
-        
+
         this.io.to(roomId).emit('participants:update', remainingUsers);
-        
+
         // Remove room if empty
         if (room.users.size === 0) {
           this.rooms.delete(roomId);
-          console.log(`🏠 Removed empty room: ${roomId}`);
+          verbfyTalkLogger.info('Removed empty room', { roomId });
         } else {
-          console.log(`👥 Room ${roomId} now has ${room.users.size} users`);
+          verbfyTalkLogger.debug('Room participant count updated', { roomId, userCount: room.users.size });
         }
       }
 
@@ -623,18 +625,18 @@ export class VerbfyTalkServer {
           this.userRooms.delete(socket.id);
         }
       }
-      
+
       socket.leave(roomId);
 
     } catch (error) {
-      console.error('❌ Error leaving room:', error);
+      verbfyTalkLogger.error('Error leaving room', error);
     }
   }
 
   private handleDisconnect(socket: any) {
     try {
-      console.log(`❌ User disconnected from VerbfyTalk: ${socket.id}`);
-      
+      verbfyTalkLogger.info('User disconnected', { socketId: socket.id });
+
       // Find and remove user from all their rooms
       const userRoomSet = this.userRooms.get(socket.id);
       if (userRoomSet) {
@@ -645,7 +647,7 @@ export class VerbfyTalkServer {
       }
 
     } catch (error) {
-      console.error('❌ Error handling disconnect:', error);
+      verbfyTalkLogger.error('Error handling disconnect', error);
     }
   }
 
@@ -660,18 +662,22 @@ export class VerbfyTalkServer {
         maxUsers: room.maxUsers
       }))
     };
-    
-    console.log('📊 VerbfyTalk Room Stats:', stats);
+
+    verbfyTalkLogger.info('Room statistics', stats);
     return stats;
   }
 
   // Clean up empty rooms (optional maintenance)
   public cleanupEmptyRooms() {
+    let cleanedCount = 0;
     for (const [roomId, room] of this.rooms.entries()) {
       if (room.users.size === 0) {
         this.rooms.delete(roomId);
-        console.log(`🧹 Cleaned up empty room: ${roomId}`);
+        cleanedCount++;
       }
+    }
+    if (cleanedCount > 0) {
+      verbfyTalkLogger.info('Cleaned up empty rooms', { count: cleanedCount });
     }
   }
 }

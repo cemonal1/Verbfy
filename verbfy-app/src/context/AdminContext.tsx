@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('AdminContext');
 import { toast } from '../components/common/Toast';
 import { adminAPI } from '../lib/api';
 import {
@@ -313,7 +316,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load overview data';
-      console.error('Error loading overview:', error);
+      logger.error('Error', { error: 'Error loading overview:', error });
       dispatch({ type: 'SET_OVERVIEW_ERROR', payload: errorMessage });
       toast.error(errorMessage);
     } finally {
@@ -337,7 +340,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         });
       }
     } catch (error) {
-      console.error('Error loading users:', error);
+      logger.error('Error', { error: 'Error loading users:', error });
       toast.error('Failed to load users');
     } finally {
       dispatch({ type: 'SET_USERS_LOADING', payload: false });
@@ -352,7 +355,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
       }
       return null;
     } catch (error) {
-      console.error('Error loading user:', error);
+      logger.error('Error', { error: 'Error loading user:', error });
       toast.error('Failed to load user details');
       return null;
     }
@@ -366,7 +369,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         toast.success('User details updated successfully');
       }
     } catch (error) {
-      console.error('Error updating user details:', error);
+      logger.error('Error', { error: 'Error updating user details:', error });
       toast.error('Failed to update user details');
     }
   };
@@ -379,7 +382,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         toast.success('User role updated successfully');
       }
     } catch (error) {
-      console.error('Error updating user role:', error);
+      logger.error('Error', { error: 'Error updating user role:', error });
       toast.error('Failed to update user role');
     }
   };
@@ -392,7 +395,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         toast.success('User status updated successfully');
       }
     } catch (error) {
-      console.error('Error updating user status:', error);
+      logger.error('Error', { error: 'Error updating user status:', error });
       toast.error('Failed to update user status');
     }
   };
@@ -405,7 +408,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         toast.success('User deleted successfully');
       }
     } catch (error) {
-      console.error('Error deleting user:', error);
+      logger.error('Error', { error: 'Error deleting user:', error });
       toast.error('Failed to delete user');
     }
   };
@@ -434,7 +437,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         });
       }
     } catch (error) {
-      console.error('Error loading materials:', error);
+      logger.error('Error', { error: 'Error loading materials:', error });
       toast.error('Failed to load materials');
     } finally {
       dispatch({ type: 'SET_MATERIALS_LOADING', payload: false });
@@ -449,7 +452,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         toast.success(`Material ${data.approved ? 'approved' : 'rejected'} successfully`);
       }
     } catch (error) {
-      console.error('Error approving material:', error);
+      logger.error('Error', { error: 'Error approving material:', error });
       toast.error('Failed to update material status');
     }
   };
@@ -462,7 +465,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         toast.success('Material deleted successfully');
       }
     } catch (error) {
-      console.error('Error deleting material:', error);
+      logger.error('Error', { error: 'Error deleting material:', error });
       toast.error('Failed to delete material');
     }
   };
@@ -491,7 +494,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         });
       }
     } catch (error) {
-      console.error('Error loading payments:', error);
+      logger.error('Error', { error: 'Error loading payments:', error });
       toast.error('Failed to load payments');
     } finally {
       dispatch({ type: 'SET_PAYMENTS_LOADING', payload: false });
@@ -507,7 +510,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         toast.success('Payment approved successfully');
       }
     } catch (error) {
-      console.error('Error approving payment:', error);
+      logger.error('Error', { error: 'Error approving payment:', error });
       toast.error('Failed to approve payment');
     }
   };
@@ -521,7 +524,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         toast.success('Payment rejected successfully');
       }
     } catch (error) {
-      console.error('Error rejecting payment:', error);
+      logger.error('Error', { error: 'Error rejecting payment:', error });
       toast.error('Failed to reject payment');
     }
   };
@@ -534,7 +537,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         toast.success('Payment refunded successfully');
       }
     } catch (error) {
-      console.error('Error refunding payment:', error);
+      logger.error('Error', { error: 'Error refunding payment:', error });
       toast.error('Failed to refund payment');
     }
   };
@@ -563,7 +566,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         });
       }
     } catch (error) {
-      console.error('Error loading logs:', error);
+      logger.error('Error', { error: 'Error loading logs:', error });
       toast.error('Failed to load logs');
     } finally {
       dispatch({ type: 'SET_LOGS_LOADING', payload: false });
@@ -581,7 +584,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
       const response = await adminAPI.getPendingTeachers();
       dispatch({ type: 'SET_PENDING_TEACHERS', payload: response.data });
     } catch (error) {
-      console.error('Error loading pending teachers:', error);
+      logger.error('Error', { error: 'Error loading pending teachers:', error });
       toast.error('Failed to load pending teachers');
     } finally {
       dispatch({ type: 'SET_TEACHERS_LOADING', payload: false });
@@ -594,7 +597,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
       dispatch({ type: 'REMOVE_PENDING_TEACHER', payload: id });
       toast.success('Teacher approved successfully');
     } catch (error) {
-      console.error('Error approving teacher:', error);
+      logger.error('Error', { error: 'Error approving teacher:', error });
       toast.error('Failed to approve teacher');
     }
   }, []);
@@ -605,7 +608,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
       dispatch({ type: 'REMOVE_PENDING_TEACHER', payload: id });
       toast.success('Teacher rejected');
     } catch (error) {
-      console.error('Error rejecting teacher:', error);
+      logger.error('Error', { error: 'Error rejecting teacher:', error });
       toast.error('Failed to reject teacher');
     }
   }, []);

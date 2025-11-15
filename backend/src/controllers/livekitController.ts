@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { LiveKitService } from '../services/livekitService';
+import { createLogger } from '../utils/logger';
+const livekitLogger = createLogger('LivekitController');
 
 interface AuthRequest extends Request {
   user?: {
@@ -65,7 +67,7 @@ export class LiveKitController {
         room: roomName
       });
     } catch (error) {
-      console.error('Failed to generate LiveKit token:', error);
+      livekitLogger.error('Failed to generate LiveKit token:', error);
       res.status(500).json({
         error: 'Failed to generate token'
       });
@@ -97,7 +99,7 @@ export class LiveKitController {
 
       res.json(validation);
     } catch (error) {
-      console.error('Failed to validate room access:', error);
+      livekitLogger.error('Failed to validate room access:', error);
       res.status(500).json({
         error: 'Failed to validate room access'
       });

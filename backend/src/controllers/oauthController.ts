@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
 import { signAccessToken, signRefreshToken } from '../utils/jwt';
+import { createLogger } from '../utils/logger';
+const oauthLogger = createLogger('OauthController');
 
 // Local helper: set refresh cookie (copy from authController)
 const setRefreshTokenCookie = (res: Response, token: string) => {
@@ -86,7 +88,7 @@ export const oauthInit = async (req: Request, res: Response): Promise<void> => {
 
     return res.redirect(authUrl);
   } catch (err) {
-    console.error('OAuth init error:', err);
+    oauthLogger.error('OAuth init error:', err);
     res.status(500).json({ success: false, message: 'OAuth init failed' });
       return;
   }
@@ -162,15 +164,16 @@ export const oauthCallback = async (req: Request, res: Response): Promise<void> 
       user: { id: user._id, _id: user._id, name: user.name, email: user.email, role: user.role },
     };
     
-    // Serve minimal HTML with better CSP handling and origin validation
+    // Serve minimal HTML with nonce-based CSP
+    const nonce = res.locals.cspNonce || '';
     try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
     res.set('Content-Type', 'text/html');
-    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'self';");
-    
+    res.set('Content-Security-Policy', `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self'; frame-ancestors 'self'; object-src 'none';`);
+
     const html = `<!DOCTYPE html>
       <html><head><meta charset="utf-8"/></head>
       <body>
-        <script>
+        <script nonce="${nonce}">
           try {
             const payload = ${JSON.stringify(payload)};
             const allowedOrigins = ${JSON.stringify(allowedOrigins)};
@@ -180,12 +183,12 @@ export const oauthCallback = async (req: Request, res: Response): Promise<void> 
               if (allowedOrigins.includes(targetOrigin)) {
                 window.opener.postMessage(payload, targetOrigin);
               } else {
-                console.warn('OAuth callback: Invalid target origin:', targetOrigin);
+                oauthLogger.warn('OAuth callback: Invalid target origin:', targetOrigin);
               }
             }
             window.close();
           } catch (e) {
-            console.error('OAuth callback error:', e);
+            oauthLogger.error('OAuth callback error:', e);
             window.close();
           }
         </script>
@@ -193,7 +196,7 @@ export const oauthCallback = async (req: Request, res: Response): Promise<void> 
     res.send(html);
       return;
   } catch (err) {
-    console.error('OAuth callback error:', err);
+    oauthLogger.error('OAuth callback error:', err);
     try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
     res.set('Content-Type', 'text/html');
     const payload = { type: 'oauth-error', message: 'OAuth callback failed' };

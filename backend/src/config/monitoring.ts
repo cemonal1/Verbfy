@@ -1,4 +1,6 @@
 import * as Sentry from '@sentry/node';
+import { createLogger } from '../utils/logger';
+const monitoringLogger = createLogger('MonitoringConfig');
 
 export const initMonitoring = () => {
   if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
@@ -19,9 +21,11 @@ export const initMonitoring = () => {
       },
     });
 
-    console.log('✅ Sentry monitoring initialized');
+    process.stdout.write('✅ Sentry monitoring initialized
+');
   } else {
-    console.log('⚠️ Sentry monitoring disabled (missing SENTRY_DSN or not in production)');
+    process.stdout.write('⚠️ Sentry monitoring disabled (missing SENTRY_DSN or not in production)
+');
   }
 };
 

@@ -17,15 +17,20 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:e2e": "jest --testPathPattern=e2e",
+    "migrate": "migrate-mongo up",
+    "migrate:down": "migrate-mongo down",
+    "migrate:status": "migrate-mongo status",
+    "migrate:create": "migrate-mongo create",
     "validate-env": "node scripts/validate-env.js",
     "generate-secrets": "node scripts/validate-env.js generate-secrets",
-    "pre-deploy": "npm run validate-env && npm run build:prod",
+    "pre-deploy": "npm run validate-env && npm run migrate && npm run build:prod",
     "security-check": "npm audit && npm run validate-env",
     "health-check": "node -e \"require('http').get('http://localhost:5000/api/health', res => process.exit(res.statusCode === 200 ? 0 : 1))\"",
     "monitor:memory": "node scripts/monitor-memory.js",
     "performance:test": "npm run health-check && npm run monitor:memory",
     "create-admin": "ts-node scripts/createAdminUser.ts",
-    "create-admin:js": "node scripts/createAdminUser.js"
+    "create-admin:js": "node scripts/createAdminUser.js",
+    "generate:openapi": "ts-node scripts/generate-openapi.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.620.0",
@@ -55,6 +60,8 @@
     "redis": "^5.8.2",
     "socket.io": "^4.7.5",
     "stripe": "^18.4.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
@@ -72,6 +79,7 @@
     "@types/supertest": "^6.0.3",
     "bcrypt": "^6.0.0",
     "jest": "^29.7.0",
+    "migrate-mongo": "^11.0.0",
     "mongodb-memory-server": "^9.0.0",
     "nodemon": "^3.1.0",
     "socket.io-client": "^4.8.1",

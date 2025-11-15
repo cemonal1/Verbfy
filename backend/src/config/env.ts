@@ -1,3 +1,5 @@
+import { createLogger } from '../utils/logger';
+const envLogger = createLogger('EnvConfig');
 /**
  * Environment validation module
  * Ensures all required environment variables are properly configured
@@ -47,7 +49,8 @@ const requiredEnvVars: RequiredEnvVars = {
 export const validateEnvironment = (): void => {
   const missingVars: string[] = [];
 
-  console.log('🔍 Validating environment variables...');
+  process.stdout.write('🔍 Validating environment variables...
+');
 
   // Check required environment variables
   for (const [varName, config] of Object.entries(requiredEnvVars)) {
@@ -60,12 +63,13 @@ export const validateEnvironment = (): void => {
 
   // Report missing variables
   if (missingVars.length > 0) {
-    console.error('❌ Missing required environment variables:');
+    process.stderr.write('❌ Missing required environment variables:
+');
     missingVars.forEach(varName => {
       const config = requiredEnvVars[varName];
-      console.error(`   - ${varName}: ${config.description}`);
+      process.stderr.write(`   - ${varName}: ${config.description}\n`);
       if (config.example) {
-        console.error(`     Example: ${config.example}`);
+        process.stderr.write(`     Example: ${config.example}\n`);
       }
     });
     throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
@@ -80,14 +84,15 @@ export const validateEnvironment = (): void => {
   const recommended = ['SENTRY_DSN', 'STRIPE_SECRET_KEY'];
   for (const v of recommended) {
     if (!process.env[v]) {
-      console.warn(`⚠️  Recommended env var missing: ${v}`);
+      process.stdout.write(`⚠️  Recommended env var missing: ${v}\n`);
     }
   }
 
   // LiveKit Cloud configuration validation
   validateLiveKitConfig();
 
-  console.log('✅ Environment validation passed');
+  process.stdout.write('✅ Environment validation passed
+');
 };
 
 const validateJWTSecrets = (): void => {
@@ -136,15 +141,22 @@ const validateLiveKitConfig = (): void => {
   const hasCloudConfig = cloudApiKey && cloudApiSecret && cloudUrl;
 
   if (!hasCloudConfig) {
-    console.warn('⚠️ Missing LiveKit Cloud configuration:');
-    console.warn('   - LIVEKIT_CLOUD_API_KEY or LIVEKIT_API_KEY');
-    console.warn('   - LIVEKIT_CLOUD_API_SECRET or LIVEKIT_API_SECRET');
-    console.warn('   - LIVEKIT_CLOUD_URL or LIVEKIT_URL');
-    console.warn('   Video conferencing feature will be disabled');
+    process.stdout.write('⚠️ Missing LiveKit Cloud configuration:
+');
+    process.stdout.write('   - LIVEKIT_CLOUD_API_KEY or LIVEKIT_API_KEY
+');
+    process.stdout.write('   - LIVEKIT_CLOUD_API_SECRET or LIVEKIT_API_SECRET
+');
+    process.stdout.write('   - LIVEKIT_CLOUD_URL or LIVEKIT_URL
+');
+    process.stdout.write('   Video conferencing feature will be disabled
+');
   } else {
-    console.log('✅ LiveKit Cloud configuration found');
+    process.stdout.write('✅ LiveKit Cloud configuration found
+');
     if (!cloudUrl.startsWith('wss://')) {
-      console.warn('⚠️ LiveKit URL should start with wss:// for secure WebSocket connection');
+      process.stdout.write('⚠️ LiveKit URL should start with wss:// for secure WebSocket connection
+');
     }
   }
 };

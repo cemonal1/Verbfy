@@ -3,6 +3,9 @@ import { Server as HTTPServer } from 'http';
 import { verifyToken } from './utils/jwt';
 import { Reservation } from './models/Reservation';
 import UserModel from './models/User';
+import { createLogger } from './utils/logger';
+
+const socketLogger = createLogger('SocketServer');
 
 interface AuthenticatedSocket extends Socket {
   user?: {
@@ -44,34 +47,38 @@ const authenticateSocket = async (socket: AuthenticatedSocket, token: string): P
 // Validate room access for reservations
 const validateRoomAccess = async (userId: string, reservationId: string): Promise<boolean> => {
   try {
-    console.log(`🔍 Validating access for user ${userId} to reservation ${reservationId}`);
-    
+    socketLogger.debug('Validating room access', { userId, reservationId });
+
     const reservation = await Reservation.findById(reservationId)
       .populate('teacher', 'name email')
       .populate('student', 'name email');
 
     if (!reservation) {
-      console.log(`❌ Reservation ${reservationId} not found`);
+      socketLogger.warn('Reservation not found', { reservationId });
       return false;
     }
 
-    console.log(`📋 Reservation found: Teacher ${reservation.teacher._id}, Student ${reservation.student._id}`);
+    socketLogger.debug('Reservation found', {
+      reservationId,
+      teacherId: reservation.teacher._id.toString(),
+      studentId: reservation.student._id.toString()
+    });
 
     // Check if user is the teacher or student for this reservation
     const isTeacher = reservation.teacher._id.toString() === userId;
     const isStudent = reservation.student._id.toString() === userId;
 
-    console.log(`👤 User ${userId} - Is teacher: ${isTeacher}, Is student: ${isStudent}`);
+    socketLogger.debug('User role validation', { userId, isTeacher, isStudent });
 
     if (!isTeacher && !isStudent) {
-      console.log(`❌ User ${userId} is not part of this reservation`);
+      socketLogger.warn('User is not part of reservation', { userId, reservationId });
       return false;
     }
 
     // Check reservation status
-    console.log(`📊 Reservation status: ${reservation.status}`);
+    socketLogger.debug('Reservation status check', { status: reservation.status });
     if (!['booked', 'completed'].includes(reservation.status)) {
-      console.log(`❌ Reservation status ${reservation.status} is not allowed`);
+      socketLogger.warn('Invalid reservation status', { status: reservation.status, reservationId });
       return false;
     }
 
@@ -82,13 +89,16 @@ const validateRoomAccess = async (userId: string, reservationId: string): Promis
     const lessonEndTime = new Date(lessonDate);
     lessonEndTime.setHours(endHour, endMin, 0, 0);
 
-    console.log(`⏰ Current time: ${now.toISOString()}`);
-    console.log(`⏰ Lesson end time: ${lessonEndTime.toISOString()}`);
-    console.log(`⏰ Lesson has ended: ${now > lessonEndTime}`);
+    const lessonHasEnded = now > lessonEndTime;
+    socketLogger.debug('Lesson time validation', {
+      currentTime: now.toISOString(),
+      lessonEndTime: lessonEndTime.toISOString(),
+      lessonHasEnded
+    });
 
     // If lesson has ended, deny access to everyone
-    if (now > lessonEndTime) {
-      console.log(`❌ Lesson ended at ${lessonEndTime.toISOString()}, current time: ${now.toISOString()}`);
+    if (lessonHasEnded) {
+      socketLogger.warn('Lesson has ended', { lessonEndTime: lessonEndTime.toISOString(), currentTime: now.toISOString() });
       return false;
     }
 
@@ -97,23 +107,23 @@ const validateRoomAccess = async (userId: string, reservationId: string): Promis
       const [startHour, startMin] = reservation.startTime.split(':').map(Number);
       const lessonStartTime = new Date(lessonDate);
       lessonStartTime.setHours(startHour, startMin, 0, 0);
-      
+
       const timeBeforeStart = (lessonStartTime.getTime() - now.getTime()) / (1000 * 60); // minutes
       const timeWindow = process.env.NODE_ENV === 'production' ? 15 : 1440; // 15 min in prod, 24 hours in dev for testing
-      
-      console.log(`⏰ Student time check - Time before start: ${timeBeforeStart} minutes, Window: ${timeWindow} minutes`);
-      
+
+      socketLogger.debug('Student time window check', { timeBeforeStart, timeWindow });
+
       // Students can only join within the time window before the lesson starts
       if (timeBeforeStart > timeWindow) {
-        console.log(`❌ Student cannot join yet. Lesson starts in ${timeBeforeStart} minutes, window: ${timeWindow} minutes`);
+        socketLogger.warn('Student joining too early', { timeBeforeStart, timeWindow });
         return false;
       }
     }
 
-    console.log(`✅ Access granted for user ${userId} (${isTeacher ? 'teacher' : 'student'})`);
+    socketLogger.info('Room access granted', { userId, reservationId, role: isTeacher ? 'teacher' : 'student' });
     return true;
   } catch (error) {
-    console.error('❌ Error validating room access:', error);
+    socketLogger.error('Error validating room access', error);
     return false;
   }
 };
@@ -163,43 +173,43 @@ export const setupSocketServer = (server: HTTPServer, namespace?: Namespace) => 
   });
 
   io.on('connection', (socket: AuthenticatedSocket) => {
-    console.log(`WebRTC Socket connected: ${socket.id} (user: ${socket.user?.name})`);
+    socketLogger.info('WebRTC socket connected', { socketId: socket.id, userName: socket.user?.name, userId: socket.user?.id });
 
     // Join lesson room
     socket.on('join-room', async (data: { reservationId: string }) => {
       const { reservationId } = data;
-      
-      console.log(`🔌 Join room request: User ${socket.user?.name} (${socket.user?.id}) trying to join room ${reservationId}`);
-      
+
+      socketLogger.info('Join room request', { userId: socket.user?.id, userName: socket.user?.name, reservationId });
+
       if (!reservationId) {
-        console.log('❌ No reservation ID provided');
+        socketLogger.warn('Join room failed - no reservation ID', { userId: socket.user?.id });
         socket.emit('error', { message: 'Reservation ID is required' });
         return;
       }
 
-      console.log('🔍 Validating room access...');
+      socketLogger.debug('Validating room access');
       const hasAccess = await validateRoomAccess(socket.user!.id, reservationId);
-      console.log(`🔍 Access validation result for ${socket.user?.name}: ${hasAccess}`);
-      
+      socketLogger.debug('Access validation result', { userName: socket.user?.name, hasAccess });
+
       if (!hasAccess) {
-        console.log(`❌ Access denied for user ${socket.user?.name} to room ${reservationId}`);
+        socketLogger.warn('Room access denied', { userId: socket.user?.id, userName: socket.user?.name, reservationId });
         socket.emit('error', { message: 'Access denied to this lesson room' });
         return;
       }
 
-      console.log(`✅ Access granted for user ${socket.user?.name} to room ${reservationId}`);
+      socketLogger.info('Room access granted', { userId: socket.user?.id, userName: socket.user?.name, reservationId });
 
       // Leave any existing rooms
       socket.rooms.forEach(room => {
         if (room !== socket.id) {
-          console.log(`🚪 Leaving room: ${room}`);
+          socketLogger.debug('Leaving previous room', { room });
           socket.leave(room);
         }
       });
 
       // Join the lesson room
       socket.join(reservationId);
-      console.log(`✅ User ${socket.user!.name} joined room ${reservationId}`);
+      socketLogger.info('User joined room', { userId: socket.user!.id, userName: socket.user!.name, reservationId });
 
       // Notify other users in the room
       socket.to(reservationId).emit('user-joined', {
@@ -221,7 +231,7 @@ export const setupSocketServer = (server: HTTPServer, namespace?: Namespace) => 
         })
         .filter(Boolean) : [];
 
-      console.log(`📋 Room ${reservationId} users:`, roomUsers);
+      socketLogger.info('Room users list', { reservationId, userCount: roomUsers.length });
 
       socket.emit('room-info', {
         roomId: reservationId,
@@ -296,8 +306,8 @@ export const setupSocketServer = (server: HTTPServer, namespace?: Namespace) => 
 
     // Disconnect
     socket.on('disconnect', () => {
-      console.log(`WebRTC Socket disconnected: ${socket.id} (user: ${socket.user?.name})`);
-      
+      socketLogger.info('WebRTC socket disconnected', { socketId: socket.id, userName: socket.user?.name, userId: socket.user?.id });
+
       // Notify other users in all rooms that this user was in
       socket.rooms.forEach(room => {
         if (room !== socket.id) {

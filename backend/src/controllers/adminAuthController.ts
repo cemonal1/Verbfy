@@ -206,7 +206,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
 
   } catch (error) {
     adminAuthLogger.error('Admin login error', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      requestId: req.requestId, error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
       ip: req.ip,
       userAgent: req.get('User-Agent')
@@ -247,7 +247,7 @@ export const adminLogout = async (req: AuthRequest, res: Response): Promise<void
 
   } catch (error) {
     adminAuthLogger.error('Admin logout error', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      requestId: req.requestId, error: error instanceof Error ? error.message : 'Unknown error',
       userId: req.user?.id,
       ip: req.ip
     });
@@ -316,7 +316,7 @@ export const getAdminProfile = async (req: AuthRequest, res: Response): Promise<
 
   } catch (error) {
     adminAuthLogger.error('Get admin profile error', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      requestId: req.requestId, error: error instanceof Error ? error.message : 'Unknown error',
       userId: req.user?.id,
       ip: req.ip
     });
@@ -369,7 +369,7 @@ export const refreshAdminToken = async (req: Request, res: Response): Promise<vo
     res.json({ success: true, token, refreshToken: newRefreshToken });
   } catch (error) {
     adminAuthLogger.error('Refresh token error', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      requestId: req.requestId, error: error instanceof Error ? error.message : 'Unknown error',
       ip: req.ip,
       userAgent: req.get('User-Agent')
     });
