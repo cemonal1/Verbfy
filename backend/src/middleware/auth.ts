@@ -14,8 +14,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const auth = (req: AuthRequest, res: Response, next: NextFunction): void => {
-  // Get token from header or cookie (including admin token)
+export const auth = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   const authHeader = req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ')
     ? authHeader.substring(7)
@@ -34,24 +33,23 @@ export const auth = (req: AuthRequest, res: Response, next: NextFunction): void 
     res.status(401).json({ success: false, message: 'No token, authorization denied' });
     return;
   }
-  
+
   try {
-    const decoded: any = verifyToken(token);
-    
-    // Validate required fields, supporting both `id` and `userId`
-    const id = decoded?.id || decoded?.userId;
-    const role = decoded?.role;
+    const decoded = await verifyToken(token);
+
+    const id = decoded.id || decoded.userId;
+    const role = decoded.role;
     if (!id || !role) {
       throw new Error('Invalid token payload');
     }
-    
+
     req.user = {
       id: typeof id === 'string' ? id : id.toString(),
-      name: decoded?.name,
-      email: decoded?.email,
+      name: decoded.name,
+      email: decoded.email,
       role
     };
-    
+
     if (process.env.NODE_ENV === 'development') {
       authLogger.debug('Token verified successfully', {
         userId: req.user.id,
@@ -59,7 +57,7 @@ export const auth = (req: AuthRequest, res: Response, next: NextFunction): void 
         path: req.path
       });
     }
-    
+
     next();
   } catch (err) {
     authLogger.error('Token verification failed', {

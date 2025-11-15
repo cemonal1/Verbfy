@@ -63,6 +63,7 @@ import teacherRoutes from './routes/teacherRoutes';
 import { VerbfyTalkController } from './controllers/verbfyTalkController';
 import { performanceMiddleware, memoryTrackingMiddleware, requestSizeMiddleware } from './middleware/performanceMiddleware';
 import { setSocketIO } from './socket';
+import { requestIdMiddleware } from './middleware/requestId';
 
 // Load environment variables and initialize Sentry
 dotenv.config();
@@ -109,6 +110,9 @@ app.use(sanitizeRequest);
 app.use(securityMonitoring);
 app.use(ddosProtection);
 app.use(requestSizeLimiter(10 * 1024 * 1024)); // 10MB limit
+
+// Request ID tracking - must be early so all logs include it
+app.use(requestIdMiddleware);
 
 // Performance monitoring
 app.use(performanceMonitoring);

@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
 import bcrypt from 'bcryptjs';
-import { signAccessToken, signRefreshToken, verifyToken, verifyRefreshToken } from '../utils/jwt';
+import { signAccessToken, signRefreshToken, verifyToken, verifyRefreshToken, decodeTokenWithoutVerification } from '../utils/jwt';
 import { sendEmail } from '../utils/email';
 import crypto from 'crypto';
 import { createLogger } from '../utils/logger';
+import { tokenBlacklistService } from '../services/tokenBlacklistService';
 
-// Create context-specific logger
 const authLogger = createLogger('Auth');
 
 // Helper: set refresh token cookie
@@ -292,9 +292,42 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-export const logout = async (_req: Request, res: Response): Promise<void> => {
-  res.clearCookie('refreshToken', { path: '/api/auth' });
-  res.json({ success: true, message: 'Logged out successfully' });
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.header('Authorization');
+    const accessToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : req.cookies?.accessToken;
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (accessToken) {
+      const decoded = decodeTokenWithoutVerification(accessToken);
+      if (decoded && decoded.jti && decoded.exp) {
+        await tokenBlacklistService.blacklistToken(decoded.jti, decoded.id, decoded.exp);
+        authLogger.info('Access token blacklisted on logout', { userId: decoded.id, jti: decoded.jti });
+      }
+    }
+
+    if (refreshToken) {
+      const decoded = decodeTokenWithoutVerification(refreshToken);
+      if (decoded && decoded.jti && decoded.exp) {
+        await tokenBlacklistService.blacklistToken(decoded.jti, decoded.id, decoded.exp);
+        authLogger.info('Refresh token blacklisted on logout', { userId: decoded.id, jti: decoded.jti });
+      }
+    }
+
+    res.clearCookie('refreshToken', { path: '/api/auth' });
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('token', { path: '/' });
+
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (error) {
+    authLogger.error('Logout error', error);
+    res.clearCookie('refreshToken', { path: '/api/auth' });
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('token', { path: '/' });
+    res.json({ success: true, message: 'Logged out successfully' });
+  }
 };
 
 export const getTeachers = async (_req: Request, res: Response): Promise<void> => {
