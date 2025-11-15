@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode, useRef, useCallback, useMemo } from 'react';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('NotificationContext');
 import { toast } from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
 import { tokenStorage } from '../utils/secureStorage';
@@ -163,7 +166,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         });
       }
     } catch (error: any) {
-      console.error('Error fetching notifications:', error);
+      logger.error('Error', { error: 'Error fetching notifications:', error });
       const errorMessage = error.response?.data?.message || 'Failed to load notifications';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       toast.error(errorMessage);
@@ -187,7 +190,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         });
       }
     } catch (error: any) {
-      console.error('Error marking notification as read:', error);
+      logger.error('Error', { error: 'Error marking notification as read:', error });
       const errorMessage = error.response?.data?.message || 'Failed to mark notification as read';
       toast.error(errorMessage);
     }
@@ -208,7 +211,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         toast.success('All notifications marked as read');
       }
     } catch (error: any) {
-      console.error('Error marking all notifications as read:', error);
+      logger.error('Error', { error: 'Error marking all notifications as read:', error });
       const errorMessage = error.response?.data?.message || 'Failed to mark all notifications as read';
       toast.error(errorMessage);
     }
@@ -229,7 +232,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         toast.success('Notification deleted');
       }
     } catch (error: any) {
-      console.error('Error deleting notification:', error);
+      logger.error('Error', { error: 'Error deleting notification:', error });
       const errorMessage = error.response?.data?.message || 'Failed to delete notification';
       toast.error(errorMessage);
     }
@@ -260,11 +263,11 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const getUnreadCount = async () => {
     // Only get unread count if user is authenticated
     if (!isAuthenticated || !user) {
-      console.log('NotificationContext: Skipping unread count - not authenticated', { isAuthenticated, user: !!user });
+      logger.debug('Debug', { data: 'NotificationContext: Skipping unread count - not authenticated', { isAuthenticated, user: !!user } });
       return;
     }
 
-    console.log('NotificationContext: Getting unread count', { 
+    logger.debug('Debug', { data: 'NotificationContext: Getting unread count', { 
       isAuthenticated, 
       userId: user?._id || user?.id,
       hasToken: !!tokenStorage.getToken()
@@ -273,7 +276,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     try {
       const response = await api.get('/api/notifications/unread-count');
       
-      console.log('NotificationContext: Unread count response', response.data);
+      logger.debug('Debug', { data: 'NotificationContext: Unread count response', response.data });
       
       if (response.data.success) {
         dispatch({
@@ -282,13 +285,13 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         });
       }
     } catch (error: any) {
-      console.error('Error getting unread count:', error);
-      console.error('Error details:', {
+      logger.error('Error', { error: 'Error getting unread count:', error });
+      logger.error('Error', { error: 'Error details:', {
         status: error.response?.status,
         statusText: error.response?.statusText,
         data: error.response?.data,
         message: error.message
-      });
+      } });
     }
   };
 
@@ -377,19 +380,19 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   // Initial load - only when user is authenticated
   useEffect(() => {
     const token = tokenStorage.getToken();
-    console.log('NotificationContext: useEffect triggered', { 
+    logger.debug('Debug', { data: 'NotificationContext: useEffect triggered', { 
       isAuthenticated, 
       user: !!user, 
       userId: user?._id || user?.id,
       hasToken: !!token,
       tokenLength: token?.length || 0
-    });
+    } });
     if (isAuthenticated && user) {
-      console.log('NotificationContext: Fetching notifications and unread count');
+      logger.debug('Debug', { data: 'NotificationContext: Fetching notifications and unread count' });
       fetchNotifications();
       getUnreadCount();
     } else {
-      console.log('NotificationContext: Skipping fetch - user not authenticated');
+      logger.debug('Debug', { data: 'NotificationContext: Skipping fetch - user not authenticated' });
     }
   }, [isAuthenticated, user]);
 
