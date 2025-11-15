@@ -1017,37 +1017,104 @@ setupSwagger(app);
 app.use('/health', healthRoutes);
 app.use('/api/performance', performanceRoutes);
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/livekit', livekitRoutes);
-app.use('/api/reservations', reservationRoutes);
-app.use('/api/availability', availabilityRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/materials', materialsRoutes);
-app.use('/api/lesson-materials', lessonMaterialRoutes);
-app.use('/api/lessons', lessonRoutes);
-app.use('/api/admin', adminAuthRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/admin/system', adminSystemRoutes);
-app.use('/api/messages', messagesRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/verbfy-talk', verbfyTalkRoutes);
-app.use('/api/free-materials', freeMaterialsRoutes);
-app.use('/api/verbfy-lessons', verbfyLessonsRoutes);
-app.use('/api/cefr-tests', cefrTestsRoutes);
-app.use('/api/personalized-curriculum', personalizedCurriculumRoutes);
-app.use('/api/ai-learning', aiLearningRoutes);
-app.use('/api/adaptive-learning', adaptiveLearningRoutes);
-app.use('/api/teacher-analytics', teacherAnalyticsRoutes);
-app.use('/api/ai-content-generation', aiContentGenerationRoutes);
-app.use('/api/organizations', organizationRoutes);
-app.use('/api/roles', rolesRoutes);
-app.use('/api/games', gameRoutes);
-app.use('/api/lesson-chat', lessonChatRoutes);
-app.use('/api/teacher', teacherRoutes);
+// ========================================
+// API v1 Routes (Versioned)
+// ========================================
+const v1Router = express.Router();
+
+// Auth & Users
+v1Router.use('/auth', authRoutes);
+v1Router.use('/users', userRoutes);
+
+// Lessons & Scheduling
+v1Router.use('/lessons', lessonRoutes);
+v1Router.use('/reservations', reservationRoutes);
+v1Router.use('/availability', availabilityRoutes);
+v1Router.use('/lesson-materials', lessonMaterialRoutes);
+v1Router.use('/lesson-chat', lessonChatRoutes);
+
+// Learning & Curriculum
+v1Router.use('/materials', materialsRoutes);
+v1Router.use('/free-materials', freeMaterialsRoutes);
+v1Router.use('/verbfy-lessons', verbfyLessonsRoutes);
+v1Router.use('/cefr-tests', cefrTestsRoutes);
+v1Router.use('/personalized-curriculum', personalizedCurriculumRoutes);
+
+// AI Features
+v1Router.use('/ai-learning', aiLearningRoutes);
+v1Router.use('/adaptive-learning', adaptiveLearningRoutes);
+v1Router.use('/ai-content-generation', aiContentGenerationRoutes);
+
+// Communication
+v1Router.use('/chat', chatRoutes);
+v1Router.use('/messages', messagesRoutes);
+v1Router.use('/notifications', notificationRoutes);
+
+// Real-time Features
+v1Router.use('/livekit', livekitRoutes);
+v1Router.use('/verbfy-talk', verbfyTalkRoutes);
+v1Router.use('/games', gameRoutes);
+
+// Analytics & Monitoring
+v1Router.use('/analytics', analyticsRoutes);
+v1Router.use('/teacher-analytics', teacherAnalyticsRoutes);
+
+// Organization & Roles
+v1Router.use('/organizations', organizationRoutes);
+v1Router.use('/roles', rolesRoutes);
+v1Router.use('/teacher', teacherRoutes);
+
+// Payments
+v1Router.use('/payments', paymentRoutes);
+
+// Admin Routes
+v1Router.use('/admin', adminAuthRoutes);
+v1Router.use('/admin', adminRoutes);
+v1Router.use('/admin/system', adminSystemRoutes);
+
+// Mount v1 router
+app.use('/api/v1', v1Router);
+
+// ========================================
+// Backward Compatibility (Deprecated)
+// Add deprecation header to old routes
+// ========================================
+const deprecatedMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('X-API-Deprecated', 'true');
+  res.setHeader('X-API-Deprecation-Info', 'Please use /api/v1/ endpoints. Legacy /api/ will be removed in future versions.');
+  next();
+};
+
+app.use('/api/auth', deprecatedMiddleware, authRoutes);
+app.use('/api/users', deprecatedMiddleware, userRoutes);
+app.use('/api/livekit', deprecatedMiddleware, livekitRoutes);
+app.use('/api/reservations', deprecatedMiddleware, reservationRoutes);
+app.use('/api/availability', deprecatedMiddleware, availabilityRoutes);
+app.use('/api/notifications', deprecatedMiddleware, notificationRoutes);
+app.use('/api/materials', deprecatedMiddleware, materialsRoutes);
+app.use('/api/lesson-materials', deprecatedMiddleware, lessonMaterialRoutes);
+app.use('/api/lessons', deprecatedMiddleware, lessonRoutes);
+app.use('/api/admin', deprecatedMiddleware, adminAuthRoutes);
+app.use('/api/admin', deprecatedMiddleware, adminRoutes);
+app.use('/api/admin/system', deprecatedMiddleware, adminSystemRoutes);
+app.use('/api/messages', deprecatedMiddleware, messagesRoutes);
+app.use('/api/analytics', deprecatedMiddleware, analyticsRoutes);
+app.use('/api/chat', deprecatedMiddleware, chatRoutes);
+app.use('/api/payments', deprecatedMiddleware, paymentRoutes);
+app.use('/api/verbfy-talk', deprecatedMiddleware, verbfyTalkRoutes);
+app.use('/api/free-materials', deprecatedMiddleware, freeMaterialsRoutes);
+app.use('/api/verbfy-lessons', deprecatedMiddleware, verbfyLessonsRoutes);
+app.use('/api/cefr-tests', deprecatedMiddleware, cefrTestsRoutes);
+app.use('/api/personalized-curriculum', deprecatedMiddleware, personalizedCurriculumRoutes);
+app.use('/api/ai-learning', deprecatedMiddleware, aiLearningRoutes);
+app.use('/api/adaptive-learning', deprecatedMiddleware, adaptiveLearningRoutes);
+app.use('/api/teacher-analytics', deprecatedMiddleware, teacherAnalyticsRoutes);
+app.use('/api/ai-content-generation', deprecatedMiddleware, aiContentGenerationRoutes);
+app.use('/api/organizations', deprecatedMiddleware, organizationRoutes);
+app.use('/api/roles', deprecatedMiddleware, rolesRoutes);
+app.use('/api/games', deprecatedMiddleware, gameRoutes);
+app.use('/api/lesson-chat', deprecatedMiddleware, lessonChatRoutes);
+app.use('/api/teacher', deprecatedMiddleware, teacherRoutes);
 
 // ========================================
 // TEST SENTRY ENDPOINT (BURAYA!)
