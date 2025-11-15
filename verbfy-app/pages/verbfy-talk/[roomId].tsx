@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { verbfyTalkAPI } from '@/lib/api';
@@ -31,14 +31,26 @@ function VerbfyTalkRoomPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'speaker' | 'gallery'>('grid');
   const [speakerParticipant, setSpeakerParticipant] = useState<string | null>(null);
 
+  // Extract active participants from room data
+  const activeParticipants = useMemo(() => {
+    if (!room || !room.participants) return [];
+
+    return room.participants.filter(p => p.isActive);
+  }, [room]);
+
+  // Extract participant IDs for WebRTC
+  const participantIds = useMemo(() => {
+    return activeParticipants.map(p =>
+      typeof p.userId === 'object' ? p.userId._id : p.userId
+    );
+  }, [activeParticipants]);
+
   // WebRTC setup
   const peerIds = user && roomId ? {
     self: `${user.id}-verbfy-talk-${roomId}`,
     remote: undefined,
   } : { self: '', remote: undefined };
 
-  const participants: string[] = []; // TODO: Implement participant tracking
-  
   const {
     localStream,
     remoteStreams,
@@ -54,7 +66,7 @@ function VerbfyTalkRoomPage() {
     toggleRemoteMute,
     toggleRemoteVideo,
     isInitializing,
-  } = useWebRTC(roomId as string, peerIds, participants);
+  } = useWebRTC(roomId as string, peerIds, participantIds);
 
   // Video refs
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -201,7 +213,6 @@ function VerbfyTalkRoomPage() {
     );
   }
 
-  const activeParticipants: any[] = []; // TODO: Implement participant tracking
   const isCreator = typeof room.createdBy === 'object' ? room.createdBy._id === user?.id : room.createdBy === user?.id;
 
   return (
