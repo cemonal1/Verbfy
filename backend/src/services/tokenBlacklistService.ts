@@ -84,7 +84,7 @@ class TokenBlacklistService {
   async removeFromBlacklist(jti: string): Promise<void> {
     try {
       const key = `${this.BLACKLIST_PREFIX}${jti}`;
-      await cacheService.delete(key);
+      await cacheService.del(key);
       blacklistLogger.info('Token removed from blacklist', { jti });
     } catch (error) {
       blacklistLogger.error('Failed to remove token from blacklist', error);
