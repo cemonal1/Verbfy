@@ -29,7 +29,8 @@
     "monitor:memory": "node scripts/monitor-memory.js",
     "performance:test": "npm run health-check && npm run monitor:memory",
     "create-admin": "ts-node scripts/createAdminUser.ts",
-    "create-admin:js": "node scripts/createAdminUser.js"
+    "create-admin:js": "node scripts/createAdminUser.js",
+    "generate:openapi": "ts-node scripts/generate-openapi.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.620.0",
