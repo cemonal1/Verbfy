@@ -1072,6 +1072,9 @@ v1Router.use('/admin', adminAuthRoutes);
 v1Router.use('/admin', adminRoutes);
 v1Router.use('/admin/system', adminSystemRoutes);
 
+// Health & Monitoring
+v1Router.use('/', healthRoutes); // Health routes at /api/v1/health, /ready, /live, /status
+
 // Mount v1 router
 app.use('/api/v1', v1Router);
 
