@@ -2,6 +2,9 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { LessonMaterial, ILessonMaterial } from '../models/LessonMaterial';
 import { Reservation } from '../models/Reservation';
+import { createLogger } from '../utils/logger';
+
+const lessonMaterialLogger = createLogger('LessonMaterialController');
 
 // Upload a new lesson material
 export const uploadMaterial = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -75,7 +78,7 @@ export const uploadMaterial = async (req: AuthRequest, res: Response): Promise<v
     });
 
   } catch (error: any) {
-    console.error('Error uploading material:', error);
+    lessonMaterialLogger.error('Error', { error: 'Error uploading material:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to upload material' 
     });
@@ -118,7 +121,7 @@ export const getTeacherMaterials = async (req: AuthRequest, res: Response): Prom
     });
 
   } catch (error: any) {
-    console.error('Error fetching teacher materials:', error);
+    lessonMaterialLogger.error('Error', { error: 'Error fetching teacher materials:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to fetch materials' 
     });
@@ -163,7 +166,7 @@ export const getPublicMaterials = async (req: AuthRequest, res: Response): Promi
     });
 
   } catch (error: any) {
-    console.error('Error fetching public materials:', error);
+    lessonMaterialLogger.error('Error', { error: 'Error fetching public materials:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to fetch materials' 
     });
@@ -221,7 +224,7 @@ export const getMaterialById = async (req: AuthRequest, res: Response): Promise<
     });
 
   } catch (error: any) {
-    console.error('Error fetching material:', error);
+    lessonMaterialLogger.error('Error', { error: 'Error fetching material:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to fetch material' 
     });
@@ -278,7 +281,7 @@ export const updateMaterial = async (req: AuthRequest, res: Response): Promise<v
     });
 
   } catch (error: any) {
-    console.error('Error updating material:', error);
+    lessonMaterialLogger.error('Error', { error: 'Error updating material:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to update material' 
     });
@@ -327,7 +330,7 @@ export const deleteMaterial = async (req: AuthRequest, res: Response): Promise<v
     });
 
   } catch (error: any) {
-    console.error('Error deleting material:', error);
+    lessonMaterialLogger.error('Error', { error: 'Error deleting material:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to delete material' 
     });

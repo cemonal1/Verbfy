@@ -95,7 +95,7 @@ export const me = async (req: Request, res: Response): Promise<void> => {
       ...payload
     });
   } catch (err) {
-    console.error('Auth me error:', err);
+    logger.error('Auth me error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -173,10 +173,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           `;
           // Fire-and-forget; log errors but never block registration response
           sendEmail(adminEmails, 'New teacher application', html)
-            .catch((e) => console.warn('Failed to send admin teacher application email:', e));
+            .catch((e) => logger.warn('Failed to send admin teacher application email:', e));
         }
       } catch (e) {
-        console.warn('Failed to queue admin teacher application email:', e);
+        logger.warn('Failed to queue admin teacher application email:', e);
       }
     }
     res.status(201).json({
@@ -186,7 +186,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       user: { id: user._id, name: user.name, email: user.email, role: user.role, isApproved: user.isApproved, approvalStatus: user.approvalStatus }
     });
   } catch (err) {
-    console.error('Registration error:', err);
+    logger.error('Registration error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -235,7 +235,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       user: { id: user._id, name: user.name, email: user.email, role: user.role, isApproved: user.isApproved, approvalStatus: user.approvalStatus }
     });
   } catch (err) {
-    console.error('Login error:', err);
+    logger.error('Login error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -287,7 +287,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     authLogger.info('Token refresh successful', { userId: user._id });
     res.json({ success: true, accessToken: newAccessToken });
   } catch (err) {
-    console.error('Refresh token error:', err);
+    logger.error('Refresh token error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -367,12 +367,12 @@ export const requestEmailVerification = async (req: Request, res: Response): Pro
       await sendEmail(user.email, 'Verify your email', `<p>Please verify your email by clicking <a href="${verifyUrl}">this link</a>. This link expires in 1 hour.</p>`);
     } catch (e) {
       if (process.env.NODE_ENV !== 'test') {
-        console.warn('Email sending failed:', e);
+        logger.warn('Email sending failed:', e);
       }
     }
     res.json({ success: true, message: 'Verification email sent' });
   } catch (err) {
-    console.error('requestEmailVerification error:', err);
+    logger.error('requestEmailVerification error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -396,7 +396,7 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
     await user.save();
     res.json({ success: true, message: 'Email verified' });
   } catch (err) {
-    console.error('verifyEmail error:', err);
+    logger.error('verifyEmail error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -424,12 +424,12 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     } catch (e) {
       // In tests or when SMTP is not configured, do not fail the flow
       if (process.env.NODE_ENV !== 'test') {
-        console.warn('Email sending failed:', e);
+        logger.warn('Email sending failed:', e);
       }
     }
     res.json({ success: true, message: 'If that account exists, a reset email has been sent' });
   } catch (err) {
-    console.error('forgotPassword error:', err);
+    logger.error('forgotPassword error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -455,7 +455,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     await user.save();
     res.json({ success: true, message: 'Password has been reset' });
   } catch (err) {
-    console.error('resetPassword error:', err);
+    logger.error('resetPassword error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

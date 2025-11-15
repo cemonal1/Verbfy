@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
 import { signAccessToken, signRefreshToken } from '../utils/jwt';
+import { createLogger } from '../utils/logger';
+const oauthLogger = createLogger('OauthController');
 
 // Local helper: set refresh cookie (copy from authController)
 const setRefreshTokenCookie = (res: Response, token: string) => {
@@ -86,7 +88,7 @@ export const oauthInit = async (req: Request, res: Response): Promise<void> => {
 
     return res.redirect(authUrl);
   } catch (err) {
-    console.error('OAuth init error:', err);
+    oauthLogger.error('OAuth init error:', err);
     res.status(500).json({ success: false, message: 'OAuth init failed' });
       return;
   }
@@ -181,12 +183,12 @@ export const oauthCallback = async (req: Request, res: Response): Promise<void> 
               if (allowedOrigins.includes(targetOrigin)) {
                 window.opener.postMessage(payload, targetOrigin);
               } else {
-                console.warn('OAuth callback: Invalid target origin:', targetOrigin);
+                oauthLogger.warn('OAuth callback: Invalid target origin:', targetOrigin);
               }
             }
             window.close();
           } catch (e) {
-            console.error('OAuth callback error:', e);
+            oauthLogger.error('OAuth callback error:', e);
             window.close();
           }
         </script>
@@ -194,7 +196,7 @@ export const oauthCallback = async (req: Request, res: Response): Promise<void> 
     res.send(html);
       return;
   } catch (err) {
-    console.error('OAuth callback error:', err);
+    oauthLogger.error('OAuth callback error:', err);
     try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
     res.set('Content-Type', 'text/html');
     const payload = { type: 'oauth-error', message: 'OAuth callback failed' };

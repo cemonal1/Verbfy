@@ -1,4 +1,6 @@
 import { AccessToken } from 'livekit-server-sdk';
+import { createLogger } from '../utils/logger';
+const livekitLogger = createLogger('LivekitConfig');
 
 interface LiveKitConfig {
   apiKey: string;
@@ -41,10 +43,12 @@ class LiveKitConfiguration {
 
     // Log warnings for missing variables
     if (missingCloudVars.length > 0) {
-      console.warn('⚠️ Missing LiveKit Cloud configuration:', missingCloudVars.join(', '));
-      console.warn('   Video conferencing feature will be disabled');
+      process.stdout.write('⚠️ Missing LiveKit Cloud configuration: ' + missingCloudVars.join(', ') + '\n');
+      process.stdout.write('   Video conferencing feature will be disabled
+');
     } else {
-      console.log('✅ LiveKit Cloud configuration found');
+      process.stdout.write('✅ LiveKit Cloud configuration found
+');
     }
   }
 

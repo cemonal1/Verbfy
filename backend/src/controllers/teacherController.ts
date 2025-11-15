@@ -1,6 +1,9 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import * as availabilityService from '../services/availabilityService';
+import { createLogger } from '../utils/logger';
+
+const teacherLogger = createLogger('TeacherController');
 
 // Get teacher's availability
 export const getTeacherAvailability = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -13,7 +16,7 @@ export const getTeacherAvailability = async (req: AuthRequest, res: Response): P
       data: availability
     });
   } catch (error: any) {
-    console.error('Error getting teacher availability:', error);
+    teacherLogger.error('Error', { error: 'Error getting teacher availability:', error });
     res.status(500).json({ 
       success: false,
       message: error.message || 'Failed to get availability' 
@@ -78,7 +81,7 @@ export const setTeacherAvailability = async (req: AuthRequest, res: Response): P
       data: result 
     });
   } catch (error: any) {
-    console.error('Error setting teacher availability:', error);
+    teacherLogger.error('Error', { error: 'Error setting teacher availability:', error });
     res.status(500).json({ 
       success: false,
       message: error.message || 'Failed to set availability' 
@@ -113,7 +116,7 @@ export const updateAvailabilitySlot = async (req: AuthRequest, res: Response): P
       data: updatedSlot 
     });
   } catch (error: any) {
-    console.error('Error updating availability slot:', error);
+    teacherLogger.error('Error', { error: 'Error updating availability slot:', error });
     res.status(500).json({ 
       success: false,
       message: error.message || 'Failed to update availability slot' 
@@ -142,7 +145,7 @@ export const deleteAvailabilitySlot = async (req: AuthRequest, res: Response): P
       message: 'Availability slot deleted successfully' 
     });
   } catch (error: any) {
-    console.error('Error deleting availability slot:', error);
+    teacherLogger.error('Error', { error: 'Error deleting availability slot:', error });
     res.status(500).json({ 
       success: false,
       message: error.message || 'Failed to delete availability slot' 

@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { Payment } from '../models/Payment';
 import { stripe, createCheckoutSessionOptions, verifyWebhookSignature, getProduct, getAllProducts, formatAmount } from '../lib/stripe';
 import { saveIdempotentResponse } from '../middleware/idempotency';
+import { createLogger } from '../utils/logger';
+const paymentLogger = createLogger('PaymentController');
 
 // Ödemeler Stripe yapılandırmasına göre devreye alınır. Stripe yoksa, yalnızca okuma uçları çalışır.
 
@@ -17,7 +19,7 @@ export const getPaymentHistory = async (req: Request, res: Response): Promise<vo
 
     res.json({ success: true, data: result, message: 'Payment history retrieved successfully' });
   } catch (error) {
-    console.error('Error getting payment history:', error);
+    paymentLogger.error('Error getting payment history:', error);
     res.status(500).json({ success: false, message: 'Failed to retrieve payment history' });
   }
 };
@@ -47,7 +49,7 @@ export const getPaymentStats = async (req: Request, res: Response): Promise<void
     const stats = await Payment.getPaymentStats(userId);
     res.json({ success: true, data: stats, message: 'Payment statistics retrieved successfully' });
   } catch (error) {
-    console.error('Error getting payment stats:', error);
+    paymentLogger.error('Error getting payment stats:', error);
     res.status(500).json({ success: false, message: 'Failed to retrieve payment statistics' });
   }
 };
@@ -128,7 +130,7 @@ export const createCheckoutSession = async (req: Request, res: Response): Promis
     await saveIdempotentResponse(req, res, payload, 200);
     res.status(200).json(payload);
   } catch (error: any) {
-    console.error('Error creating checkout session:', error);
+    paymentLogger.error('Error creating checkout session:', error);
     const payload = { success: false, message: error?.message || 'Failed to create checkout session' };
     await saveIdempotentResponse(req, res, payload, 500);
     res.status(500).json(payload);
@@ -188,7 +190,7 @@ export const handleStripeWebhook = async (req: Request, res: Response): Promise<
 
     res.status(200).json({ received: true });
   } catch (error: any) {
-    console.error('Stripe webhook error:', error);
+    paymentLogger.error('Stripe webhook error:', error);
     res.status(400).json({ success: false, message: error?.message || 'Webhook handling failed' });
   }
 };

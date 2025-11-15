@@ -7,6 +7,9 @@ import { PersonalizedCurriculum } from '../models/PersonalizedCurriculum';
 import User from '../models/User';
 import { generateToken } from '../utils/generateToken';
 import { AuthRequest } from '../middleware/auth';
+import { createLogger } from '../utils/logger';
+
+const aiLearningLogger = createLogger('AiLearningController');
 
 interface AuthenticatedRequest extends Request {
   user?: any;
@@ -40,7 +43,7 @@ export const createAISession = async (req: AuthenticatedRequest, res: Response) 
       message: 'AI learning session created successfully'
     });
   } catch (error) {
-    console.error('Error creating AI session:', error);
+    aiLearningLogger.error('Error', { error: 'Error creating AI session:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to create AI learning session'
@@ -83,7 +86,7 @@ export const getAIResponse = async (req: AuthenticatedRequest, res: Response) =>
       }
     });
   } catch (error) {
-    console.error('Error getting AI response:', error);
+    aiLearningLogger.error('Error', { error: 'Error getting AI response:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to get AI response'
@@ -132,7 +135,7 @@ export const generateRecommendations = async (req: AuthenticatedRequest, res: Re
       data: recommendations
     });
   } catch (error) {
-    console.error('Error generating recommendations:', error);
+    aiLearningLogger.error('Error', { error: 'Error generating recommendations:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to generate recommendations'
@@ -169,7 +172,7 @@ export const updateSessionProgress = async (req: AuthenticatedRequest, res: Resp
       message: 'Session progress updated successfully'
     });
   } catch (error) {
-    console.error('Error updating session progress:', error);
+    aiLearningLogger.error('Error', { error: 'Error updating session progress:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to update session progress'
@@ -211,7 +214,7 @@ export const getUserAISessions = async (req: AuthenticatedRequest, res: Response
       }
     });
   } catch (error) {
-    console.error('Error getting user AI sessions:', error);
+    aiLearningLogger.error('Error', { error: 'Error getting user AI sessions:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to get AI sessions'
@@ -256,7 +259,7 @@ export const getAISessionAnalytics = async (req: AuthenticatedRequest, res: Resp
       data: analytics
     });
   } catch (error) {
-    console.error('Error getting AI session analytics:', error);
+    aiLearningLogger.error('Error', { error: 'Error getting AI session analytics:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to get session analytics'

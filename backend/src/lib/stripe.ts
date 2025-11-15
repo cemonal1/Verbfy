@@ -1,4 +1,6 @@
 import Stripe from 'stripe';
+import { createLogger } from '../utils/logger';
+const stripeLogger = createLogger('Stripe');
 
 // Initialize Stripe with secret key (only if available)
 let stripe: Stripe | null = null;
@@ -9,7 +11,7 @@ if (process.env.STRIPE_SECRET_KEY) {
     typescript: true,
   });
 } else {
-  console.warn('⚠️  STRIPE_SECRET_KEY not found. Payment features will be disabled.');
+  stripeLogger.warn('⚠️  STRIPE_SECRET_KEY not found. Payment features will be disabled.');
 }
 
 export { stripe };

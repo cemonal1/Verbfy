@@ -3,6 +3,9 @@ import AIContentGeneration from '../models/AIContentGeneration';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/auth';
 import mongoose from 'mongoose';
+import { createLogger } from '../utils/logger';
+
+const aiContentGenerationLogger = createLogger('AiContentGenerationController');
 
 export class AIContentGenerationController {
   // Generate new content
@@ -75,7 +78,7 @@ export class AIContentGenerationController {
         message: 'Content generated successfully'
       });
     } catch (error) {
-      console.error('Error generating content:', error);
+      aiContentGenerationLogger.error('Error', { error: 'Error generating content:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to generate content'
@@ -119,7 +122,7 @@ export class AIContentGenerationController {
         }
       });
     } catch (error) {
-      console.error('Error fetching user content:', error);
+      aiContentGenerationLogger.error('Error', { error: 'Error fetching user content:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to fetch content'
@@ -158,7 +161,7 @@ export class AIContentGenerationController {
         data: content
       });
     } catch (error) {
-      console.error('Error fetching content:', error);
+      aiContentGenerationLogger.error('Error', { error: 'Error fetching content:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to fetch content'
@@ -206,7 +209,7 @@ export class AIContentGenerationController {
         message: 'Quality assessment updated successfully'
       });
     } catch (error) {
-      console.error('Error updating quality assessment:', error);
+      aiContentGenerationLogger.error('Error', { error: 'Error updating quality assessment:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to update quality assessment'
@@ -253,7 +256,7 @@ export class AIContentGenerationController {
         message: 'Content approved successfully'
       });
     } catch (error) {
-      console.error('Error approving content:', error);
+      aiContentGenerationLogger.error('Error', { error: 'Error approving content:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to approve content'
@@ -334,7 +337,7 @@ export class AIContentGenerationController {
         }
       });
     } catch (error) {
-      console.error('Error fetching content analytics:', error);
+      aiContentGenerationLogger.error('Error', { error: 'Error fetching content analytics:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to fetch analytics'

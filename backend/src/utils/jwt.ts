@@ -11,7 +11,7 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
   jwtLogger.error('JWT Configuration Error: JWT_SECRET and JWT_REFRESH_SECRET must be defined');
   jwtLogger.error('To fix: Set JWT_SECRET and JWT_REFRESH_SECRET in environment variables');
-  jwtLogger.error('Generate secure secrets: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+  jwtLogger.error('Generate secure secrets: node -e "logger.info(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
 
   if (process.env.NODE_ENV === 'production') {
     throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be defined in environment variables for production');

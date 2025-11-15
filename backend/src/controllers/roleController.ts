@@ -4,6 +4,9 @@ import User from '../models/User';
 import Organization from '../models/Organization';
 import { AuthRequest } from '../middleware/auth';
 import mongoose from 'mongoose';
+import { createLogger } from '../utils/logger';
+
+const roleLogger = createLogger('RoleController');
 
 export class RoleController {
   // Create new role
@@ -84,7 +87,7 @@ export class RoleController {
         message: 'Role created successfully'
       });
     } catch (error) {
-      console.error('Error creating role:', error);
+      roleLogger.error('Error', { error: 'Error creating role:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to create role'
@@ -133,7 +136,7 @@ export class RoleController {
         data: roles
       });
     } catch (error) {
-      console.error('Error getting roles:', error);
+      roleLogger.error('Error', { error: 'Error getting roles:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to get roles'
@@ -181,7 +184,7 @@ export class RoleController {
         data: role
       });
     } catch (error) {
-      console.error('Error getting role:', error);
+      roleLogger.error('Error', { error: 'Error getting role:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to get role'
@@ -270,7 +273,7 @@ export class RoleController {
         message: 'Role updated successfully'
       });
     } catch (error) {
-      console.error('Error updating role:', error);
+      roleLogger.error('Error', { error: 'Error updating role:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to update role'
@@ -351,7 +354,7 @@ export class RoleController {
         message: 'Role deleted successfully'
       });
     } catch (error) {
-      console.error('Error deleting role:', error);
+      roleLogger.error('Error', { error: 'Error deleting role:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to delete role'
@@ -411,7 +414,7 @@ export class RoleController {
         message: `Role '${role.name}' assigned to user successfully`
       });
     } catch (error) {
-      console.error('Error assigning role:', error);
+      roleLogger.error('Error', { error: 'Error assigning role:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to assign role'
@@ -466,7 +469,7 @@ export class RoleController {
         data: hierarchy
       });
     } catch (error) {
-      console.error('Error getting role hierarchy:', error);
+      roleLogger.error('Error', { error: 'Error getting role hierarchy:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to get role hierarchy'
@@ -524,7 +527,7 @@ export class RoleController {
         }
       });
     } catch (error) {
-      console.error('Error getting role permissions:', error);
+      roleLogger.error('Error', { error: 'Error getting role permissions:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to get role permissions'
@@ -600,7 +603,7 @@ export class RoleController {
         message: `Bulk role operation '${operation}' completed successfully`
       });
     } catch (error) {
-      console.error('Error performing bulk role operations:', error);
+      roleLogger.error('Error', { error: 'Error performing bulk role operations:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to perform bulk role operations'

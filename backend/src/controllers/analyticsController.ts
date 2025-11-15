@@ -3,6 +3,8 @@ import User from '../models/User';
 import { Lesson } from '../models/Lesson';
 import { Payment } from '../models/Payment';
 import { cacheService } from '../services/cacheService';
+import { createLogger } from '../utils/logger';
+const analyticsLogger = createLogger('AnalyticsController');
 
 // Teacher Analytics
 export const getTeacherAnalytics = async (req: Request, res: Response): Promise<void> => {
@@ -179,7 +181,7 @@ export const getTeacherAnalytics = async (req: Request, res: Response): Promise<
       message: 'Teacher analytics retrieved successfully'
     });
   } catch (error) {
-    console.error('Error getting teacher analytics:', error);
+    analyticsLogger.error('Error getting teacher analytics:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve teacher analytics'
@@ -359,7 +361,7 @@ export const getStudentAnalytics = async (req: Request, res: Response): Promise<
       message: 'Student analytics retrieved successfully'
     });
   } catch (error) {
-    console.error('Error getting student analytics:', error);
+    analyticsLogger.error('Error getting student analytics:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve student analytics'
@@ -548,7 +550,7 @@ export const getAdminAnalytics = async (req: Request, res: Response): Promise<vo
       message: 'Admin analytics retrieved successfully'
     });
   } catch (error) {
-    console.error('Error getting admin analytics:', error);
+    analyticsLogger.error('Error getting admin analytics:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve admin analytics'

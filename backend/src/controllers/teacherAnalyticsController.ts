@@ -5,6 +5,9 @@ import { LessonProgress } from '../models/LessonProgress';
 import { LessonAttempt } from '../models/LessonAttempt';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/auth';
+import { createLogger } from '../utils/logger';
+
+const teacherAnalyticsLogger = createLogger('TeacherAnalyticsController');
 
 export class TeacherAnalyticsController {
   // Generate comprehensive teacher analytics
@@ -81,7 +84,7 @@ export class TeacherAnalyticsController {
         data: analytics
       });
     } catch (error: any) {
-      console.error('Error generating teacher analytics:', error);
+      teacherAnalyticsLogger.error('Error', { error: 'Error generating teacher analytics:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to generate analytics'
@@ -117,7 +120,7 @@ export class TeacherAnalyticsController {
         data: analytics
       });
     } catch (error: any) {
-      console.error('Error fetching teacher analytics:', error);
+      teacherAnalyticsLogger.error('Error', { error: 'Error fetching teacher analytics:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to fetch analytics'
@@ -152,7 +155,7 @@ export class TeacherAnalyticsController {
         data: performance
       });
     } catch (error: any) {
-      console.error('Error fetching student performance:', error);
+      teacherAnalyticsLogger.error('Error', { error: 'Error fetching student performance:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to fetch student performance'
@@ -194,7 +197,7 @@ export class TeacherAnalyticsController {
         data: analytics
       });
     } catch (error: any) {
-      console.error('Error fetching lesson analytics:', error);
+      teacherAnalyticsLogger.error('Error', { error: 'Error fetching lesson analytics:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to fetch lesson analytics'
@@ -249,7 +252,7 @@ export class TeacherAnalyticsController {
         data: metrics
       });
     } catch (error: any) {
-      console.error('Error fetching engagement metrics:', error);
+      teacherAnalyticsLogger.error('Error', { error: 'Error fetching engagement metrics:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to fetch engagement metrics'

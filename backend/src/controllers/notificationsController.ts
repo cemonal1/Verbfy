@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 import { Notification, INotificationDocument } from '../models/Notification';
+import { createLogger } from '../utils/logger';
+
+const notificationsLogger = createLogger('NotificationsController');
 
 // Get user's notifications
 export const getNotifications = async (req: Request, res: Response): Promise<void> => {
@@ -51,7 +54,7 @@ export const getNotifications = async (req: Request, res: Response): Promise<voi
       message: 'Notifications retrieved successfully'
     });
   } catch (error) {
-    console.error('Error getting notifications:', error);
+    notificationsLogger.error('Error', { error: 'Error getting notifications:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve notifications'
@@ -99,7 +102,7 @@ export const createNotification = async (req: Request, res: Response): Promise<v
       message: 'Notification created successfully'
     });
   } catch (error) {
-    console.error('Error creating notification:', error);
+    notificationsLogger.error('Error', { error: 'Error creating notification:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to create notification'
@@ -140,7 +143,7 @@ export const markAsRead = async (req: Request, res: Response): Promise<void> => 
       message: 'Notification marked as read'
     });
   } catch (error) {
-    console.error('Error marking notification as read:', error);
+    notificationsLogger.error('Error', { error: 'Error marking notification as read:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to mark notification as read'
@@ -163,7 +166,7 @@ export const markAllAsRead = async (req: Request, res: Response): Promise<void> 
       message: 'All notifications marked as read'
     });
   } catch (error) {
-    console.error('Error marking all notifications as read:', error);
+    notificationsLogger.error('Error', { error: 'Error marking all notifications as read:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to mark all notifications as read'
@@ -184,7 +187,7 @@ export const getUnreadCount = async (req: Request, res: Response): Promise<void>
       message: 'Unread count retrieved successfully'
     });
   } catch (error) {
-    console.error('Error getting unread count:', error);
+    notificationsLogger.error('Error', { error: 'Error getting unread count:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to get unread count'
@@ -220,7 +223,7 @@ export const deleteNotification = async (req: Request, res: Response): Promise<v
       message: 'Notification deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting notification:', error);
+    notificationsLogger.error('Error', { error: 'Error deleting notification:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to delete notification'
@@ -249,7 +252,7 @@ export const createSystemNotification = async (
 
     return notification;
   } catch (error) {
-    console.error('Error creating system notification:', error);
+    notificationsLogger.error('Error', { error: 'Error creating system notification:', error });
     throw error;
   }
 }; 

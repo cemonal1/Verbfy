@@ -77,21 +77,21 @@ export const productionLogger = {
     if (process.env.NODE_ENV === 'production') {
       logger.info({ args }, 'Console log');
     } else {
-      console.log(...args);
+      logger.info(...args);
     }
   },
   error: (...args: unknown[]) => {
     if (process.env.NODE_ENV === 'production') {
       logger.error({ args }, 'Console error');
     } else {
-      console.error(...args);
+      logger.error(...args);
     }
   },
   warn: (...args: unknown[]) => {
     if (process.env.NODE_ENV === 'production') {
       logger.warn({ args }, 'Console warning');
     } else {
-      console.warn(...args);
+      logger.warn(...args);
     }
   },
   info: (...args: unknown[]) => {

@@ -4,6 +4,8 @@ import { LessonAttempt } from '../models/LessonAttempt';
 import User from '../models/User';
 import { PersonalizedCurriculum } from '../models/PersonalizedCurriculum';
 import { AuthRequest } from '../middleware/auth';
+import { createLogger } from '../utils/logger';
+const cefrTestLogger = createLogger('CefrTestController');
 
 export class CEFRTestController {
   // Get all tests
@@ -1121,7 +1123,7 @@ export class CEFRTestController {
         await user.save();
       }
     } catch (error: any) {
-      console.error('Error updating user CEFR level:', error);
+      cefrTestLogger.error('Error updating user CEFR level:', error);
     }
   }
 
@@ -1146,7 +1148,7 @@ export class CEFRTestController {
         await curriculum.save();
       }
     } catch (error: any) {
-      console.error('Error updating personalized curriculum:', error);
+      cefrTestLogger.error('Error updating personalized curriculum:', error);
     }
   }
 

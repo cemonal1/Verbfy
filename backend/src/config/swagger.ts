@@ -1,6 +1,8 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import { Express } from 'express';
 import swaggerUi from 'swagger-ui-express';
+import { createLogger } from '../utils/logger';
+const swaggerLogger = createLogger('SwaggerConfig');
 
 /**
  * OpenAPI 3.0 Specification for Verbfy API
@@ -318,7 +320,9 @@ export function setupSwagger(app: Express): void {
   });
 
   if (isDev) {
-    console.log('📚 Swagger UI available at http://localhost:5000/api-docs');
-    console.log('📄 OpenAPI spec available at http://localhost:5000/api-docs.json');
+    process.stdout.write('📚 Swagger UI available at http://localhost:5000/api-docs
+');
+    process.stdout.write('📄 OpenAPI spec available at http://localhost:5000/api-docs.json
+');
   }
 }
