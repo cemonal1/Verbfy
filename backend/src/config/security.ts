@@ -14,8 +14,8 @@ export const securityHeaders = helmet({
       defaultSrc: ["'self'"],
       scriptSrc: [
         "'self'",
-        "'unsafe-inline'", // Required for Next.js
-        "'unsafe-eval'", // Required for development
+        // NOTE: 'unsafe-inline' removed - use nonce-based CSP via cspNonce middleware
+        ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-eval'"] : []), // Development only
         "https://*.sentry-cdn.com",
         "https://cdn.jsdelivr.net",
         "https://unpkg.com",
@@ -28,10 +28,11 @@ export const securityHeaders = helmet({
       ],
       styleSrc: [
         "'self'",
-        "'unsafe-inline'", // Required for styled-components and CSS-in-JS
+        // NOTE: 'unsafe-inline' removed - use nonce-based CSP via cspNonce middleware
         "https://fonts.googleapis.com",
         "https://cdn.jsdelivr.net",
         "https://unpkg.com",
+        "https://cdnjs.cloudflare.com", // For Font Awesome
       ],
       fontSrc: [
         "'self'",

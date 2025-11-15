@@ -24,6 +24,7 @@ import { setupSocketServer } from './socketServer';
 import { corsConfig, corsMonitoring, preflightHandler, corsErrorHandler, getAllowedOrigins } from './config/cors';
 import { securityMiddleware, ddosProtection, requestSizeLimiter, securityHeaders } from './middleware/security';
 import { securityHeaders as enhancedSecurityHeaders, additionalSecurityHeaders, sanitizeRequest, apiVersioning, requestTimeout, securityMonitoring } from './config/security';
+import { cspNonceMiddleware, buildCSPWithNonce } from './middleware/cspNonce';
 import { performanceMonitoring, startMonitoring, getHealthMetrics, requestTimeoutMonitoring } from './middleware/monitoring';
 import { setupLoggingInterceptor, requestLogger } from './middleware/loggingMiddleware';
 import livekitRoutes from './routes/livekitRoutes';
@@ -173,14 +174,23 @@ try {
 const isDev = process.env.NODE_ENV !== 'production';
 const allowedFrames = (process.env.ALLOWED_FRAME_SRC || '').split(',').map(s => s.trim()).filter(Boolean);
 
+// Apply CSP nonce middleware before helmet
+app.use(cspNonceMiddleware);
+
 // Microphone permission headers already set above
 
 const cspDirectives: any = {
   defaultSrc: ["'self'"],
-  styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-  fontSrc: ["'self'", "https://fonts.gstatic.com"],
-  imgSrc: ["'self'", "data:", "https:"],
-  scriptSrc: isDev ? ["'self'", "'unsafe-inline'", "'unsafe-eval'"] : ["'self'"],
+  styleSrc: [
+    "'self'",
+    // 'unsafe-inline' removed - nonce-based CSP is now used
+    "https://fonts.googleapis.com",
+    "https://cdnjs.cloudflare.com", // Font Awesome
+  ],
+  fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "data:"],
+  imgSrc: ["'self'", "data:", "blob:", "https:"],
+  scriptSrc: isDev ? ["'self'", "'unsafe-eval'"] : ["'self'"],
+  // 'unsafe-inline' removed from scriptSrc - use nonce for inline scripts
   connectSrc: [
     "'self'",
     "https:",
@@ -190,17 +200,23 @@ const cspDirectives: any = {
   ].filter(Boolean),
   // Allow embedding trusted frames for VerbfyGames (iframe-based games)
   frameSrc: isDev ? ["'self'", "https:", "http:", ...allowedFrames] : ["'self'", ...allowedFrames],
-  objectSrc: ["'none'"]
+  objectSrc: ["'none'"],
+  baseUri: ["'self'"],
+  frameAncestors: ["'none'"]
 };
 app.use(helmet({
   contentSecurityPolicy: { directives: cspDirectives },
   crossOriginEmbedderPolicy: false
 }));
 
-// Relax CSP specifically for OAuth callback pages to avoid inline/CSP issues from providers
+// Apply nonce-based CSP for OAuth callback pages
 app.use('/api/auth/oauth', (req, res, next) => {
-  try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'self'; object-src 'none'");
+  const nonce = res.locals.cspNonce;
+  if (nonce) {
+    try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
+    const cspString = buildCSPWithNonce(nonce);
+    res.setHeader('Content-Security-Policy', cspString);
+  }
   next();
 });
 

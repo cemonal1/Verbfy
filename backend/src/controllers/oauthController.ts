@@ -162,15 +162,16 @@ export const oauthCallback = async (req: Request, res: Response): Promise<void> 
       user: { id: user._id, _id: user._id, name: user.name, email: user.email, role: user.role },
     };
     
-    // Serve minimal HTML with better CSP handling and origin validation
+    // Serve minimal HTML with nonce-based CSP
+    const nonce = res.locals.cspNonce || '';
     try { res.removeHeader('Content-Security-Policy'); } catch (_) {}
     res.set('Content-Type', 'text/html');
-    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'self';");
-    
+    res.set('Content-Security-Policy', `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self'; frame-ancestors 'self'; object-src 'none';`);
+
     const html = `<!DOCTYPE html>
       <html><head><meta charset="utf-8"/></head>
       <body>
-        <script>
+        <script nonce="${nonce}">
           try {
             const payload = ${JSON.stringify(payload)};
             const allowedOrigins = ${JSON.stringify(allowedOrigins)};
