@@ -65,6 +65,7 @@ import { VerbfyTalkController } from './controllers/verbfyTalkController';
 import { performanceMiddleware, memoryTrackingMiddleware, requestSizeMiddleware } from './middleware/performanceMiddleware';
 import { setSocketIO } from './socket';
 import { requestIdMiddleware } from './middleware/requestId';
+import { setupSwagger } from './config/swagger';
 
 // Load environment variables and initialize Sentry
 dotenv.config();
@@ -1008,6 +1009,9 @@ app.get('/api/health', (_req, res) => {
 });
 
 // CORS test endpoint removed - no longer needed
+
+// Setup Swagger/OpenAPI documentation
+setupSwagger(app);
 
 // Health check routes (before authentication)
 app.use('/health', healthRoutes);
