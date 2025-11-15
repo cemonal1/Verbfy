@@ -88,7 +88,7 @@ export class LessonController {
         }
       });
     } catch (error: any) {
-      lessonLogger.error('Error', { error: 'Error getting student lessons:', error });
+      lessonLogger.error('Error', { requestId: req.requestId, error: 'Error getting student lessons:', error });
       res.status(500).json({ 
         success: false, 
         message: 'Failed to get student lessons' 
@@ -169,7 +169,7 @@ export class LessonController {
         data: transformedLesson
       });
     } catch (error: any) {
-      lessonLogger.error('Error', { error: 'Error getting lesson:', error });
+      lessonLogger.error('Error', { requestId: req.requestId, error: 'Error getting lesson:', error });
       res.status(500).json({ 
         success: false, 
         message: 'Failed to get lesson' 
@@ -233,7 +233,7 @@ export class LessonController {
         data: { lessonId: lesson._id, status: lesson.status }
       });
     } catch (error: any) {
-      lessonLogger.error('Error', { error: 'Error joining lesson:', error });
+      lessonLogger.error('Error', { requestId: req.requestId, error: 'Error joining lesson:', error });
       res.status(500).json({ 
         success: false, 
         message: 'Failed to join lesson' 
@@ -285,7 +285,7 @@ export class LessonController {
         data: { lessonId: lesson._id, status: lesson.status }
       });
     } catch (error: any) {
-      lessonLogger.error('Error', { error: 'Error leaving lesson:', error });
+      lessonLogger.error('Error', { requestId: req.requestId, error: 'Error leaving lesson:', error });
       res.status(500).json({ 
         success: false, 
         message: 'Failed to leave lesson' 
@@ -340,7 +340,7 @@ export class LessonController {
         data: { lessonId: lesson._id }
       });
     } catch (error: any) {
-      lessonLogger.error('Error', { error: 'Error creating lesson:', error });
+      lessonLogger.error('Error', { requestId: req.requestId, error: 'Error creating lesson:', error });
       res.status(500).json({ 
         success: false, 
         message: 'Failed to create lesson' 

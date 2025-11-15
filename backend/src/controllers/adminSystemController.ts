@@ -76,7 +76,7 @@ export const getSystemHealth = async (req: AuthRequest, res: Response): Promise<
 
   } catch (error) {
     adminSystemLogger.error('System health check failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      requestId: req.requestId, error: error instanceof Error ? error.message : 'Unknown error',
       adminId: req.user?.id
     });
 
@@ -217,7 +217,7 @@ export const getSystemStats = async (req: AuthRequest, res: Response): Promise<v
 
   } catch (error) {
     adminSystemLogger.error('Failed to retrieve system stats', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      requestId: req.requestId, error: error instanceof Error ? error.message : 'Unknown error',
       adminId: req.user?.id
     });
 
@@ -265,7 +265,7 @@ export const clearCache = async (req: AuthRequest, res: Response): Promise<void>
 
   } catch (error) {
     adminSystemLogger.error('Failed to clear cache', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      requestId: req.requestId, error: error instanceof Error ? error.message : 'Unknown error',
       adminId: req.user?.id,
       pattern: req.body.pattern
     });
@@ -342,7 +342,7 @@ export const getAuditLogs = async (req: AuthRequest, res: Response): Promise<voi
 
   } catch (error) {
     adminSystemLogger.error('Failed to retrieve audit logs', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      requestId: req.requestId, error: error instanceof Error ? error.message : 'Unknown error',
       adminId: req.user?.id
     });
 
@@ -418,7 +418,7 @@ export const getSecurityAlerts = async (req: AuthRequest, res: Response): Promis
 
   } catch (error) {
     adminSystemLogger.error('Failed to retrieve security alerts', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      requestId: req.requestId, error: error instanceof Error ? error.message : 'Unknown error',
       adminId: req.user?.id
     });
 

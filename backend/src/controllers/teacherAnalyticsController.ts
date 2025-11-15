@@ -84,7 +84,7 @@ export class TeacherAnalyticsController {
         data: analytics
       });
     } catch (error: any) {
-      teacherAnalyticsLogger.error('Error', { error: 'Error generating teacher analytics:', error });
+      teacherAnalyticsLogger.error('Error', { requestId: req.requestId, error: 'Error generating teacher analytics:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to generate analytics'
@@ -120,7 +120,7 @@ export class TeacherAnalyticsController {
         data: analytics
       });
     } catch (error: any) {
-      teacherAnalyticsLogger.error('Error', { error: 'Error fetching teacher analytics:', error });
+      teacherAnalyticsLogger.error('Error', { requestId: req.requestId, error: 'Error fetching teacher analytics:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to fetch analytics'
@@ -155,7 +155,7 @@ export class TeacherAnalyticsController {
         data: performance
       });
     } catch (error: any) {
-      teacherAnalyticsLogger.error('Error', { error: 'Error fetching student performance:', error });
+      teacherAnalyticsLogger.error('Error', { requestId: req.requestId, error: 'Error fetching student performance:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to fetch student performance'
@@ -197,7 +197,7 @@ export class TeacherAnalyticsController {
         data: analytics
       });
     } catch (error: any) {
-      teacherAnalyticsLogger.error('Error', { error: 'Error fetching lesson analytics:', error });
+      teacherAnalyticsLogger.error('Error', { requestId: req.requestId, error: 'Error fetching lesson analytics:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to fetch lesson analytics'
@@ -252,7 +252,7 @@ export class TeacherAnalyticsController {
         data: metrics
       });
     } catch (error: any) {
-      teacherAnalyticsLogger.error('Error', { error: 'Error fetching engagement metrics:', error });
+      teacherAnalyticsLogger.error('Error', { requestId: req.requestId, error: 'Error fetching engagement metrics:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to fetch engagement metrics'

@@ -16,7 +16,7 @@ export const getTeacherAvailability = async (req: AuthRequest, res: Response): P
       data: availability
     });
   } catch (error: any) {
-    teacherLogger.error('Error', { error: 'Error getting teacher availability:', error });
+    teacherLogger.error('Error', { requestId: req.requestId, error: 'Error getting teacher availability:', error });
     res.status(500).json({ 
       success: false,
       message: error.message || 'Failed to get availability' 
@@ -81,7 +81,7 @@ export const setTeacherAvailability = async (req: AuthRequest, res: Response): P
       data: result 
     });
   } catch (error: any) {
-    teacherLogger.error('Error', { error: 'Error setting teacher availability:', error });
+    teacherLogger.error('Error', { requestId: req.requestId, error: 'Error setting teacher availability:', error });
     res.status(500).json({ 
       success: false,
       message: error.message || 'Failed to set availability' 
@@ -116,7 +116,7 @@ export const updateAvailabilitySlot = async (req: AuthRequest, res: Response): P
       data: updatedSlot 
     });
   } catch (error: any) {
-    teacherLogger.error('Error', { error: 'Error updating availability slot:', error });
+    teacherLogger.error('Error', { requestId: req.requestId, error: 'Error updating availability slot:', error });
     res.status(500).json({ 
       success: false,
       message: error.message || 'Failed to update availability slot' 
@@ -145,7 +145,7 @@ export const deleteAvailabilitySlot = async (req: AuthRequest, res: Response): P
       message: 'Availability slot deleted successfully' 
     });
   } catch (error: any) {
-    teacherLogger.error('Error', { error: 'Error deleting availability slot:', error });
+    teacherLogger.error('Error', { requestId: req.requestId, error: 'Error deleting availability slot:', error });
     res.status(500).json({ 
       success: false,
       message: error.message || 'Failed to delete availability slot' 

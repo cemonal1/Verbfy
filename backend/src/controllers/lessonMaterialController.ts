@@ -78,7 +78,7 @@ export const uploadMaterial = async (req: AuthRequest, res: Response): Promise<v
     });
 
   } catch (error: any) {
-    lessonMaterialLogger.error('Error', { error: 'Error uploading material:', error });
+    lessonMaterialLogger.error('Error', { requestId: req.requestId, error: 'Error uploading material:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to upload material' 
     });
@@ -121,7 +121,7 @@ export const getTeacherMaterials = async (req: AuthRequest, res: Response): Prom
     });
 
   } catch (error: any) {
-    lessonMaterialLogger.error('Error', { error: 'Error fetching teacher materials:', error });
+    lessonMaterialLogger.error('Error', { requestId: req.requestId, error: 'Error fetching teacher materials:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to fetch materials' 
     });
@@ -166,7 +166,7 @@ export const getPublicMaterials = async (req: AuthRequest, res: Response): Promi
     });
 
   } catch (error: any) {
-    lessonMaterialLogger.error('Error', { error: 'Error fetching public materials:', error });
+    lessonMaterialLogger.error('Error', { requestId: req.requestId, error: 'Error fetching public materials:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to fetch materials' 
     });
@@ -224,7 +224,7 @@ export const getMaterialById = async (req: AuthRequest, res: Response): Promise<
     });
 
   } catch (error: any) {
-    lessonMaterialLogger.error('Error', { error: 'Error fetching material:', error });
+    lessonMaterialLogger.error('Error', { requestId: req.requestId, error: 'Error fetching material:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to fetch material' 
     });
@@ -281,7 +281,7 @@ export const updateMaterial = async (req: AuthRequest, res: Response): Promise<v
     });
 
   } catch (error: any) {
-    lessonMaterialLogger.error('Error', { error: 'Error updating material:', error });
+    lessonMaterialLogger.error('Error', { requestId: req.requestId, error: 'Error updating material:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to update material' 
     });
@@ -330,7 +330,7 @@ export const deleteMaterial = async (req: AuthRequest, res: Response): Promise<v
     });
 
   } catch (error: any) {
-    lessonMaterialLogger.error('Error', { error: 'Error deleting material:', error });
+    lessonMaterialLogger.error('Error', { requestId: req.requestId, error: 'Error deleting material:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to delete material' 
     });

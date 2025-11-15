@@ -9,6 +9,9 @@ declare global {
     interface Request {
       requestId?: string;
     }
+    interface Locals {
+      requestId?: string;
+    }
   }
 }
 
@@ -17,6 +20,7 @@ export const requestIdMiddleware = (req: Request, res: Response, next: NextFunct
   const requestId = existingRequestId || uuidv4();
 
   req.requestId = requestId;
+  res.locals.requestId = requestId;
   res.setHeader('X-Request-ID', requestId);
 
   if (!existingRequestId) {

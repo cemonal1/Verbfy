@@ -119,14 +119,14 @@ export const uploadMaterial = async (req: Request, res: Response): Promise<void>
     });
 
   } catch (error) {
-    materialsLogger.error('Error', { error: 'Upload material error:', error });
+    materialsLogger.error('Error', { requestId: req.requestId, error: 'Upload material error:', error });
     
     // Clean up uploaded file if database save failed
     if (req.file) {
       try {
         await unlinkAsync(req.file.path);
       } catch (unlinkError) {
-        materialsLogger.error('Error', { error: 'Failed to delete uploaded file:', unlinkError });
+        materialsLogger.error('Error', { requestId: req.requestId, error: 'Failed to delete uploaded file:', unlinkError });
       }
     }
 
@@ -213,7 +213,7 @@ export const getMaterials = async (req: Request, res: Response): Promise<void> =
     });
 
   } catch (error) {
-    materialsLogger.error('Error', { error: 'Get materials error:', error });
+    materialsLogger.error('Error', { requestId: req.requestId, error: 'Get materials error:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve materials'
@@ -260,7 +260,7 @@ export const getMaterialById = async (req: Request, res: Response): Promise<void
     });
 
   } catch (error) {
-    materialsLogger.error('Error', { error: 'Get material by ID error:', error });
+    materialsLogger.error('Error', { requestId: req.requestId, error: 'Get material by ID error:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve material'
@@ -347,7 +347,7 @@ export const previewMaterial = async (req: Request, res: Response): Promise<void
     res.sendFile(filePath);
 
   } catch (error) {
-    materialsLogger.error('Error', { error: 'Preview material error:', error });
+    materialsLogger.error('Error', { requestId: req.requestId, error: 'Preview material error:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to preview material'
@@ -424,7 +424,7 @@ export const downloadMaterial = async (req: Request, res: Response): Promise<voi
     res.sendFile(filePath);
 
   } catch (error) {
-    materialsLogger.error('Error', { error: 'Download material error:', error });
+    materialsLogger.error('Error', { requestId: req.requestId, error: 'Download material error:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to download material'
@@ -465,7 +465,7 @@ export const createJsonMaterial = async (req: Request, res: Response): Promise<v
 
     res.status(201).json(material);
   } catch (error) {
-    materialsLogger.error('Error', { error: 'Create JSON material error:', error });
+    materialsLogger.error('Error', { requestId: req.requestId, error: 'Create JSON material error:', error });
     res.status(500).json({ message: 'Failed to create material' });
   }
 };
@@ -532,7 +532,7 @@ export const updateMaterial = async (req: Request, res: Response): Promise<void>
     res.json(material);
 
   } catch (error) {
-    materialsLogger.error('Error', { error: 'Update material error:', error });
+    materialsLogger.error('Error', { requestId: req.requestId, error: 'Update material error:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to update material'
@@ -587,7 +587,7 @@ export const deleteMaterial = async (req: Request, res: Response): Promise<void>
     });
 
   } catch (error) {
-    materialsLogger.error('Error', { error: 'Delete material error:', error });
+    materialsLogger.error('Error', { requestId: req.requestId, error: 'Delete material error:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to delete material'
@@ -625,7 +625,7 @@ export const getMyMaterials = async (req: Request, res: Response): Promise<void>
     });
 
   } catch (error) {
-    materialsLogger.error('Error', { error: 'Get my materials error:', error });
+    materialsLogger.error('Error', { requestId: req.requestId, error: 'Get my materials error:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve your materials'

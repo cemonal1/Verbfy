@@ -120,7 +120,7 @@ export class OrganizationController {
         message: 'Organization created successfully'
       });
     } catch (error) {
-      organizationLogger.error('Error', { error: 'Error creating organization:', error });
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error creating organization:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to create organization'
@@ -171,7 +171,7 @@ export class OrganizationController {
         data: organization
       });
     } catch (error) {
-      organizationLogger.error('Error', { error: 'Error getting organization:', error });
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error getting organization:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to get organization'
@@ -245,7 +245,7 @@ export class OrganizationController {
         message: 'Organization updated successfully'
       });
     } catch (error) {
-      organizationLogger.error('Error', { error: 'Error updating organization:', error });
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error updating organization:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to update organization'
@@ -336,7 +336,7 @@ export class OrganizationController {
         data: stats
       });
     } catch (error) {
-      organizationLogger.error('Error', { error: 'Error getting organization stats:', error });
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error getting organization stats:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to get organization statistics'
@@ -469,7 +469,7 @@ export class OrganizationController {
         message: `Admin ${action}ed successfully`
       });
     } catch (error) {
-      organizationLogger.error('Error', { error: 'Error managing admins:', error });
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error managing admins:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to manage admins'
@@ -546,7 +546,7 @@ export class OrganizationController {
         }
       });
     } catch (error) {
-      organizationLogger.error('Error', { error: 'Error getting organization users:', error });
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error getting organization users:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to get organization users'
@@ -623,7 +623,7 @@ export class OrganizationController {
         message: `Bulk operation '${operation}' completed successfully`
       });
     } catch (error) {
-      organizationLogger.error('Error', { error: 'Error performing bulk operations:', error });
+      organizationLogger.error('Error', { requestId: req.requestId, error: 'Error performing bulk operations:', error });
       res.status(500).json({
         success: false,
         message: 'Failed to perform bulk operations'

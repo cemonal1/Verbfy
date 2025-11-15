@@ -190,9 +190,9 @@ export const bookReservation = async (req: AuthRequest, res: Response): Promise<
       });
       
       await notification.save();
-      reservationLogger.info('Log', { data: `Notification created for teacher ${teacherId} about new booking` });
+      reservationLogger.info('Log', { requestId: req.requestId, data: `Notification created for teacher ${teacherId} about new booking` });
     } catch (notificationError) {
-      reservationLogger.error('Error', { error: 'Error creating notification:', notificationError });
+      reservationLogger.error('Error', { requestId: req.requestId, error: 'Error creating notification:', notificationError });
       // Don't fail the booking if notification fails
     }
 
@@ -219,7 +219,7 @@ export const bookReservation = async (req: AuthRequest, res: Response): Promise<
     });
 
   } catch (error: any) {
-    reservationLogger.error('Error', { error: 'Error booking reservation:', error });
+    reservationLogger.error('Error', { requestId: req.requestId, error: 'Error booking reservation:', error });
     
     // Abort transaction on error
     await session.abortTransaction();
@@ -236,7 +236,7 @@ export const bookReservation = async (req: AuthRequest, res: Response): Promise<
 export const getStudentBookings = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const studentId = req.user!.id;
-    reservationLogger.info('Log', { data: '[getStudentBookings] Fetching bookings for student:', studentId });
+    reservationLogger.info('Log', { requestId: req.requestId, data: '[getStudentBookings] Fetching bookings for student:', studentId });
 
     const now = new Date();
 
@@ -246,7 +246,7 @@ export const getStudentBookings = async (req: AuthRequest, res: Response): Promi
     .populate('teacher', 'name email')
     .sort({ actualDate: 1, startTime: 1 });
 
-    reservationLogger.info('Log', { data: '[getStudentBookings] Found bookings:', allBookings.length });
+    reservationLogger.info('Log', { requestId: req.requestId, data: '[getStudentBookings] Found bookings:', allBookings.length });
 
     // Filter out lessons that have ended
     const activeBookings = allBookings.filter(booking => {
@@ -258,7 +258,7 @@ export const getStudentBookings = async (req: AuthRequest, res: Response): Promi
       return now <= lessonEndTime; // Only include lessons that haven't ended
     });
 
-    reservationLogger.info('Log', { data: '[getStudentBookings] Active bookings after filtering:', activeBookings.length });
+    reservationLogger.info('Log', { requestId: req.requestId, data: '[getStudentBookings] Active bookings after filtering:', activeBookings.length });
 
     res.json({
       bookings: activeBookings.map(booking => ({
@@ -273,8 +273,8 @@ export const getStudentBookings = async (req: AuthRequest, res: Response): Promi
     });
 
   } catch (error: any) {
-    reservationLogger.error('Error', { error: '[getStudentBookings] Error fetching student bookings:', error });
-    reservationLogger.error('Error', { error: '[getStudentBookings] Error stack:', error.stack });
+    reservationLogger.error('Error', { requestId: req.requestId, error: '[getStudentBookings] Error fetching student bookings:', error });
+    reservationLogger.error('Error', { requestId: req.requestId, error: '[getStudentBookings] Error stack:', error.stack });
     res.status(500).json({ 
       message: error.message || 'Failed to fetch bookings' 
     });
@@ -326,7 +326,7 @@ export const getTeacherBookings = async (req: AuthRequest, res: Response): Promi
     });
 
   } catch (error: any) {
-    reservationLogger.error('Error', { error: 'Error fetching teacher bookings:', error });
+    reservationLogger.error('Error', { requestId: req.requestId, error: 'Error fetching teacher bookings:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to fetch bookings' 
     });
@@ -392,7 +392,7 @@ export const cancelReservation = async (req: AuthRequest, res: Response): Promis
     });
 
   } catch (error: any) {
-    reservationLogger.error('Error', { error: 'Error cancelling reservation:', error });
+    reservationLogger.error('Error', { requestId: req.requestId, error: 'Error cancelling reservation:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to cancel reservation' 
     });
@@ -446,7 +446,7 @@ export const getUpcomingReservations = async (req: AuthRequest, res: Response): 
     });
 
   } catch (error: any) {
-    reservationLogger.error('Error', { error: 'Error fetching upcoming reservations:', error });
+    reservationLogger.error('Error', { requestId: req.requestId, error: 'Error fetching upcoming reservations:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to fetch upcoming reservations' 
     });
@@ -492,7 +492,7 @@ export const getStudentReservations = async (req: AuthRequest, res: Response): P
       }
     });
   } catch (error) {
-    reservationLogger.error('Error', { error: 'Error getting student reservations:', error });
+    reservationLogger.error('Error', { requestId: req.requestId, error: 'Error getting student reservations:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to get reservations'
@@ -530,7 +530,7 @@ export const getReservationById = async (req: AuthRequest, res: Response): Promi
 
     res.json(reservation);
   } catch (error: any) {
-    reservationLogger.error('Error', { error: 'Error fetching reservation:', error });
+    reservationLogger.error('Error', { requestId: req.requestId, error: 'Error fetching reservation:', error });
     res.status(500).json({ 
       message: error.message || 'Failed to fetch reservation' 
     });
@@ -632,7 +632,7 @@ export const startLesson = async (req: AuthRequest, res: Response): Promise<void
     });
 
   } catch (error: any) {
-    reservationLogger.error('Error', { error: 'Error starting lesson:', error });
+    reservationLogger.error('Error', { requestId: req.requestId, error: 'Error starting lesson:', error });
     res.status(500).json({ 
       success: false,
       message: error.message || 'Failed to start lesson' 
@@ -728,7 +728,7 @@ export const endLesson = async (req: AuthRequest, res: Response): Promise<void> 
     });
 
   } catch (error: any) {
-    reservationLogger.error('Error', { error: 'Error ending lesson:', error });
+    reservationLogger.error('Error', { requestId: req.requestId, error: 'Error ending lesson:', error });
     res.status(500).json({ 
       success: false,
       message: error.message || 'Failed to end lesson' 

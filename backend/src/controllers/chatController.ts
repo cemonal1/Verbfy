@@ -62,7 +62,7 @@ export const getConversations = async (req: Request, res: Response): Promise<voi
       message: 'Conversations retrieved successfully'
     });
   } catch (error) {
-    chatLogger.error('Error', { error: 'Error getting conversations:', error });
+    chatLogger.error('Error', { requestId: req.requestId, error: 'Error getting conversations:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve conversations'
@@ -164,7 +164,7 @@ export const getOrCreateConversation = async (req: Request, res: Response): Prom
       message: 'Conversation retrieved successfully'
     });
   } catch (error) {
-    chatLogger.error('Error', { error: 'Error getting conversation:', error });
+    chatLogger.error('Error', { requestId: req.requestId, error: 'Error getting conversation:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve conversation'
@@ -242,7 +242,7 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
       message: 'Messages retrieved successfully'
     });
   } catch (error) {
-    chatLogger.error('Error', { error: 'Error getting messages:', error });
+    chatLogger.error('Error', { requestId: req.requestId, error: 'Error getting messages:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve messages'
@@ -327,7 +327,7 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
       message: 'Message sent successfully'
     });
   } catch (error) {
-    chatLogger.error('Error', { error: 'Error sending message:', error });
+    chatLogger.error('Error', { requestId: req.requestId, error: 'Error sending message:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to send message'
@@ -375,7 +375,7 @@ export const markAsRead = async (req: Request, res: Response): Promise<void> => 
       message: 'Messages marked as read'
     });
   } catch (error) {
-    chatLogger.error('Error', { error: 'Error marking messages as read:', error });
+    chatLogger.error('Error', { requestId: req.requestId, error: 'Error marking messages as read:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to mark messages as read'
@@ -402,7 +402,7 @@ export const getUnreadCount = async (req: Request, res: Response): Promise<void>
       message: 'Unread count retrieved successfully'
     });
   } catch (error) {
-    chatLogger.error('Error', { error: 'Error getting unread count:', error });
+    chatLogger.error('Error', { requestId: req.requestId, error: 'Error getting unread count:', error });
     res.status(500).json({
       success: false,
       message: 'Failed to get unread count'

@@ -256,7 +256,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       payload = verifyRefreshToken(token) as { id: string; version: number };
       authLogger.debug('Refresh token verified successfully', { userId: payload.id });
     } catch (error) {
-      authLogger.warn('Refresh token verification failed', { error: error instanceof Error ? error.message : 'Unknown error' });
+      authLogger.warn('Refresh token verification failed', { requestId: req.requestId, error: error instanceof Error ? error.message : 'Unknown error' });
       res.status(401).json({ success: false, message: 'Invalid refresh token' });
       return;
     }

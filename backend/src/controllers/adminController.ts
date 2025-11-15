@@ -77,7 +77,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
       message: 'Users retrieved successfully'
     });
   } catch (error) {
-    adminLogger.error('Error getting users', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error getting users', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve users'
@@ -116,7 +116,7 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
       message: 'User retrieved successfully'
     });
   } catch (error) {
-    adminLogger.error('Error getting user', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error getting user', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve user'
@@ -203,7 +203,7 @@ export const updateUserRole = async (req: Request, res: Response): Promise<void>
       message: 'User role updated successfully'
     });
   } catch (error) {
-    adminLogger.error('Error updating user role', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error updating user role', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to update user role'
@@ -291,7 +291,7 @@ export const updateUserStatus = async (req: Request, res: Response): Promise<voi
       message: 'User status updated successfully'
     });
   } catch (error) {
-    adminLogger.error('Error updating user status:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error updating user status:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to update user status'
@@ -360,7 +360,7 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       message: 'User deleted successfully'
     });
   } catch (error) {
-    adminLogger.error('Error deleting user:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error deleting user:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to delete user'
@@ -490,7 +490,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
 
     res.json({ success: true, data: user, message: 'User updated successfully' });
   } catch (error) {
-    adminLogger.error('Error updating user:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error updating user:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({ success: false, message: 'Failed to update user' });
   }
 };
@@ -504,7 +504,7 @@ export const listPendingTeachers = async (_req: Request, res: Response) => {
       .lean();
     res.json({ success: true, data: users });
   } catch (error) {
-    adminLogger.error('Error listing pending teachers:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error listing pending teachers:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({ success: false, message: 'Failed to list pending teachers' });
   }
 };
@@ -556,7 +556,7 @@ export const approveTeacher = async (req: Request, res: Response): Promise<void>
 
     res.json({ success: true, data: user, message: 'Teacher approved' });
   } catch (error) {
-    adminLogger.error('Error approving teacher:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error approving teacher:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({ success: false, message: 'Failed to approve teacher' });
   }
 };
@@ -616,7 +616,7 @@ export const rejectTeacher = async (req: Request, res: Response): Promise<void> 
 
     res.json({ success: true, data: user, message: `Teacher rejected: ${reason}` });
   } catch (error) {
-    adminLogger.error('Error rejecting teacher:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error rejecting teacher:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({ success: false, message: 'Failed to reject teacher' });
   }
 };
@@ -672,7 +672,7 @@ export const getMaterials = async (req: Request, res: Response): Promise<void> =
       message: 'Materials retrieved successfully'
     });
   } catch (error) {
-    adminLogger.error('Error getting materials:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error getting materials:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve materials'
@@ -722,7 +722,7 @@ export const approveMaterial = async (req: Request, res: Response): Promise<void
       message: `Material ${approved ? 'approved' : 'rejected'} successfully`
     });
   } catch (error) {
-    adminLogger.error('Error approving material:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error approving material:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to approve material'
@@ -749,7 +749,7 @@ export const deleteMaterial = async (req: Request, res: Response): Promise<void>
       message: 'Material deleted successfully'
     });
   } catch (error) {
-    adminLogger.error('Error deleting material:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error deleting material:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to delete material'
@@ -813,7 +813,7 @@ export const refundPayment = async (req: Request, res: Response): Promise<void> 
       message: 'Payment refunded successfully'
     });
   } catch (error) {
-    adminLogger.error('Error refunding payment:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error refunding payment:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to refund payment'
@@ -908,7 +908,7 @@ export const getLogs = async (req: Request, res: Response): Promise<void> => {
       message: 'Logs retrieved successfully'
     });
   } catch (error) {
-    adminLogger.error('Error getting logs:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error getting logs:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve logs'
@@ -993,7 +993,7 @@ export const getOverview = async (req: Request, res: Response): Promise<void> =>
       message: 'Overview data retrieved successfully'
     });
   } catch (error) {
-    adminLogger.error('Error getting overview:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error getting overview:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve overview data'
@@ -1056,7 +1056,7 @@ export const getPayments = async (req: Request, res: Response): Promise<void> =>
       message: 'Payments retrieved successfully'
     });
   } catch (error) {
-    adminLogger.error('Error getting payments:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error getting payments:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve payments'
@@ -1108,7 +1108,7 @@ export const approvePayment = async (req: AuthenticatedRequest, res: Response) =
       message: 'Payment approved successfully'
     });
   } catch (error) {
-    adminLogger.error('Error approving payment:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error approving payment:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to approve payment'
@@ -1163,7 +1163,7 @@ export const rejectPayment = async (req: AuthenticatedRequest, res: Response) =>
       message: 'Payment rejected successfully'
     });
   } catch (error) {
-    adminLogger.error('Error rejecting payment:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error rejecting payment:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to reject payment'
@@ -1227,7 +1227,7 @@ export const createTempAdmin = async (req: Request, res: Response): Promise<void
       }
     });
   } catch (error) {
-    adminLogger.error('Error creating admin:', { error: error instanceof Error ? error.message : error });
+    adminLogger.error('Error creating admin:', { requestId: req.requestId, error: error instanceof Error ? error.message : error });
     res.status(500).json({
       success: false,
       message: 'Failed to create admin'

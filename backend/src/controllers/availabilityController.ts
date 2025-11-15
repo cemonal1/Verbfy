@@ -13,10 +13,10 @@ export const setAvailability = async (req: AuthRequest, res: Response): Promise<
     const teacherId = req.user!.id;
     const { availabilitySlots, teacherTimezone } = req.body;
 
-    availabilityLogger.info('Setting availability for teacher:', { data: teacherId, 'with', availabilitySlots?.length, 'slots' });
+    availabilityLogger.info('Setting availability for teacher:', { requestId: req.requestId, data: teacherId, 'with', availabilitySlots?.length, 'slots' });
 
     if (!availabilitySlots || !Array.isArray(availabilitySlots)) {
-      availabilityLogger.error('Invalid availabilitySlots:', { error: availabilitySlots });
+      availabilityLogger.error('Invalid availabilitySlots:', { requestId: req.requestId, error: availabilitySlots });
       res.status(400).json({ message: 'Availability slots array is required' });
       return;
     }
@@ -78,7 +78,7 @@ export const setAvailability = async (req: AuthRequest, res: Response): Promise<
       slots: result 
     });
   } catch (error: any) {
-    availabilityLogger.error('Error setting availability:', { error: error });
+    availabilityLogger.error('Error setting availability:', { requestId: req.requestId, error: error });
     res.status(500).json({ message: error.message || 'Failed to set availability' });
   }
 };
@@ -95,7 +95,7 @@ export const getTeacherAvailability = async (req: AuthRequest, res: Response): P
     );
     res.json(availability);
   } catch (error: any) {
-    availabilityLogger.error('Error getting availability:', { error: error });
+    availabilityLogger.error('Error getting availability:', { requestId: req.requestId, error: error });
     res.status(500).json({ message: error.message || 'Failed to get availability' });
   }
 };
@@ -112,7 +112,7 @@ export const getMyAvailability = async (req: AuthRequest, res: Response): Promis
     );
     res.json(availability);
   } catch (error: any) {
-    availabilityLogger.error('Error getting my availability:', { error: error });
+    availabilityLogger.error('Error getting my availability:', { requestId: req.requestId, error: error });
     res.status(500).json({ message: error.message || 'Failed to get availability' });
   }
 };
@@ -134,7 +134,7 @@ export const getAvailableSlotsForBooking = async (req: AuthRequest, res: Respons
     );
     res.json(availableSlots);
   } catch (error: any) {
-    availabilityLogger.error('Error getting available slots:', { error: error });
+    availabilityLogger.error('Error getting available slots:', { requestId: req.requestId, error: error });
     res.status(500).json({ message: error.message || 'Failed to get available slots' });
   }
 };
@@ -148,7 +148,7 @@ export const deleteAvailabilitySlot = async (req: AuthRequest, res: Response): P
     await availabilityService.deleteAvailabilitySlot(teacherId, slotId);
     res.json({ message: 'Availability slot deleted successfully' });
   } catch (error: any) {
-    availabilityLogger.error('Error deleting availability slot:', { error: error });
+    availabilityLogger.error('Error deleting availability slot:', { requestId: req.requestId, error: error });
     res.status(500).json({ message: error.message || 'Failed to delete availability slot' });
   }
 }; 
