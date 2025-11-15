@@ -129,12 +129,15 @@ const withPWA = require('next-pwa')({
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  
-  // Enable static export for Cloudflare Pages (disabled in development)
-  ...(process.env.NODE_ENV === 'production' && process.env.NEXT_STATIC_EXPORT === 'true' && {
-    output: 'export',
-    trailingSlash: true,
-  }),
+
+  // Output mode selection:
+  // - 'standalone': Minimal Node.js server for Docker/production (default, best with CSP nonces)
+  // - 'export': Static HTML for CDN deployment (when NEXT_STATIC_EXPORT=true)
+  ...(process.env.NEXT_STATIC_EXPORT === 'true'
+    ? { output: 'export', trailingSlash: true }
+    : process.env.NODE_ENV === 'production'
+      ? { output: 'standalone' }
+      : {}),
   
   // Security headers
   async headers() {
@@ -172,7 +175,7 @@ const nextConfig = {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
 
-  // Image optimization (disabled for static export)
+  // Image optimization
   images: {
     domains: [
       'localhost',
@@ -184,7 +187,8 @@ const nextConfig = {
       'picsum.photos',
       'i.pravatar.cc'
     ],
-    unoptimized: true, // Required for static export
+    // Disable optimization for static export, enable for standalone
+    unoptimized: process.env.NEXT_STATIC_EXPORT === 'true',
   },
 
   // Webpack configuration
