@@ -1,6 +1,9 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
+import { createLogger } from './utils/logger';
+
+const voiceChatLogger = createLogger('VoiceChat');
 
 interface User {
   id: string;
@@ -55,9 +58,8 @@ export class VoiceChatServer {
           if (allowedOrigins.includes(origin)) {
             return callback(null, true);
           }
-          
-          console.log('❌ Voice Chat CORS blocked origin:', origin);
-          console.log('✅ Allowed origins:', allowedOrigins);
+
+          voiceChatLogger.warn('CORS blocked origin', { origin, allowedOrigins });
           return callback(new Error('Not allowed by CORS'), false);
         },
         methods: ["GET", "POST", "OPTIONS"],
@@ -79,8 +81,7 @@ export class VoiceChatServer {
       allowEIO3: true,
       maxHttpBufferSize: 1e6,
       allowRequest: (req, callback) => {
-        // Enhanced connection logging
-        console.log('🔌 Voice Chat connection request:', {
+        voiceChatLogger.debug('Connection request', {
           origin: req.headers.origin,
           upgrade: req.headers.upgrade,
           connection: req.headers.connection,
@@ -92,12 +93,12 @@ export class VoiceChatServer {
 
     this.setupEventHandlers();
     this.startRoomCleanup();
-    console.log('🎤 Voice Chat P2P Server initialized');
+    voiceChatLogger.info('Voice Chat P2P Server initialized');
   }
 
   private setupEventHandlers(): void {
     this.io.on('connection', (socket) => {
-      console.log(`🔌 User connected: ${socket.id}`);
+      voiceChatLogger.info('User connected', { socketId: socket.id });
 
       // Authenticate user
       socket.on('authenticate', (data: { token: string }) => {
@@ -112,9 +113,9 @@ export class VoiceChatServer {
           
           this.users.set(socket.id, user);
           socket.emit('authenticated', { success: true, user: { id: user.id, name: user.name } });
-          console.log(`✅ User authenticated: ${user.name} (${user.id})`);
+          voiceChatLogger.info('User authenticated', { userName: user.name, userId: user.id, socketId: socket.id });
         } catch (error) {
-          console.error('❌ Authentication failed:', error);
+          voiceChatLogger.error('Authentication failed', error);
           socket.emit('authentication_error', { message: 'Invalid token' });
           socket.disconnect();
         }
@@ -129,7 +130,7 @@ export class VoiceChatServer {
         }
 
         const { roomId } = data;
-        console.log(`👤 ${user.name} attempting to join room: ${roomId}`);
+        voiceChatLogger.info('User attempting to join room', { userName: user.name, userId: user.id, roomId });
 
         // Check if room exists and has space
         let room = this.rooms.get(roomId);
@@ -141,12 +142,12 @@ export class VoiceChatServer {
             createdAt: new Date()
           };
           this.rooms.set(roomId, room);
-          console.log(`🏠 Created new room: ${roomId}`);
+          voiceChatLogger.info('Created new room', { roomId });
         }
 
         if (room.users.size >= room.maxUsers) {
           socket.emit('roomFull', { message: 'Room is full (max 5 users)' });
-          console.log(`❌ Room ${roomId} is full`);
+          voiceChatLogger.warn('Room is full', { roomId, currentUsers: room.users.size, maxUsers: room.maxUsers });
           return;
         }
 
@@ -181,7 +182,7 @@ export class VoiceChatServer {
           message: `Joined room ${roomId}`
         });
 
-        console.log(`✅ ${user.name} joined room ${roomId} (${room.users.size}/${room.maxUsers} users)`);
+        voiceChatLogger.info('User joined room', { userName: user.name, userId: user.id, roomId, userCount: room.users.size, maxUsers: room.maxUsers });
       });
 
       // Leave room
@@ -193,12 +194,12 @@ export class VoiceChatServer {
       socket.on('signal', (data: SignalingData) => {
         const user = this.users.get(socket.id);
         if (!user || !user.roomId) {
-          console.log('❌ Signal from unauthenticated user or user not in room');
+          voiceChatLogger.warn('Signal from unauthenticated user or user not in room', { socketId: socket.id });
           return;
         }
 
         const { to, type } = data;
-        console.log(`📡 Signal from ${user.name} to ${to}: ${type}`);
+        voiceChatLogger.debug('WebRTC signal', { from: user.name, to, type });
 
         // Relay signal to target user
         socket.to(to).emit('signal', {
@@ -209,14 +210,14 @@ export class VoiceChatServer {
 
       // Handle disconnection
       socket.on('disconnect', (reason) => {
-        console.log(`🔌 User disconnected: ${socket.id}, reason: ${reason}`);
+        voiceChatLogger.info('User disconnected', { socketId: socket.id, reason });
         this.leaveRoom(socket.id);
         this.users.delete(socket.id);
       });
 
       // Handle connection errors
       socket.on('error', (error) => {
-        console.error(`❌ Socket error for ${socket.id}:`, error);
+        voiceChatLogger.error('Socket error', error);
       });
     });
   }
@@ -240,24 +241,27 @@ export class VoiceChatServer {
       socketId: socketId
     });
 
-    console.log(`👋 ${user.name} left room ${user.roomId} (${room.users.size}/${room.maxUsers} users)`);
+    voiceChatLogger.info('User left room', { userName: user.name, userId: user.id, roomId: user.roomId, userCount: room.users.size, maxUsers: room.maxUsers });
 
     // Clean up empty rooms
     if (room.users.size === 0) {
       this.rooms.delete(user.roomId);
-      console.log(`🗑️ Deleted empty room: ${user.roomId}`);
+      voiceChatLogger.info('Deleted empty room', { roomId: user.roomId });
     }
   }
 
   private startRoomCleanup(): void {
     // Clean up empty rooms every 5 minutes
     setInterval(() => {
-      const now = new Date();
+      let cleanedCount = 0;
       for (const [roomId, room] of this.rooms.entries()) {
         if (room.users.size === 0) {
           this.rooms.delete(roomId);
-          console.log(`🗑️ Cleaned up empty room: ${roomId}`);
+          cleanedCount++;
         }
+      }
+      if (cleanedCount > 0) {
+        voiceChatLogger.info('Periodic room cleanup completed', { cleanedRooms: cleanedCount });
       }
     }, 5 * 60 * 1000);
   }
