@@ -532,6 +532,25 @@ export const approveTeacher = async (req: Request, res: Response): Promise<void>
       });
     } catch (_e) { /* non-blocking */ }
 
+    // Create audit log
+    try {
+      await AuditLog.create({
+        userId: (req as any).user?.id,
+        event: {
+          type: 'teacher.approve',
+          category: 'authorization',
+          action: 'approve_teacher',
+          resource: 'teacher',
+          resourceId: id,
+          description: `Teacher ${user.name} (${user.email}) approved`,
+          severity: 'medium'
+        },
+        request: { method: req.method, url: req.originalUrl, ip: req.ip, userAgent: req.get('user-agent') || '' },
+        response: { statusCode: 200, statusMessage: 'OK', responseTime: 0 },
+        metadata: { tags: ['teacher', 'approve'] }
+      } as any);
+    } catch (e) { /* non-blocking */ }
+
     res.json({ success: true, data: user, message: 'Teacher approved' });
   } catch (error) {
     console.error('Error approving teacher:', error);
@@ -572,6 +591,25 @@ export const rejectTeacher = async (req: Request, res: Response): Promise<void> 
         meta: { approvalStatus: 'rejected', reason }
       });
     } catch (_e) { /* non-blocking */ }
+
+    // Create audit log
+    try {
+      await AuditLog.create({
+        userId: (req as any).user?.id,
+        event: {
+          type: 'teacher.reject',
+          category: 'authorization',
+          action: 'reject_teacher',
+          resource: 'teacher',
+          resourceId: id,
+          description: `Teacher ${user.name} (${user.email}) rejected: ${reason}`,
+          severity: 'medium'
+        },
+        request: { method: req.method, url: req.originalUrl, ip: req.ip, userAgent: req.get('user-agent') || '' },
+        response: { statusCode: 200, statusMessage: 'OK', responseTime: 0 },
+        metadata: { tags: ['teacher', 'reject'], reason }
+      } as any);
+    } catch (e) { /* non-blocking */ }
 
     res.json({ success: true, data: user, message: `Teacher rejected: ${reason}` });
   } catch (error) {

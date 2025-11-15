@@ -128,13 +128,12 @@ describe('Admin Controller', () => {
       expect(updatedUser?.role).toBe(newRole);
 
       // Verify audit log was created
-      // TODO: Fix audit log assertion
-      // const auditLog = await AuditLog.findOne({ 
-      //   'event.type': 'user.role_update',
-      //   'event.resourceId': testUser._id.toString()
-      // });
-      // expect(auditLog).toBeTruthy();
-      // expect(auditLog?.userId?.toString()).toBe(adminUser._id.toString());
+      const auditLog = await AuditLog.findOne({
+        'event.type': 'user.role_update',
+        'event.resourceId': testUser._id.toString()
+      });
+      expect(auditLog).toBeTruthy();
+      expect(auditLog?.userId?.toString()).toBe(adminUser._id.toString());
     });
 
     it('should reject invalid roles', async () => {
@@ -187,12 +186,11 @@ describe('Admin Controller', () => {
       expect(updatedUser?.isActive).toBe(false);
 
       // Verify audit log was created
-      // TODO: Fix audit log assertion
-      // const auditLog = await AuditLog.findOne({ 
-      //   'event.type': 'user.status_update',
-      //   'event.resourceId': testUser._id.toString()
-      // });
-      // expect(auditLog).toBeTruthy();
+      const auditLog = await AuditLog.findOne({
+        'event.type': 'user.status_update',
+        'event.resourceId': testUser._id.toString()
+      });
+      expect(auditLog).toBeTruthy();
     });
 
     it('should reject invalid status values', async () => {
@@ -228,12 +226,11 @@ describe('Admin Controller', () => {
       expect(deletedUser).toBeNull();
 
       // Verify audit log was created
-      // TODO: Fix audit log assertion
-      // const auditLog = await AuditLog.findOne({ 
-      //   'event.action': 'delete',
-      //   'event.resourceId': testUser._id.toString()
-      // });
-      // expect(auditLog).toBeTruthy();
+      const auditLog = await AuditLog.findOne({
+        'event.type': 'user.delete',
+        'event.resourceId': testUser._id.toString()
+      });
+      expect(auditLog).toBeTruthy();
     });
 
     it('should return 404 for non-existent user', async () => {
@@ -281,19 +278,18 @@ describe('Admin Controller', () => {
       expect(approvedTeacher?.approvalStatus).toBe('approved');
 
       // Verify notification was created for teacher
-      const notification = await Notification.findOne({ 
+      const notification = await Notification.findOne({
         recipient: teacherUser._id,
         type: 'admin'
       });
       expect(notification).toBeTruthy();
 
       // Verify audit log was created
-      // TODO: Fix audit log assertion
-      // const auditLog = await AuditLog.findOne({ 
-      //   'event.action': 'approve',
-      //   'event.resourceId': teacherUser._id.toString()
-      // });
-      // expect(auditLog).toBeTruthy();
+      const auditLog = await AuditLog.findOne({
+        'event.type': 'teacher.approve',
+        'event.resourceId': teacherUser._id.toString()
+      });
+      expect(auditLog).toBeTruthy();
     });
 
     it('should return 404 for non-existent teacher', async () => {
@@ -331,7 +327,7 @@ describe('Admin Controller', () => {
       expect(rejectedTeacher?.approvalStatus).toBe('rejected');
 
       // Verify notification was created for teacher
-      const notification = await Notification.findOne({ 
+      const notification = await Notification.findOne({
         recipient: teacherUser._id,
         type: 'admin'
       });
@@ -339,12 +335,11 @@ describe('Admin Controller', () => {
       expect(notification?.body).toContain(rejectionReason);
 
       // Verify audit log was created
-      // TODO: Fix audit log assertion
-      // const auditLog = await AuditLog.findOne({ 
-      //   'event.action': 'reject',
-      //   'event.resourceId': teacherUser._id.toString()
-      // });
-      // expect(auditLog).toBeTruthy();
+      const auditLog = await AuditLog.findOne({
+        'event.type': 'teacher.reject',
+        'event.resourceId': teacherUser._id.toString()
+      });
+      expect(auditLog).toBeTruthy();
     });
 
     it('should require rejection reason', async () => {
